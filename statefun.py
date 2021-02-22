@@ -3,6 +3,7 @@ from visualization import *
 from functools import wraps
 from flask import Flask, render_template, Markup
 import base64
+import logging
 
 classes: List[PyClass] = []
 app = Flask(__name__)
@@ -10,6 +11,15 @@ app = Flask(__name__)
 
 def dataflow(cls):
     classes.insert(0, ClassExtraction(cls).get())
+
+
+def init():
+    if len(classes) == 0:
+        logging.warning("No classes defined with @dataflow annotation.")
+        return
+
+    resolver = ClassDependencyResolver(classes)
+    resolver.resolve()
 
 
 def visualize():

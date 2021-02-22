@@ -1,51 +1,9 @@
 import inspect
 import ast
 from collections import OrderedDict
-from typing import List, Tuple, Any, Dict
-from dataclasses import dataclass, field
+from typing import *
+from pytypes import *
 import logging
-import sys
-
-
-class PyState:
-    def __init__(self, identifier: str, keys: List[str], type_map: List[str]):
-        self.identifier = identifier
-        self.keys = keys
-        self.type_map = type_map
-
-    def __str__(self):
-        return f"PyState: {self.identifier}, keys: <{self.keys}>, type_map: <{self.type_map}>."
-
-
-class PyFunc:
-    def __init__(self, identifier, args, return_values):
-        self.identifier: str = identifier
-        self.args: OrderedDict = args
-        self.return_values: List[OrderedDict] = return_values
-
-    def get_arg_at_pos(self, pos) -> Tuple[str, Any]:
-        if (pos - 1) > len(self.args):
-            raise AttributeError(
-                f"{self.identifier} has only {len(self.args)} arguments."
-            )
-
-        i = 0
-        for k, v in self.args.items():
-            if i == pos:
-                return k, v
-
-    def __str__(self):
-        return f"PyFunc: {self.identifier}, args: <{self.args}>, return_values: <{self.return_values}>."
-
-
-class PyClass:
-    def __init__(self, identifier, funs: List[PyFunc], state: PyState):
-        self.identifier = identifier
-        self.funs = funs
-        self.state = state
-
-    def __str__(self):
-        return f"PyClass: state <{self.state}>, functions: <{self.funs}>."
 
 
 class ClassExtraction:
@@ -206,6 +164,14 @@ class ClassExtraction:
             ):
                 state[target.attr] = assign_node.annotation.id
         return state
+
+
+class ClassDependencyResolver:
+    def __init__(self, classes: List[PyClass]):
+        self.classes = classes
+
+    def resolve(self):
+        pass
 
 
 # logging.root.setLevel(logging.NOTSET)
