@@ -1,9 +1,5 @@
-# Stateful dataflows
-Prototype which extracts stateful dataflows by analysing Python code. 
-
-To visualize a dataflow:
-```python
 from dataflow import dataflow, visualize
+
 
 @dataflow
 class Item:
@@ -38,6 +34,3 @@ class UserAccount:
 
 
 visualize()
-```
-
-This will run a Flask application, visualizing the dataflow on `localhost:5000`.

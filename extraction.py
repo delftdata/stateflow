@@ -3,7 +3,6 @@ import ast
 from collections import OrderedDict
 from typing import List, Tuple, Any, Dict
 from dataclasses import dataclass, field
-from demo import UserAccount
 import logging
 import sys
 
@@ -40,7 +39,7 @@ class PyFunc:
 
 
 class PyClass:
-    def __init__(self, identifier, funs: List[PyFunc], state: List[PyState]):
+    def __init__(self, identifier, funs: List[PyFunc], state: PyState):
         self.identifier = identifier
         self.funs = funs
         self.state = state
@@ -175,7 +174,7 @@ class ClassExtraction:
                     return_dict[f"return_value_{i}"] = annotation[i]
             else:
                 logging.warning(
-                    f"Expected {len(annotation)} return arguments, but got {len(value.ets)}. Annotated all types with None."
+                    f"Expected {len(annotation)} return arguments, but got {value}. Annotated all types with None."
                 )
                 for i, _ in enumerate(value.elts):
                     return_dict[f"return_value_{i}"] = None
@@ -209,7 +208,4 @@ class ClassExtraction:
         return state
 
 
-logging.root.setLevel(logging.NOTSET)
-
-user = ClassExtraction(UserAccount).get()
-print(user)
+# logging.root.setLevel(logging.NOTSET)
