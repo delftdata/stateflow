@@ -3,7 +3,9 @@ Prototype which extracts stateful dataflows by analysing Python code.
 
 To visualize a dataflow:
 ```python
-from dataflow import dataflow, visualize
+import statefun
+from statefun import dataflow
+
 
 @dataflow
 class Item:
@@ -22,7 +24,7 @@ class Item:
 class UserAccount:
     def __init__(self, username: str):
         self.username: int = username
-        self.balance = 0
+        self.balance: int = 0
 
     # Item state could be available already.
     def buy_item(self, item: Item, amount: int) -> bool:
@@ -37,7 +39,8 @@ class UserAccount:
         return self.balance
 
 
-visualize()
+statefun.init()
+statefun.visualize()
 ```
 
 This will run a Flask application, visualizing the dataflow on `localhost:5000`.
