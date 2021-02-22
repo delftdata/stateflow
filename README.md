@@ -49,6 +49,7 @@ This will run a Flask application, visualizing the dataflow on `localhost:5000`.
 - [ ] Add class and function dependencies (think about when state is necessary, when functions need to be called, etc.)
 - [ ] Read (state) only functions, make write functions
 - [ ] Model data flow on the function granularity
+- [ ] Somehow model keys
 - [ ] Add abstraction between dataflow and graphviz
 - [ ] Docstrings
 - [ ] Test
