@@ -54,6 +54,7 @@ This will run a Flask application, visualizing the dataflow on `localhost:5000`.
 - [ ] Somehow model keys
 - [ ] Support `AugAssign` to identify state. 
 - [ ] Support stateless functions (i.e. function defs)
+- [x] Move parameters from `OrderedDict` datatype to `List[PyParam]`  
 - [ ] Add abstraction between dataflow and graphviz
 - [ ] Docstrings
 - [ ] Test
