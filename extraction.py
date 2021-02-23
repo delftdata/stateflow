@@ -70,7 +70,7 @@ class ClassExtraction:
     def __parse_function(self, fun_node: ast.FunctionDef) -> PyFunc:
         # Extract arguments.
         fun_args: list[ast.arguments] = fun_node.args
-        parsed_fun_args: OrderedDict = OrderedDict()
+        parsed_fun_args: List[PyParam] = []
         for i, arg in enumerate(fun_args.args):
             if i == 0 and arg.arg == "self":  # Self arguments are skipped.
                 continue
@@ -80,7 +80,7 @@ class ClassExtraction:
             if arg.annotation is not None:
                 annotation = arg.annotation.id
 
-            parsed_fun_args[arg.arg] = annotation
+            parsed_fun_args.append(PyParam(arg.arg, annotation))
 
         # Extract return values.
         parsed_return_vals: List[OrderedDict] = []
@@ -209,12 +209,12 @@ class ClassDependencyResolver:
     def __resolve_class_ref(self, clasz: PyClass):
         for fun in clasz.funs:
             # Get class dependencies through
-            for arg_key, arg_type in fun.args.items():
-                if arg_type in self.class_keys:
-                    idx = self.class_keys.index(arg_type)
+            for param in fun.args:
+                if param.type in self.class_keys:
+                    idx = self.class_keys.index(param.type)
 
                     ref: PyClassRef = PyClassRef(self.class_keys[idx])
-                    fun.args[arg_key] = PyClassRef(self.class_keys[idx])
+                    param.type = PyClassRef(self.class_keys[idx])
                     fun.class_dependency.append(ref)
 
             for body_node in ast.walk(fun._ast):

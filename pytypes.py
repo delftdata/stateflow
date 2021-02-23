@@ -54,9 +54,9 @@ class PyFunc:
         print(f"I'm {self.identifier} and I have {self.write_state} writes.")
 
     def find_class_reference_by_var(self, var: str) -> PyClassRef:
-        for arg_key, arg_value in self.args.items():
-            if arg_key == var:
-                return arg_value
+        for param in self.args:
+            if param.name == var:
+                return param.type
         raise AttributeError(
             f"Could not find PyClassRef for variable {var}. Probably, there went something wrong in extracting class references."
         )

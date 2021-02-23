@@ -62,7 +62,7 @@ class Visualizer:
                         main_edge = True
 
                     input_args = "\\l".join(
-                        [f"{fun_arg[0]}: {fun_arg[1]}" for fun_arg in fun.args.items()]
+                        [f"{param.name}: {param.type}" for param in fun.args]
                     )
 
                     if input_args == "":
@@ -117,11 +117,11 @@ class Visualizer:
                             color=write_color,
                         )
 
-                    for fun_arg in fun.args.items():
-                        if isinstance(fun_arg[1], PyClassRef):
+                    for param in fun.args:
+                        if isinstance(param.type, PyClassRef):
                             graph.edge(
                                 f"{clasz.identifier}_{fun.identifier}_input",
-                                f"{fun_arg[1]}_state",
+                                f"{param.type}_state",
                                 style="dashed",
                                 color=write_color,
                             )
