@@ -46,10 +46,14 @@ statefun.visualize()
 This will run a Flask application, visualizing the dataflow on `localhost:5000`.
 
 ## TODO
-- [ ] Add class and function dependencies (think about when state is necessary, when functions need to be called, etc.)
-- [ ] Read (state) only functions, make write functions
-- [ ] Model data flow on the function granularity
+- [x] Add class and function dependencies (think about when state is necessary, when functions need to be called, etc.)
+- [ ] Read (state) only functions, write (state) functions
+- [x] Model data flow on the function granularity
+- [ ] Support/model state write of input instances (e.g. `item.price = 9`)
+- [ ] Propagate if functions in the flow only access state or also write to it (this way we know if we need to lock it!). 
 - [ ] Somehow model keys
+- [ ] Support `AugAssign` to identify state. 
+- [ ] Support stateless functions (i.e. function defs)
 - [ ] Add abstraction between dataflow and graphviz
 - [ ] Docstrings
 - [ ] Test

@@ -4,7 +4,8 @@ from statefun import dataflow
 
 @dataflow
 class Item:
-    def __init__(self, price: int):
+    def __init__(self, item_id: str, price: int):
+        self.item_id: str = item_id
         self.price: int = price
         self.stock: int = 0
 
@@ -13,6 +14,9 @@ class Item:
             return False  # We can't have a negative stock.
 
         self.stock += delta_stock
+
+    def __hash__(self):
+        return self.item_id
 
 
 @dataflow
@@ -30,8 +34,17 @@ class UserAccount:
         if item.update_stock(-amount):
             self.balance -= amount * item.price
 
+        return True
+
     def get_balance(self) -> int:
         return self.balance
+
+    # def get_balance_2(self, item: Item) -> int:
+    #     balance_diff: int = item.price
+    #     return self.balance - balance_diff
+
+    def __hash__(self):
+        return self.username
 
 
 statefun.init()

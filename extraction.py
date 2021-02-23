@@ -17,7 +17,7 @@ class ClassExtraction:
         funs: List[PyFunc] = self.get_functions()
         state: PyState = self.get_state()
 
-        return PyClass(self.identifier, funs, state)
+        return PyClass(self.identifier, funs, state, self.ast)
 
     def get_state(self) -> PyState:
         state: Dict = {}
@@ -48,6 +48,8 @@ class ClassExtraction:
 
         for node in ast.walk(self.ast):
             if isinstance(node, ast.FunctionDef):
+                if node.name == "__hash__":  # We ignore hash functions for now.
+                    continue
                 parsed_fun: PyFunc = self.__parse_function(node)
                 fun_id: str = parsed_fun.identifier
 
@@ -104,6 +106,7 @@ class ClassExtraction:
                         return_annotations.append(ann.id)
                         for ann in fun_node.returns.slice.value.elts
                     ]
+        write_state = False
         for body_node in ast.walk(fun_node):
             if isinstance(body_node, ast.Return):
                 return_value: OrderedDict = self.__parse_return_node(
@@ -111,11 +114,30 @@ class ClassExtraction:
                 )
                 if return_value is not None:
                     parsed_return_vals.insert(0, return_value)
+            # find if read or write
+            if (
+                isinstance(body_node, ast.Assign)
+                or isinstance(body_node, ast.AnnAssign)
+                or isinstance(body_node, ast.AugAssign)
+            ):
+                target_node = (
+                    body_node.targets[0]
+                    if isinstance(body_node, ast.Assign)
+                    else body_node.target
+                )
+
+                for assign_node in ast.walk(target_node):
+                    if (
+                        isinstance(assign_node, ast.Name) and assign_node.id == "self"
+                    ):  # Now we're updating self
+                        write_state = True
 
         return PyFunc(
             identifier=fun_node.name,
             args=parsed_fun_args,
             return_values=parsed_return_vals,
+            ast=fun_node,
+            write_state=write_state,
         )
 
     def __parse_return_node(
@@ -169,9 +191,63 @@ class ClassExtraction:
 class ClassDependencyResolver:
     def __init__(self, classes: List[PyClass]):
         self.classes = classes
+        self.class_keys = [c.identifier for c in self.classes]
 
     def resolve(self):
-        pass
+        # Since Python interprets code, we need to do a pass again over the AST's to find it's dependency
+        for clasz in self.classes:
+            self.__resolve_class_ref(clasz)
+
+    def __find_fun_by_ref(self, class_id: str, fun_id: str) -> PyFunc:
+        idx: str = self.class_keys.index(class_id)
+
+        for fun in self.classes[idx].funs:
+            if fun.identifier == fun_id:
+                return fun
+        return None
+
+    def __resolve_class_ref(self, clasz: PyClass):
+        for fun in clasz.funs:
+            # Get class dependencies through
+            for arg_key, arg_type in fun.args.items():
+                if arg_type in self.class_keys:
+                    idx = self.class_keys.index(arg_type)
+
+                    ref: PyClassRef = PyClassRef(self.class_keys[idx])
+                    fun.args[arg_key] = PyClassRef(self.class_keys[idx])
+                    fun.class_dependency.append(ref)
+
+            for body_node in ast.walk(fun._ast):
+                if isinstance(body_node, ast.Call):
+                    if isinstance(body_node.func, ast.Attribute):  ## Call on attribute.
+                        attr: ast.Attribute = body_node.func
+                        fun_identifier: str = attr.attr
+
+                        if not isinstance(attr.value, ast.Name):
+                            logging.warning(
+                                f"Expected a simple instance reference in the form of ast.Name, but got {attr.value}."
+                            )
+                            continue
+
+                        clasz_var_identifier: str = attr.value.id
+                        class_ref: PyClassRef = fun.find_class_reference_by_var(
+                            clasz_var_identifier
+                        )
+
+                        ## TODO Check if function ref actually exists
+                        fun_ref: PyFuncRef = PyFuncRef(
+                            class_ref,
+                            fun_identifier,
+                            write_state=self.__find_fun_by_ref(
+                                class_ref.identifier, fun_identifier
+                            ).write_state,
+                        )
+                        fun.fun_dependency.append(fun_ref)
+
+                    elif isinstance(
+                        body_node.func, ast.Name
+                    ):  ## Call probably on stateless fun
+                        pass
 
 
 # logging.root.setLevel(logging.NOTSET)

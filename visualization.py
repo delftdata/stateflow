@@ -1,6 +1,7 @@
 from extraction import PyClass
 from typing import List
 from graphviz import Graph, Digraph
+from pytypes import *
 
 
 class Visualizer:
@@ -63,6 +64,7 @@ class Visualizer:
                     input_args = "\\l".join(
                         [f"{fun_arg[0]}: {fun_arg[1]}" for fun_arg in fun.args.items()]
                     )
+
                     if input_args == "":
                         input_args = "No input"
 
@@ -79,14 +81,14 @@ class Visualizer:
                     cluster.node(
                         f"{clasz.identifier}_{fun.identifier}_input",
                         label=input_args,
-                        shape="record",
+                        shape="rect",
                         style="filled",
                         fillcolor="lightgrey",
                     )
                     cluster.node(
                         f"{clasz.identifier}_{fun.identifier}_output",
                         label=output_args,
-                        shape="record",
+                        shape="rect",
                         style="filled",
                         fillcolor="lightgrey",
                     )
@@ -94,6 +96,36 @@ class Visualizer:
                         f"{clasz.identifier}_{fun.identifier}_input",
                         f"{clasz.identifier}_{fun.identifier}",
                     )
+                    # Links to other nodes
+                    write_color = "darkgreen"
+                    for fun_ref in fun.fun_dependency:
+                        if fun_ref.write_state:
+                            write_color = "crimson"
+                        else:
+                            write_color = "darkgreen"
+
+                        graph.edge(
+                            f"{clasz.identifier}_{fun.identifier}",
+                            f"{fun_ref}_input",
+                            style="dashed",
+                            color=write_color,
+                        )
+                        graph.edge(
+                            f"{fun_ref}_output",
+                            f"{clasz.identifier}_{fun.identifier}",
+                            style="dashed",
+                            color=write_color,
+                        )
+
+                    for fun_arg in fun.args.items():
+                        if isinstance(fun_arg[1], PyClassRef):
+                            graph.edge(
+                                f"{clasz.identifier}_{fun.identifier}_input",
+                                f"{fun_arg[1]}_state",
+                                style="dashed",
+                                color=write_color,
+                            )
+
                     cluster.edge(
                         f"{clasz.identifier}_{fun.identifier}",
                         f"{clasz.identifier}_{fun.identifier}_output",

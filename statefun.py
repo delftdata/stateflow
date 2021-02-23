@@ -6,6 +6,7 @@ import base64
 import logging
 
 classes: List[PyClass] = []
+
 app = Flask(__name__)
 
 
@@ -29,6 +30,7 @@ def visualize():
 @app.route("/")
 def visualize_graph():
     graph = Visualizer(classes).visualize()
+    print(graph)
     chart_output = graph.pipe(format="svg")
 
     return render_template("index.html", chart_output=chart_output)
