@@ -206,6 +206,37 @@ class ClassDependencyResolver:
                 return fun
         return None
 
+    def __var_contains_assign(self, var: str, node) -> bool:
+        """Verifies if an AS(sub-)Tree contains assignment to the variable 'var'.
+        This could be used to verify if a function, updates it's internal state (or is read-only).
+
+        :param var: the var to check for assignment.
+        :param node: the AST.
+        :return:
+        """
+        for child_node in ast.walk(node):
+            if (
+                isinstance(child_node, ast.Assign)
+                or isinstance(child_node, ast.AnnAssign)
+                or isinstance(child_node, ast.AugAssign)
+            ):
+                target = (
+                    child_node.targets[0]
+                    if isinstance(child_node, ast.Assign)
+                    else child_node.target
+                )
+                if isinstance(target, ast.Name) and target.id == var:
+                    return True
+                elif isinstance(target, ast.Tuple) and len(
+                    [
+                        x.id
+                        for x in target.elts
+                        if isinstance(x, ast.Name) and x.id == var
+                    ]
+                ):
+                    return True
+        return False
+
     def __resolve_class_ref(self, clasz: PyClass):
         for fun in clasz.funs:
             # Get class dependencies through

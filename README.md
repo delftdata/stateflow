@@ -54,7 +54,7 @@ This will run a Flask application, visualizing the dataflow on `localhost:5000`.
 
 ## TODO
 - [x] Add class and function dependencies (think about when state is necessary, when functions need to be called, etc.)
-- [ ] Read (state) only functions, write (state) functions
+- [ ] Read (state) only functions, write (state) functions. Add this as property in the class.
 - [x] Model data flow on the function granularity
 - [ ] Support/model state write of input instances (e.g. `item.price = 9`)
 - [ ] Propagate if functions in the flow only access state or also write to it (this way we know if we need to lock it!). 
