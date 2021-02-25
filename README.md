@@ -20,6 +20,7 @@ class Item:
             return False  # We can't have a negative stock.
 
         self.stock += delta_stock
+        return True
 
     def __hash__(self):
         return self.item_id
