@@ -48,9 +48,12 @@ class UserAccount:
 
     def __hash__(self):
         return self.username
+
+statefun.init()
+statefun.visualize()
 ```
 
-This will run a Flask application, visualizing the dataflow on `localhost:5000`.
+This will run a Flask application, visualizing the dataflow on `localhost:5000`. Make sure to have [Graphviz](https://graphviz.org/) installed on your system.
 
 ## TODO
 - [x] Add class and function dependencies (think about when state is necessary, when functions need to be called, etc.)
