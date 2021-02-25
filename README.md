@@ -7,9 +7,11 @@ import statefun
 from statefun import dataflow
 
 
+
 @dataflow
 class Item:
-    def __init__(self, price: int):
+    def __init__(self, item_id: str, price: int):
+        self.item_id: str = item_id
         self.price: int = price
         self.stock: int = 0
 
@@ -18,6 +20,9 @@ class Item:
             return False  # We can't have a negative stock.
 
         self.stock += delta_stock
+
+    def __hash__(self):
+        return self.item_id
 
 
 @dataflow
@@ -35,12 +40,13 @@ class UserAccount:
         if item.update_stock(-amount):
             self.balance -= amount * item.price
 
+        return True
+
     def get_balance(self) -> int:
         return self.balance
 
-
-statefun.init()
-statefun.visualize()
+    def __hash__(self):
+        return self.username
 ```
 
 This will run a Flask application, visualizing the dataflow on `localhost:5000`.
