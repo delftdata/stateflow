@@ -85,6 +85,10 @@ class PyFunc:
     def __str__(self):
         return f"PyFunc: {self.identifier}, args: <{self.args}>, return_values: <{self.return_values}>."
 
+    @staticmethod
+    def parse_pyfunc(ast):
+        return PyFunc()
+
 
 class PyClass:
     def __init__(self, identifier, funs: List[PyFunc], state: PyState, ast):

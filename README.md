@@ -57,6 +57,7 @@ This will run a Flask application, visualizing the dataflow on `localhost:5000`.
 
 ## TODO
 - [x] Add class and function dependencies (think about when state is necessary, when functions need to be called, etc.)
+- [ ] Move the responsibility of parsing each (sub-)AST to a static method in each 'type' (i.e. PyClass, PyFunction, etc.).
 - [ ] Read (state) only functions, write (state) functions. Add this as property in the class.
 - [x] Model data flow on the function granularity
 - [ ] Support/model state write of input instances (e.g. `item.price = 9`)
