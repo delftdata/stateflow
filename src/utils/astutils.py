@@ -26,4 +26,13 @@ def var_contains_assign(var: str, node) -> bool:
                 [x.id for x in target.elts if isinstance(x, ast.Name) and x.id == var]
             ):
                 return True
+            elif isinstance(target, ast.Attribute):
+                if (
+                    isinstance(target.value, ast.Name)
+                    and target.value.id + "." + target.attr == var
+                ):
+                    return True
+                elif target.attr == var:
+                    return True
+
     return False
