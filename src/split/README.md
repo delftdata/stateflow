@@ -14,7 +14,7 @@ class Fun:
         c = a * self.id
         d = sqrt(c)
         e = d + self.id
-        return e
+        return e() + 1
 ```
 
 If we want to execute Fun(1).compute(3), we need to split the function compute in such a way that:
@@ -24,3 +24,7 @@ If we want to execute Fun(1).compute(3), we need to split the function compute i
 A good first step (we consider only a single split):
 1) Identifying where the call is in the AST hierarchy.
 2) See how we can 'split'
+
+A call is just an expression, so it can be evaluated almost _everywhere_. 
+We could compute up and until the point where the Call() is done, then set the result of the Call()
+and start evaluating the next statements. 
