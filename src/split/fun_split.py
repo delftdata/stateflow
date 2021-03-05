@@ -1,3 +1,5 @@
+import operator
+
 import math
 import ast
 import inspect
@@ -5,6 +7,7 @@ from typing import List
 import textwrap
 import astpretty
 import astor
+from functools import reduce
 
 
 def sqrt(x: int) -> int:
@@ -17,6 +20,8 @@ class Calculator:
 
     def computation(self, y: int):
         a = d = self.x + y
+        q = y
+        c = 3
         b = sqrt(a)
         c = a + b + d
         return c
@@ -37,8 +42,10 @@ class Statement:
     ):
         self.contains_call = contains_call
         self.is_assign = is_assign
-        self.assign_list = assign_list
+        self.assign_list = reduce(list.__add__, assign_list, [])
         self.node = node
+
+        print(self.assign_list)
 
     # if len(assign_list)
 
@@ -90,8 +97,11 @@ class StatementBlock:
         self.stmts = stmts
 
     def set_return_statement(self):
-        assign_list = list(set([l.assign_list for l in self.stmts]))
-        if not self.is_assign:
+        assign_list = list(
+            set([item for stmt in self.stmts for item in stmt.assign_list])
+        )
+
+        if len(assign_list) == 0:
             return ast.Return(None)
 
         assigns = [ast.Name(name, ast.Load()) for name in assign_list]
@@ -104,7 +114,6 @@ class StatementBlock:
         return ast.Return(return_body)
 
     def nodes(self):
-        print(self.stmts)
         return list([s.node for s in self.stmts] + [self.set_return_statement()])
 
 
