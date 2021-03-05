@@ -31,12 +31,52 @@ class Calculator:
         return c
 
 
+class Statement:
+    def __init__(self, contains_call: bool, is_assign: bool, assign_list: List[str]):
+        self.contains_call = contains_call
+        self.is_assign = is_assign
+        self.assign_list = assign_list
+
+    @staticmethod
+    def unpack_tuple(node: ast.Tuple) -> List[str]:
+        return list([n.name for n in node.elts])
+
+    @staticmethod
+    def parse_statement(ast_node) -> "Statement":
+        contains_call = []
+        is_assign = False
+        assign_list = []
+
+        if (
+            isinstance(ast_node, ast.Assign)
+            or isinstance(ast_node, ast.AugAssign)
+            or isinstance(ast_node, ast.AnnAssign)
+        ):
+            is_assign = True
+            target = (
+                ast_node.targets[0]
+                if isinstance(ast_node, ast.Assign)
+                else ast_node.target
+            )
+
+            if isinstance(target, ast.Tuple):
+                assign_list.append(Statement.unpack_tuple(target))
+            elif isinstance(target, ast.Name):
+                assign_list.append(target.value)
+
+            print(assign_list)
+
+
 def is_call(ast_node):
     if isinstance(ast_node, ast.Assign):
         expr_value = ast_node.value
         if isinstance(expr_value, ast.Call):
             return True
     return False
+
+
+def compute_break_points(statements: List):
+    return [Statement.parse_statement(stmt) for stmt in statements]
 
 
 def split_functions(fun: ast.FunctionDef) -> List[ast.FunctionDef]:
