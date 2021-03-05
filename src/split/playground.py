@@ -1,6 +1,7 @@
 import ast
 import astor
 import inspect
+import dill
 
 
 def sqrt(a: int) -> int:
@@ -13,13 +14,12 @@ class Fun:
 
     def compute(self, a: int) -> int:
         c = a * self.id
-
-        def x():
-            return 3
-
-        d = sqrt(c)
+        print(f"Computed c: {c}")
+        d = yield sqrt(c)
+        print("HERE")
         e = d + self.id
-        return e
+        print(f"e computed {e}")
+        return f"hihi {e}"
 
 
 def identify_calls(fun_def: ast.FunctionDef):
@@ -53,11 +53,19 @@ class FindCalls(astor.tree_walk.TreeWalk):
 
 
 # Get the compute function definition.
-class_def = ast.parse(inspect.getsource(Fun))
-fun_defs = list([x for x in ast.walk(class_def) if isinstance(x, ast.FunctionDef)])
-compute_fun_def = list([x for x in fun_defs if x.name == "compute"])
+# class_def = ast.parse(inspect.getsource(Fun))
+# fun_defs = list([x for x in ast.walk(class_def) if isinstance(x, ast.FunctionDef)])
+# compute_fun_def = list([x for x in fun_defs if x.name == "compute"])
+#
+# find_calls = FindCalls(class_def)
+# find_calls.visit()
+#
+# identify_calls(compute_fun_def[0])
 
-find_calls = FindCalls(class_def)
-find_calls.visit()
+f = Fun(1)
+routine = f.compute(1)
+next(routine)
 
-identify_calls(compute_fun_def[0])
+
+# routine.send(4)
+# print(routine)
