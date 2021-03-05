@@ -16,9 +16,9 @@ class Calculator:
         self.x = x
 
     def computation(self, y: int):
-        a = self.x + y
+        a = d = self.x + y
         b = sqrt(a)
-        c = a + b
+        c = a + b + d
         return c
 
     def computation_1(self, y):
@@ -32,18 +32,32 @@ class Calculator:
 
 
 class Statement:
-    def __init__(self, contains_call: bool, is_assign: bool, assign_list: List[str]):
+    def __init__(
+        self, contains_call: bool, is_assign: bool, assign_list: List[str], node
+    ):
         self.contains_call = contains_call
         self.is_assign = is_assign
         self.assign_list = assign_list
+        self.node = node
 
     @staticmethod
     def unpack_tuple(node: ast.Tuple) -> List[str]:
-        return list([n.name for n in node.elts])
+        return list([n.id for n in node.elts if isinstance(n, ast.Name)])
+
+    @staticmethod
+    def parse_assign_target(target) -> List[str]:
+        if isinstance(target, list):
+            return [Statement.parse_assign_target(t) for t in target]
+        if isinstance(target, ast.Tuple):
+            return Statement.unpack_tuple(target)
+        elif isinstance(target, ast.Name):
+            return [target.id]
+        else:
+            raise ValueError(f"Expected an ast.Name or ast.Tuple but got {target}.")
 
     @staticmethod
     def parse_statement(ast_node) -> "Statement":
-        contains_call = []
+        contains_call = False
         is_assign = False
         assign_list = []
 
@@ -54,17 +68,24 @@ class Statement:
         ):
             is_assign = True
             target = (
-                ast_node.targets[0]
+                ast_node.targets
                 if isinstance(ast_node, ast.Assign)
                 else ast_node.target
             )
 
-            if isinstance(target, ast.Tuple):
-                assign_list.append(Statement.unpack_tuple(target))
-            elif isinstance(target, ast.Name):
-                assign_list.append(target.value)
+            assign_list = Statement.parse_assign_target(target)
 
-            print(assign_list)
+            if ast_node.value:
+                for val_child in ast.walk(ast_node.value):
+                    if isinstance(val_child, ast.Call):
+                        contains_call = True
+
+        return Statement(contains_call, is_assign, assign_list, ast_node)
+
+
+class StatementList:
+    def __init__(self, stmts: List[Statement]):
+        self.stmts = stmts
 
 
 def is_call(ast_node):
@@ -75,13 +96,15 @@ def is_call(ast_node):
     return False
 
 
-def compute_break_points(statements: List):
-    return [Statement.parse_statement(stmt) for stmt in statements]
+def compute_break_points(body):
+    parsed_stmts = [Statement.parse_statement(stmt) for stmt in body]
+    return parsed_stmts
 
 
 def split_functions(fun: ast.FunctionDef) -> List[ast.FunctionDef]:
     all_funs = []
 
+    stmts = compute_break_points(fun.body)
     current_stmts = []
     for statement in fun.body:
         if is_call(statement):
@@ -123,3 +146,10 @@ statements = split_functions(fun_def.body[0])
 print(statements[0])
 # print(astor.dump_tree(statements[0]))
 print(astor.code_gen.to_source(statements[0]))
+
+
+# TODO
+# 1. Identify block of statements
+# 2. Get input and output of statement blocks
+# 3. Identify which functions need to be called.
+# 4.
