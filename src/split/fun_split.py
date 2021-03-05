@@ -40,6 +40,8 @@ class Statement:
         self.assign_list = assign_list
         self.node = node
 
+    # if len(assign_list)
+
     @staticmethod
     def unpack_tuple(node: ast.Tuple) -> List[str]:
         return list([n.id for n in node.elts if isinstance(n, ast.Name)])
@@ -83,9 +85,27 @@ class Statement:
         return Statement(contains_call, is_assign, assign_list, ast_node)
 
 
-class StatementList:
+class StatementBlock:
     def __init__(self, stmts: List[Statement]):
         self.stmts = stmts
+
+    def set_return_statement(self):
+        assign_list = list(set([l.assign_list for l in self.stmts]))
+        if not self.is_assign:
+            return ast.Return(None)
+
+        assigns = [ast.Name(name, ast.Load()) for name in assign_list]
+
+        if len(assigns) == 1:
+            return_body = assigns[0]
+        else:
+            return_body = ast.Tuple(assigns, ast.Load())
+
+        return ast.Return(return_body)
+
+    def nodes(self):
+        print(self.stmts)
+        return list([s.node for s in self.stmts] + [self.set_return_statement()])
 
 
 def is_call(ast_node):
@@ -96,40 +116,29 @@ def is_call(ast_node):
     return False
 
 
-def compute_break_points(body):
+def compute_break_points(body) -> List[StatementBlock]:
     parsed_stmts = [Statement.parse_statement(stmt) for stmt in body]
-    return parsed_stmts
+    all_blocks = []
+    current_stmt_list = []
+    for stmt in parsed_stmts:
+        if stmt.contains_call:
+            all_blocks.append(StatementBlock(current_stmt_list))
+            current_stmt_list = []
+
+        current_stmt_list.append(stmt)
+
+    all_blocks.append(StatementBlock(current_stmt_list))
+    return all_blocks
 
 
 def split_functions(fun: ast.FunctionDef) -> List[ast.FunctionDef]:
-    all_funs = []
-
     stmts = compute_break_points(fun.body)
-    current_stmts = []
-    for statement in fun.body:
-        if is_call(statement):
-            all_funs.append(list(current_stmts))
-            current_stmts = []
-        current_stmts.append(statement)
-    all_funs.append(list(current_stmts))
 
     # Handle the first set of statements
-    fun_1 = all_funs[0]
-    assigns = []
-    for statement in fun_1:
-        if isinstance(statement, ast.Assign) and isinstance(
-            statement.targets[0], ast.Name
-        ):
-            assigns.append(statement.targets[0].id)
-
-    assigns = [ast.Name(name, ast.Load()) for name in assigns]
+    fun_1 = stmts[0]
     fun.name = fun.name + "_1"
-    if len(assigns) == 1:
-        fun_1.append(ast.Return(assigns[0]))
-    else:
-        fun_1.append(ast.Return(ast.Tuple(assigns, ast.Load())))
 
-    fun.body = fun_1
+    fun.body = fun_1.nodes()
     final_funs = [fun]
 
     return final_funs
@@ -138,7 +147,7 @@ def split_functions(fun: ast.FunctionDef) -> List[ast.FunctionDef]:
 calculator = Calculator(1)
 fun_def = ast.parse(textwrap.dedent(inspect.getsource(calculator.computation.__code__)))
 
-print(ast.parse("return a, b, c").body[0].value.ctx)
+print(ast.parse("return").body[0].value)
 ast.Return(ast.Name("a", ast.Load()))
 statements = split_functions(fun_def.body[0])
 
