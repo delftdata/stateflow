@@ -1,6 +1,7 @@
 import pickle
 from _continuation import generator
 
+
 def external_power(input: int, power: int) -> int:
     return input ** power
 
@@ -24,7 +25,7 @@ class Math:
         # We have the result from b and return c.
         c = a + b
         return c
-        #return cont
+        # return cont
 
 
 ###
@@ -44,4 +45,3 @@ next(math_coroutine)
 ## Step 2
 ###
 dumped = pickle.dumps(math_coroutine)
-

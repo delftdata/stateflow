@@ -13,7 +13,7 @@ class Calculator:
         a = d = self.x + y
         q = y
         c = 3
-        b = sqrt(a)
+        b = sqrt(a, key=1)
         d = c
         e = 4
         g = sqrt(b) + 1
