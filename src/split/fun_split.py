@@ -13,22 +13,14 @@ import beniget
 
 
 class Statement:
-    def __init__(self, contains_call: bool, node):
+    def __init__(
+        self, contains_call: bool, definitions: List[str], usages: List[str], node
+    ):
         self.contains_call = contains_call
         self.node = node
-        self.definitions = []
+        self.definitions = definitions
+        self.usages = usages
         self.usages = []
-
-        for sub_node in ast.walk(node):
-            if isinstance(sub_node, ast.Name):
-                if isinstance(sub_node.ctx, ast.Store):
-                    self.definitions.append(sub_node.id)
-                elif isinstance(sub_node.ctx, ast.Load):
-                    self.usages.append(sub_node.id)
-
-        print(f"definitions: {self.definitions}")
-        print(f"usages: {self.usages}")
-        print("")
 
     def is_assign(self):
         return len(self.definitions)
@@ -51,24 +43,25 @@ class Statement:
     @staticmethod
     def parse_statement(ast_node) -> "Statement":
         contains_call = False
+        definitions = []
+        usages = []
 
-        if (
-            isinstance(ast_node, ast.Assign)
-            or isinstance(ast_node, ast.AugAssign)
-            or isinstance(ast_node, ast.AnnAssign)
-        ):
+        for sub_node in ast.walk(ast_node):
+            if isinstance(sub_node, ast.Name):
+                if isinstance(sub_node.ctx, ast.Store):
+                    definitions.append(sub_node.id)
+                elif isinstance(sub_node.ctx, ast.Load):
+                    usages.append(sub_node.id)
+            if isinstance(sub_node, ast.Call):
+                contains_call = True
 
-            if ast_node.value:
-                for val_child in ast.walk(ast_node.value):
-                    if isinstance(val_child, ast.Call):
-                        contains_call = True
-
-        return Statement(contains_call, ast_node)
+        return Statement(contains_call, definitions, usages, ast_node)
 
 
 class StatementBlock:
     def __init__(self, stmts: List[Statement]):
         self.stmts = stmts
+        self.last_block = False
 
     def get_assignments(self) -> List[str]:
         assign_list = list(
@@ -85,11 +78,9 @@ class StatementBlock:
         for arg in self.get_usages():
             args.append(ast.Name(arg, ast.Param(), None, None))
 
-        arguments = ast.arguments(
-            args,
-        )
+        arguments = ast.arguments(args, [], None, [], [], None, [])
 
-        pass
+        return arguments
 
     def get_return_statement(self) -> ast.Return:
         assign_list = self.get_assignments()
@@ -110,7 +101,10 @@ class StatementBlock:
         return list(set([item for stmt in self.stmts for item in stmt.usages]))
 
     def nodes(self):
-        return list([s.node for s in self.stmts] + [self.get_return_statement()])
+        if self.last_block:
+            return list([s.node for s in self.stmts])
+        else:
+            return list([s.node for s in self.stmts] + [self.get_return_statement()])
 
 
 def is_call(ast_node):
@@ -140,23 +134,31 @@ def compute_break_points(body) -> List[StatementBlock]:
 def split_functions(fun: ast.FunctionDef) -> List[ast.FunctionDef]:
     stmts = compute_break_points(fun.body)
 
+    # Set last statement
+    stmts[-1].last_block = True
+
+    fun_name = fun.name
     # Handle the first set of statements
     fun_1 = stmts[0]
-    fun.name = fun.name + "_1"
+    fun.name = fun_name + "_0"
 
     # astpretty.pprint(
-    print(fun.args.args[0].ctx)
+    print(fun.args.kwarg)
 
     fun.body = fun_1.nodes()
     final_funs = [fun]
 
-    for stmt in stmts[1:]:
-        # Usages
-        stmt.get_usages()
+    for i, stmt in enumerate(stmts[1:]):
+        # Input
+        arguments = stmt.get_arguments()
 
-        # Definitions
-        return_node = stmt.get_return_statement()
-        print(return_node.value)
+        # Output
+        body = stmt.nodes()
+
+        fun_def = ast.FunctionDef(
+            f"{fun_name}_{i + 1}", arguments, body, [], None, None
+        )
+        final_funs.append(fun_def)
 
     return final_funs
 
@@ -167,8 +169,8 @@ def computation(self, y: int):
     a = d = self.x + y
     q = y
     c = 3
-    b = sqrt(a)
-    c = a + b + d
+    if sqrt(c) == 1:
+        c = sqrt(d)
     return c
 """
 fun_def = ast.parse(code)
@@ -182,7 +184,10 @@ statements = split_functions(fun_def.body[0])
 # compile(statements[0], __file__, mode="exec")
 print(statements[0])
 # print(astor.dump_tree(statements[0]))
-print(astor.code_gen.to_source(ast.gast_to_ast(statements[0])))
+print(f"ORIGINAL: {code}")
+print("NEW:")
+for stmt in statements:
+    print(astor.code_gen.to_source(ast.gast_to_ast(stmt)))
 
 # TODO
 # 1. Identify block of statements

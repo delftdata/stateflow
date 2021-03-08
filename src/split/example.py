@@ -14,5 +14,8 @@ class Calculator:
         q = y
         c = 3
         b = sqrt(a)
+        d = c
+        e = 4
+        g = sqrt(b) + 1
         c = a + b + d
         return c
