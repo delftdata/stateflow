@@ -5,3 +5,5 @@ pytest==6.2.2
 astor
 dill==0.3.3
 astpretty
+staticfg
+beniget==0.3.0

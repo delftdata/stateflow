@@ -1,53 +1,37 @@
 import operator
 
 import math
-import ast
 import inspect
 from typing import List
 import textwrap
 import astpretty
 import astor
 from functools import reduce
-
-
-def sqrt(x: int) -> int:
-    return math.sqrt(x)
-
-
-class Calculator:
-    def __init__(self, x: int):
-        self.x = x
-
-    def computation(self, y: int):
-        a = d = self.x + y
-        q = y
-        c = 3
-        b = sqrt(a)
-        c = a + b + d
-        return c
-
-    def computation_1(self, y):
-        a = self.x + y
-        return a
-
-    def computation_2(self, a, sqrt_result):
-        b = sqrt_result
-        c = a + b
-        return c
+import gast as ast
+from example import *
+import beniget
 
 
 class Statement:
-    def __init__(
-        self, contains_call: bool, is_assign: bool, assign_list: List[str], node
-    ):
+    def __init__(self, contains_call: bool, node):
         self.contains_call = contains_call
-        self.is_assign = is_assign
-        self.assign_list = reduce(list.__add__, assign_list, [])
         self.node = node
+        self.definitions = []
+        self.usages = []
 
-        print(self.assign_list)
+        for sub_node in ast.walk(node):
+            if isinstance(sub_node, ast.Name):
+                if isinstance(sub_node.ctx, ast.Store):
+                    self.definitions.append(sub_node.id)
+                elif isinstance(sub_node.ctx, ast.Load):
+                    self.usages.append(sub_node.id)
 
-    # if len(assign_list)
+        print(f"definitions: {self.definitions}")
+        print(f"usages: {self.usages}")
+        print("")
+
+    def is_assign(self):
+        return len(self.definitions)
 
     @staticmethod
     def unpack_tuple(node: ast.Tuple) -> List[str]:
@@ -67,44 +51,53 @@ class Statement:
     @staticmethod
     def parse_statement(ast_node) -> "Statement":
         contains_call = False
-        is_assign = False
-        assign_list = []
 
         if (
             isinstance(ast_node, ast.Assign)
             or isinstance(ast_node, ast.AugAssign)
             or isinstance(ast_node, ast.AnnAssign)
         ):
-            is_assign = True
-            target = (
-                ast_node.targets
-                if isinstance(ast_node, ast.Assign)
-                else ast_node.target
-            )
-
-            assign_list = Statement.parse_assign_target(target)
 
             if ast_node.value:
                 for val_child in ast.walk(ast_node.value):
                     if isinstance(val_child, ast.Call):
                         contains_call = True
 
-        return Statement(contains_call, is_assign, assign_list, ast_node)
+        return Statement(contains_call, ast_node)
 
 
 class StatementBlock:
     def __init__(self, stmts: List[Statement]):
         self.stmts = stmts
 
-    def set_return_statement(self):
+    def get_assignments(self) -> List[str]:
         assign_list = list(
-            set([item for stmt in self.stmts for item in stmt.assign_list])
+            set([item for stmt in self.stmts for item in stmt.definitions])
         )
+        return assign_list
+
+    def get_arguments(self) -> ast.arguments:
+        args = []
+        self_arg = ast.Name("self", ast.Param(), None, None)
+
+        args.append(self_arg)
+
+        for arg in self.get_usages():
+            args.append(ast.Name(arg, ast.Param(), None, None))
+
+        arguments = ast.arguments(
+            args,
+        )
+
+        pass
+
+    def get_return_statement(self) -> ast.Return:
+        assign_list = self.get_assignments()
 
         if len(assign_list) == 0:
             return ast.Return(None)
 
-        assigns = [ast.Name(name, ast.Load()) for name in assign_list]
+        assigns = [ast.Name(name, ast.Load(), None, None) for name in assign_list]
 
         if len(assigns) == 1:
             return_body = assigns[0]
@@ -113,15 +106,19 @@ class StatementBlock:
 
         return ast.Return(return_body)
 
+    def get_usages(self):
+        return list(set([item for stmt in self.stmts for item in stmt.usages]))
+
     def nodes(self):
-        return list([s.node for s in self.stmts] + [self.set_return_statement()])
+        return list([s.node for s in self.stmts] + [self.get_return_statement()])
 
 
 def is_call(ast_node):
     if isinstance(ast_node, ast.Assign):
         expr_value = ast_node.value
-        if isinstance(expr_value, ast.Call):
-            return True
+        for sub_node in ast.walk(expr_value):
+            if isinstance(sub_node, ast.Call):
+                return True
     return False
 
 
@@ -147,24 +144,45 @@ def split_functions(fun: ast.FunctionDef) -> List[ast.FunctionDef]:
     fun_1 = stmts[0]
     fun.name = fun.name + "_1"
 
+    # astpretty.pprint(
+    print(fun.args.args[0].ctx)
+
     fun.body = fun_1.nodes()
     final_funs = [fun]
+
+    for stmt in stmts[1:]:
+        # Usages
+        stmt.get_usages()
+
+        # Definitions
+        return_node = stmt.get_return_statement()
+        print(return_node.value)
 
     return final_funs
 
 
 calculator = Calculator(1)
-fun_def = ast.parse(textwrap.dedent(inspect.getsource(calculator.computation.__code__)))
+code = """
+def computation(self, y: int):
+    a = d = self.x + y
+    q = y
+    c = 3
+    b = sqrt(a)
+    c = a + b + d
+    return c
+"""
+fun_def = ast.parse(code)
 
 print(ast.parse("return").body[0].value)
-ast.Return(ast.Name("a", ast.Load()))
+ast.Return(ast.Name("a", ast.Load(), None, None))
+
 statements = split_functions(fun_def.body[0])
+
 
 # compile(statements[0], __file__, mode="exec")
 print(statements[0])
 # print(astor.dump_tree(statements[0]))
-print(astor.code_gen.to_source(statements[0]))
-
+print(astor.code_gen.to_source(ast.gast_to_ast(statements[0])))
 
 # TODO
 # 1. Identify block of statements
