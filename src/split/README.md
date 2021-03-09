@@ -91,7 +91,9 @@ This algorithm is applied on the _body_ of a function: In Python this is a list 
               ...
            ```
           This means that the actual parameter evaluations are done in the previous statement block.
-     3. Turn each StatementBlock into a **separate** function. Each function gets renamed as `funcname_pos` (i.e. `compute_0`, `compute_1`, etc.). We consider three scenarios for the function definitions:
+2. For each statement block:
+    1. We will do the actual external function calls **between** statements block. Therefore we add the call result as parameter in the statement block with the call. Moreover the actual call in the statement blocks is replaced with a simple lookup.  
+    2. Turn each StatementBlock into a **separate** function. Each function gets renamed as `funcname_pos` (i.e. `compute_0`, `compute_1`, etc.). We consider three scenarios for the function definitions:
         1. The _first_ statement block: this block overrides the body of the original function definition. **TODO: Override return annotation, if it's there**.
         2. The _last_ statement block: this block uses the _original_ return node(s) and no (internal) definitions are returned.
         3. All other statement blocks: this block converts into a function definition where the formal parameters are equal to the usages in that block and the return arguments are the definitions in that block.

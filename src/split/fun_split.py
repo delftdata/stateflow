@@ -19,10 +19,12 @@ class Call:
         identifier: str,
         call_args: List[ast.expr],
         call_args_kw: List[ast.keyword],
+        has_return: bool,
     ):
         self.identifier = identifier
         self.call_args = call_args
         self.call_args_kw = call_args_kw
+        self.has_return = has_return
 
     def build_assignments(self) -> List[Tuple[str, ast.Assign]]:
         positional_args = [
@@ -52,7 +54,7 @@ class Statement:
         definitions: List[str],
         usages: List[str],
         node,
-        call: Call = None,
+        call: Call,
     ):
         self.contains_call = contains_call
         self.node = node
@@ -89,6 +91,7 @@ class Statement:
                 capture_statement.call_identifier,
                 capture_statement.call_args,
                 capture_statement.call_args_kw,
+                True,
             )
         else:
             call = None
@@ -142,8 +145,23 @@ class StatementBlock:
 
         return ast.Return(return_body)
 
+    def get_calls(self):
+        return [stmt.call for stmt in self.stmts if stmt.contains_call]
+
     def get_usages(self):
-        return list(set([item for stmt in self.stmts for item in stmt.usages]))
+        usages = list(set([item for stmt in self.stmts for item in stmt.usages]))
+        calls = self.get_calls()
+
+        if len(calls) > 1:
+            raise AttributeError(
+                f"We can only have 1 call in a statement block. We got {len(calls)}."
+            )
+
+        call_results = []
+        if len(calls) == 1 and calls[0].has_return:
+            call_results.append(f"{calls[0].identifier}_result")
+
+        return usages + call_results
 
     def add_extra_nodes(self, more_nodes):
         self.extra_nodes = self.extra_nodes + more_nodes

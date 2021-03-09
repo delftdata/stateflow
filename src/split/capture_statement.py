@@ -49,4 +49,13 @@ class CaptureStatement(ast.NodeVisitor):
                 f"Expected the call function to be an Attribute or Name, but got {node.func}"
             )
 
+        print(f"Direct parent: {self.ancestors.parent(node)}")
+
+        # If it HAS a return
+        if True:
+            name_node = ast.Name(
+                self.call_identifier + "_result", ast.Load(), None, None
+            )
+            return name_node
+
         return
