@@ -13,5 +13,6 @@ class Calculator:
     def computation(self, a: int) -> int:
         b = a + self.x + 1
         sqr(b * 3)
-        d = b
+        y = sqr(b * 2)
+        d = y + b
         return d

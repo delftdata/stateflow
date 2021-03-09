@@ -113,7 +113,18 @@ def computation_1(self, b, sqr_result):
 ```
 `c` is loaded in the second statement `d = b + c` but has previously been defined. 
 
+
+### Special cases
+- Multiple calls in one statement
+- Nested function call
+- For loops
+- If statements
+- While loop
+- Operator overloading
+
 # Remarks
 - When making the dataflow we consider all potential computations. However, when actually invoking we only consider a part of the dataflow.
 For example, an operator may have multiple outputs in the full dataflow graph but for a function invocation it might only need one output.
 Maybe call this the 'materialized dataflow'. Come up with example and discuss with Kyriakos.
+- Potential PL resources: https://papl.cs.brown.edu/2014/safety-soundness.html and  
+https://dl.acm.org/doi/pdf/10.1145/2544173.2509536

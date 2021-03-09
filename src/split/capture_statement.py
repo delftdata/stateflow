@@ -53,9 +53,11 @@ class CaptureStatement(ast.NodeTransformer):
                 f"Expected the call function to be an Attribute or Name, but got {node.func}"
             )
 
-        if self.ancestors.parentStmt(node) == self.ancestors.parent(node):
+        if isinstance(self.ancestors.parent(node), ast.Expr):
+            print(f"I'm here for the call {self.call_identifier}")
+            print(self.ancestors.parent(node))
             self.empty_statement = True
-            return self.generic_visit(node)
+            return node
 
         # If it HAS a return
         if True:

@@ -32,12 +32,12 @@ class Call:
 
     def build_assignments(self) -> List[Tuple[str, ast.Assign]]:
         positional_args = [
-            self.construct_assignment(f"{self.identifier}_{i}", arg_expr)
+            self.construct_assignment(f"{self.identifier}_arg_{i}", arg_expr)
             for i, arg_expr in enumerate(self.call_args)
         ]
 
         keyword_args = [
-            self.construct_assignment(f"{self.identifier}_{arg.arg}", arg.value)
+            self.construct_assignment(f"{self.identifier}_arg_{arg.arg}", arg.value)
             for arg in self.call_args_kw
         ]
 
@@ -153,7 +153,9 @@ class StatementBlock:
         return ast.Return(return_body)
 
     def get_calls(self):
-        return [stmt.call for stmt in self.stmts if stmt.contains_call]
+        return [
+            stmt.call for stmt in self.stmts if stmt.contains_call and not stmt.empty
+        ]
 
     def get_usages(self):
         usages = list(set([item for stmt in self.stmts for item in stmt.usages]))
@@ -175,16 +177,10 @@ class StatementBlock:
             if i == 0:
                 continue
 
-            print(f"Current: {stmt.node}")
             previous_definitions = flatten([stm.definitions for stm in self.stmts[:i]])
-            print(f"Previous definitions {previous_definitions}")
             for usage in stmt.usages:
-                print(usage)
                 if usage in previous_definitions:
-                    print(f"Now removing: {usage}")
                     stmt.usages.remove(usage)
-
-            print("--")
 
     def add_extra_nodes(self, more_nodes):
         self.extra_nodes = self.extra_nodes + more_nodes
