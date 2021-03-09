@@ -13,6 +13,10 @@ import beniget
 from capture_statement import CaptureStatement
 
 
+def flatten(input):
+    return [item for sublist in input for item in sublist]
+
+
 class Call:
     def __init__(
         self,
@@ -55,12 +59,14 @@ class Statement:
         usages: List[str],
         node,
         call: Call,
+        empty: bool,
     ):
         self.contains_call = contains_call
         self.node = node
         self.definitions = definitions
         self.usages = usages
         self.call = call
+        self.empty = empty
 
     def is_assign(self):
         return len(self.definitions)
@@ -101,15 +107,16 @@ class Statement:
             capture_statement.usages,
             ast_node,
             call,
+            capture_statement.empty_statement,
         )
 
 
 class StatementBlock:
     def __init__(self, stmts: List[Statement]):
-        self.stmts = stmts
-        self.extra_nodes = []
-        self.last_block = False
-        self.extra_definitions = []
+        self.stmts: List[Statement] = stmts
+        self.extra_nodes: List = []
+        self.last_block: bool = False
+        self.extra_definitions: List[str] = []
 
     def get_definitions(self) -> List[str]:
         assign_list = list(
@@ -163,15 +170,31 @@ class StatementBlock:
 
         return usages + call_results
 
+    def clear_usages(self):
+        for i, stmt in enumerate(self.stmts):
+            if i == 0:
+                continue
+
+            print(f"Current: {stmt.node}")
+            previous_definitions = flatten([stm.definitions for stm in self.stmts[:i]])
+            print(f"Previous definitions {previous_definitions}")
+            for usage in stmt.usages:
+                print(usage)
+                if usage in previous_definitions:
+                    print(f"Now removing: {usage}")
+                    stmt.usages.remove(usage)
+
+            print("--")
+
     def add_extra_nodes(self, more_nodes):
         self.extra_nodes = self.extra_nodes + more_nodes
 
     def nodes(self):
         if self.last_block:
-            return list([s.node for s in self.stmts]) + self.extra_nodes
+            return list([s.node for s in self.stmts if not s.empty]) + self.extra_nodes
         else:
             return list(
-                [s.node for s in self.stmts]
+                [s.node for s in self.stmts if not s.empty]
                 + self.extra_nodes
                 + [self.get_return_statement()]
             )
@@ -219,12 +242,15 @@ def split_functions(fun: ast.FunctionDef) -> List[ast.FunctionDef]:
 
     # Handle the first set of statements
     fun_1 = stmts[0]
+    fun_1.clear_usages()
     fun.name = fun_name + "_0"
 
     fun.body = fun_1.nodes()
     final_funs = [fun]
 
     for i, stmt in enumerate(stmts[1:]):
+        stmt.clear_usages()
+
         # Input
         arguments = stmt.get_arguments()
 
@@ -251,19 +277,14 @@ def computation(self, y: int):
 """
 fun_def = ast.parse(textwrap.dedent(inspect.getsource(calculator.computation.__code__)))
 
-print(ast.parse("return").body[0].value)
-ast.Return(ast.Name("a", ast.Load(), None, None))
-global ancestors
-
-ancestors = beniget.Ancestors()
-ancestors.visit(fun_def)
 statements = split_functions(fun_def.body[0])
 
 
 # compile(statements[0], __file__, mode="exec")
-print(statements[0])
 # print(astor.dump_tree(statements[0]))
-print(f"ORIGINAL: {code}")
+print(
+    f"ORIGINAL: \n {textwrap.dedent(inspect.getsource(calculator.computation.__code__))}"
+)
 print("NEW:")
 for stmt in statements:
     print(astor.code_gen.to_source(ast.gast_to_ast(stmt)))

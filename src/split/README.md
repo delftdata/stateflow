@@ -101,6 +101,17 @@ This algorithm is applied on the _body_ of a function: In Python this is a list 
          
         
 
+### Overriding usages
+To decide on the parameters of a (sub-)function, we look at all the usages of that function. More specifically, we look at all the `Name(id, ast.Load())` nodes.
+However, a used parameter can also be defined in the same (sub-)function therefore we _remove_ all usages of a statement which are defined before.
+For example:
+```python
+def computation_1(self, b, sqr_result):
+    c = sqr_result
+    d = b + c
+    return d
+```
+`c` is loaded in the second statement `d = b + c` but has previously been defined. 
 
 # Remarks
 - When making the dataflow we consider all potential computations. However, when actually invoking we only consider a part of the dataflow.

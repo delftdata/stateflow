@@ -2,7 +2,7 @@ import gast as ast
 import beniget
 
 
-class CaptureStatement(ast.NodeVisitor):
+class CaptureStatement(ast.NodeTransformer):
     def __init__(self, stmt_node):
         self.node = stmt_node
 
@@ -15,6 +15,8 @@ class CaptureStatement(ast.NodeVisitor):
         self.call_args = []
         self.call_args_kw = []
 
+        self.empty_statement = False
+
         self.definitions = []
         self.usages = []
 
@@ -23,6 +25,8 @@ class CaptureStatement(ast.NodeVisitor):
             self.definitions.append(node.id)
         elif isinstance(node.ctx, ast.Load):
             self.usages.append(node.id)
+
+        return node
 
     def visit_Call(self, node):
         if self.has_call:
@@ -49,7 +53,9 @@ class CaptureStatement(ast.NodeVisitor):
                 f"Expected the call function to be an Attribute or Name, but got {node.func}"
             )
 
-        print(f"Direct parent: {self.ancestors.parent(node)}")
+        if self.ancestors.parentStmt(node) == self.ancestors.parent(node):
+            self.empty_statement = True
+            return self.generic_visit(node)
 
         # If it HAS a return
         if True:
