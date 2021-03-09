@@ -5,6 +5,12 @@
 | __Term__                   | __Explanation__                                                                                                                                                                            |
 |----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Dataflow                   |                                                                                                                                                                                            |
+| Dataflow operator          | h                                                                                                                                                                                          |         
+| Dataflow edge | Represent the (direct) data dependencies between dataflow operators. This includes the state of a function. Data flows over the edges and invoke other functions in the form of events. |
+| Stateful function | A set of dataflow operators which share the same state.  |
+| Stateless function | A single dataflow operator which does _not_ rely on any state and only requires the function (i.e. operator) input.|
+| Ingress | An input source which publishes events _into_ the dataflow. |
+| Egress | An output source which consumes events _from_ the dataflow. |
 | Abstract Syntax Tree (AST) | An AST is an abstract tree representation of the syntacic structure of source code of a programming language. In this tree, each node denotes a construct which occurs in the source code. |
 ## Function Splitting
 The goal of the __function splitting__ implementation is to transform a function in such a way that no nested function exists within that function.
@@ -14,7 +20,7 @@ Instead, the function is split in such a way that function are not _nested_ but 
 def sqr(x: int) -> int:
     y = x**2
     return y
-
+__
 def compute(a: int) -> int:
     b = a + 1
     c = sqr(b * 3)
@@ -60,4 +66,4 @@ The difficulty of this task is to identify _where_ to split a function, to _isol
 For the function splitting we consider the abstract syntax tree (AST)
 ### High Level Algorithm
 
-1. 
+1. Consider 
