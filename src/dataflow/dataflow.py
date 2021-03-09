@@ -74,10 +74,10 @@ class Edge:
         return self.event
 
     def flow(self, event: Event) -> List[Event]:
-        if not self.to_operator:
-            return [self.event]
-
         output_event: Event = self.to_operator.invoke(event)
+
+        if len(self.to_operator.outgoing_edges) == 0:
+            return [output_event]
 
         outputs = []
         for edge in self.to_operator.outgoing_edges:
