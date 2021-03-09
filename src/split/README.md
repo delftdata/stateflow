@@ -67,3 +67,8 @@ For the function splitting we consider the abstract syntax tree (AST)
 ### High Level Algorithm
 
 1. Consider 
+
+# Remarks
+- When making the dataflow we consider all potential computations. However, when actually invoking we only consider a part of the dataflow.
+For example, an operator may have multiple outputs in the full dataflow graph but for a function invocation it might only need one output.
+Maybe call this the 'materialized dataflow'. Come up with example and discuss with Kyriakos.
