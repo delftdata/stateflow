@@ -106,12 +106,13 @@ class StatementBlock:
         self.stmts = stmts
         self.extra_nodes = []
         self.last_block = False
+        self.extra_definitions = []
 
-    def get_assignments(self) -> List[str]:
+    def get_definitions(self) -> List[str]:
         assign_list = list(
             set([item for stmt in self.stmts for item in stmt.definitions])
         )
-        return assign_list
+        return assign_list + self.extra_definitions
 
     def get_arguments(self) -> ast.arguments:
         args = []
@@ -127,7 +128,7 @@ class StatementBlock:
         return arguments
 
     def get_return_statement(self) -> ast.Return:
-        assign_list = self.get_assignments()
+        assign_list = self.get_definitions()
 
         if len(assign_list) == 0:
             return ast.Return(None)
@@ -180,9 +181,9 @@ def compute_break_points(body) -> List[StatementBlock]:
             # Now also ensure that the arguments of the call are evaluated
             call_arguments = stmt.call.build_assignments()
             statement_block.add_extra_nodes([arg for arg_id, arg in call_arguments])
-            stmt.definitions = stmt.definitions + [
+            statement_block.extra_definitions = [
                 arg_id for arg_id, arg in call_arguments
-            ]
+            ] + statement_block.extra_definitions
 
         current_stmt_list.append(stmt)
 
@@ -197,12 +198,10 @@ def split_functions(fun: ast.FunctionDef) -> List[ast.FunctionDef]:
     stmts[-1].last_block = True
 
     fun_name = fun.name
+
     # Handle the first set of statements
     fun_1 = stmts[0]
     fun.name = fun_name + "_0"
-
-    # astpretty.pprint(
-    print(fun.args.kwarg)
 
     fun.body = fun_1.nodes()
     final_funs = [fun]

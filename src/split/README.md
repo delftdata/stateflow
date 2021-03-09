@@ -65,8 +65,35 @@ Obviously, we need some sort of 'control' or 'runtime' which will ensure that th
 The difficulty of this task is to identify _where_ to split a function, to _isolate_ this function call and add to a function _chain_ in such a way that the semantics of the function chain is equal to that of the function to split.
 For the function splitting we consider the abstract syntax tree (AST)
 ### High Level Algorithm
+This algorithm is applied on the _body_ of a function: In Python this is a list of `ast.stmt` objects.
+1. For each `stmt` in the function `body`.
+    1. Parse the `stmt`:
+        - check if it has a **call** to an external (stateful) function. If it has an call, then store all parameters for this call.
+        - find all **definitions** of this statement (i.e. assignments `a = 3`)
+        - find all **usages** of this statement (i.e. binary operation `a + 3`)
+    2. If the current `stmt` contains a call:
+        - 'Split' the function by adding all previous statements to a statement block. The `stmt` with the actual call belongs the _next_ statement block.
+        - All parameters for the function call are _added_ as definitions in the previous statement block. For example:
+           ```python
+            def fun():
+               a = 3
+               external_call(a + 1)
+              ...
+           ```
+            Will be split like this:
+            ```python
+               # Statement Block 0
+               a = 3
+               external_call_0 = a + 1
+               # --- SPLIT
+               # Statement Block 1
+               external_call(external_call_0)
+              ...
+           ```
+          This means that the actual parameter evaluations are done in the previous statement block.
+     3. wip
+        
 
-1. Consider 
 
 # Remarks
 - When making the dataflow we consider all potential computations. However, when actually invoking we only consider a part of the dataflow.
