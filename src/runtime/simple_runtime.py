@@ -1,7 +1,7 @@
 from dataflow import *
 
 
-class TestRuntime:
+class SimpleRuntime:
     def __init__(self, dataflow: Dataflow):
         self.dataflow = Dataflow
 
