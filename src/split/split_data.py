@@ -8,11 +8,13 @@ class Call:
         identifier: str,
         call_args: List[ast.expr],
         call_args_kw: List[ast.keyword],
+        call_return_name: str,
         has_return: bool,
     ):
         self.identifier = identifier
         self.call_args = call_args
         self.call_args_kw = call_args_kw
+        self.call_return_name = call_return_name
         self.has_return = has_return
 
     def build_assignments(self) -> List[Tuple[str, ast.Assign]]:

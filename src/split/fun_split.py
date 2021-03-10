@@ -121,9 +121,11 @@ class StatementBlock:
         ]
 
     def get_usages(self):
-        usages = (
-            list(set([item for stmt in self.stmts for item in stmt.usages]))
-            + self.extra_usages
+        usages = list(
+            set(
+                [item for stmt in self.stmts for item in stmt.usages]
+                + self.extra_usages
+            )
         )
         calls = self.get_calls()
 
@@ -134,7 +136,7 @@ class StatementBlock:
 
         call_results = []
         if len(calls) == 1 and calls[0].has_return:
-            call_results.append(f"{calls[0].identifier}_result")
+            call_results.append(calls[0].call_return_name)
 
         return usages + call_results
 
@@ -147,6 +149,12 @@ class StatementBlock:
             for usage in stmt.usages:
                 if usage in previous_definitions:
                     stmt.usages.remove(usage)
+
+        all_definitions = self.get_definitions()
+
+        for usage in self.extra_usages:
+            if usage in all_definitions:
+                self.extra_usages.remove(usage)
 
     def add_extra_nodes(self, more_nodes):
         self.extra_nodes = self.extra_nodes + more_nodes
@@ -208,6 +216,7 @@ def split_functions(fun: ast.FunctionDef) -> List[ast.FunctionDef]:
     # Handle the first set of statements
     fun_1 = stmts[0]
     fun_1.clear_usages()
+    fun.returns = None
     fun.name = fun_name + "_0"
 
     fun.body = fun_1.nodes()

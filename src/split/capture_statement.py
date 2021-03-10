@@ -21,16 +21,16 @@ class CaptureStatement(ast.NodeTransformer):
         self.usages = []
 
     def visit_Name(self, node):
-        if isinstance(node.ctx, ast.Store):
+        if isinstance(node.ctx, ast.Store) and node.id != "self":
             self.definitions.append(node.id)
-        elif isinstance(node.ctx, ast.Load):
+        elif isinstance(node.ctx, ast.Load) and node.id != "self":
             self.usages.append(node.id)
 
         return node
 
     def visit_Call(self, node):
-        if self.has_call:
-            raise AttributeError("Multiple calls in one statement. Aborting.")
+        # if self.has_call:
+        #     raise AttributeError("Multiple calls in one statement. Aborting.")
 
         # Get call parameter expressions
         self.has_call = True
@@ -51,17 +51,24 @@ class CaptureStatement(ast.NodeTransformer):
                 f"Expected the call function to be an Attribute or Name, but got {node.func}"
             )
 
-        self.calls.append(Call(call_identifier, node.args, node.keywords, True))
+        call_return_name = f"{call_identifier}_{len(self.calls)}_result"
+        self.calls.append(
+            Call(call_identifier, node.args, node.keywords, call_return_name, True)
+        )
 
         if isinstance(self.ancestors.parent(node), ast.Expr):
-            print(f"I'm here for the call {call_identifier}")
             print(self.ancestors.parent(node))
             self.empty_statement = True
             return node
 
         # If it HAS a return
         if True:
-            name_node = ast.Name(call_identifier + "_result", ast.Load(), None, None)
+            name_node = ast.Name(
+                call_return_name,
+                ast.Load(),
+                None,
+                None,
+            )
             return name_node
 
         return
@@ -70,6 +77,10 @@ class CaptureStatement(ast.NodeTransformer):
 def get_usages(value: ast.Expr) -> List[str]:
     usages: List[str] = []
     for node in ast.walk(value):
-        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+        if (
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id != "self"
+        ):
             usages.append(node.id)
     return usages

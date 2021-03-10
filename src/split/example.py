@@ -10,9 +10,9 @@ class Calculator:
     def __init__(self, x: int):
         self.x = x
 
-    def computation(self, a: int) -> int:
-        b = a + self.x + 1
-        sqr(b * 3)
-        y = sqr(b * 2)
-        d = y + b
-        return d
+    def computation(self, y):
+        a = self.x + 1
+        sqr(y + 2)
+        sqr(y + 3)
+        c = a + self.x
+        return c
