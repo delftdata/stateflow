@@ -10,45 +10,12 @@ from functools import reduce
 import gast as ast
 from example import *
 import beniget
-from capture_statement import CaptureStatement
+from capture_statement import CaptureStatement, get_usages
+from split_data import Call
 
 
 def flatten(input):
     return [item for sublist in input for item in sublist]
-
-
-class Call:
-    def __init__(
-        self,
-        identifier: str,
-        call_args: List[ast.expr],
-        call_args_kw: List[ast.keyword],
-        has_return: bool,
-    ):
-        self.identifier = identifier
-        self.call_args = call_args
-        self.call_args_kw = call_args_kw
-        self.has_return = has_return
-
-    def build_assignments(self) -> List[Tuple[str, ast.Assign]]:
-        positional_args = [
-            self.construct_assignment(f"{self.identifier}_arg_{i}", arg_expr)
-            for i, arg_expr in enumerate(self.call_args)
-        ]
-
-        keyword_args = [
-            self.construct_assignment(f"{self.identifier}_arg_{arg.arg}", arg.value)
-            for arg in self.call_args_kw
-        ]
-
-        return positional_args + keyword_args
-
-    @staticmethod
-    def construct_assignment(
-        identifier: str, expression: ast.expr
-    ) -> Tuple[str, ast.Assign]:
-        assign_name = ast.Name(identifier, ast.Store(), None, None)
-        return identifier, ast.Assign([assign_name], expression)
 
 
 class Statement:
@@ -93,12 +60,7 @@ class Statement:
         capture_statement.visit(ast_node)
 
         if capture_statement.has_call:
-            call = Call(
-                capture_statement.call_identifier,
-                capture_statement.call_args,
-                capture_statement.call_args_kw,
-                True,
-            )
+            call = capture_statement.calls[0]
         else:
             call = None
         return Statement(
@@ -117,6 +79,7 @@ class StatementBlock:
         self.extra_nodes: List = []
         self.last_block: bool = False
         self.extra_definitions: List[str] = []
+        self.extra_usages: List[str] = []
 
     def get_definitions(self) -> List[str]:
         assign_list = list(
@@ -158,7 +121,10 @@ class StatementBlock:
         ]
 
     def get_usages(self):
-        usages = list(set([item for stmt in self.stmts for item in stmt.usages]))
+        usages = (
+            list(set([item for stmt in self.stmts for item in stmt.usages]))
+            + self.extra_usages
+        )
         calls = self.get_calls()
 
         if len(calls) > 1:
@@ -221,6 +187,9 @@ def compute_break_points(body) -> List[StatementBlock]:
             statement_block.extra_definitions = [
                 arg_id for arg_id, arg in call_arguments
             ] + statement_block.extra_definitions
+            statement_block.extra_usages = statement_block.extra_usages + flatten(
+                [get_usages(arg.value) for _, arg in call_arguments]
+            )
 
         current_stmt_list.append(stmt)
 

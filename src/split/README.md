@@ -90,7 +90,7 @@ This algorithm is applied on the _body_ of a function: In Python this is a list 
                external_call(external_call_0)
               ...
            ```
-          This means that the actual parameter evaluations are done in the previous statement block.
+          This means that the actual parameter evaluations are done in the previous statement block. Moreover, the 'usages' of the value of the `Assign` are identified.
 2. For each statement block:
     1. We will do the actual external function calls **between** statements block. Therefore we add the call result as parameter in the statement block with the call. Moreover the actual call in the statement blocks is replaced with a simple lookup.  
     2. Turn each StatementBlock into a **separate** function. Each function gets renamed as `funcname_pos` (i.e. `compute_0`, `compute_1`, etc.). We consider three scenarios for the function definitions:

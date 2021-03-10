@@ -1,5 +1,7 @@
 import gast as ast
 import beniget
+from split_data import Call
+from typing import List
 
 
 class CaptureStatement(ast.NodeTransformer):
@@ -10,11 +12,9 @@ class CaptureStatement(ast.NodeTransformer):
         self.ancestors.visit(stmt_node)
 
         # Call related data.
-        self.has_call = False
-        self.call_identifier = ""
-        self.call_args = []
-        self.call_args_kw = []
+        self.calls = []
 
+        self.has_call = False
         self.empty_statement = False
 
         self.definitions = []
@@ -34,8 +34,6 @@ class CaptureStatement(ast.NodeTransformer):
 
         # Get call parameter expressions
         self.has_call = True
-        self.call_args = node.args
-        self.call_args_kw = node.keywords
 
         # Get function identifier.
         # We assume it to be:
@@ -43,27 +41,35 @@ class CaptureStatement(ast.NodeTransformer):
         # 2. item.call_fun(arg_1, arg_2)
         # Stuff like Item().call_fun() is not yet supported.
         if isinstance(node.func, ast.Name):
-            self.call_identifier = node.func.id
+            call_identifier = node.func.id
         elif isinstance(node.func, ast.Attribute) and isinstance(
             node.func.value, ast.Name
         ):
-            self.call_identifier = node.func.attr
+            call_identifier = node.func.attr
         else:
             raise AttributeError(
                 f"Expected the call function to be an Attribute or Name, but got {node.func}"
             )
 
+        self.calls.append(Call(call_identifier, node.args, node.keywords, True))
+
         if isinstance(self.ancestors.parent(node), ast.Expr):
-            print(f"I'm here for the call {self.call_identifier}")
+            print(f"I'm here for the call {call_identifier}")
             print(self.ancestors.parent(node))
             self.empty_statement = True
             return node
 
         # If it HAS a return
         if True:
-            name_node = ast.Name(
-                self.call_identifier + "_result", ast.Load(), None, None
-            )
+            name_node = ast.Name(call_identifier + "_result", ast.Load(), None, None)
             return name_node
 
         return
+
+
+def get_usages(value: ast.Expr) -> List[str]:
+    usages: List[str] = []
+    for node in ast.walk(value):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            usages.append(node.id)
+    return usages
