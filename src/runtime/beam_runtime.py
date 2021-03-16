@@ -11,7 +11,11 @@ class BeamOperator(DoFn):
 
     STATE_SPEC = ReadModifyWriteStateSpec("state", BytesCoder())
 
+    def __init__(self, fun):
+        self.fun = fun
+
     def process(self, element, state=DoFn.StateParam(STATE_SPEC)):
+        # WE NEED TO EMBED THE PyFunc HERE!
         current_value = state.read() or None
         print(f"Processing {element}")
         if element[0] == "CREATE":
