@@ -7,3 +7,4 @@ dill==0.3.3
 astpretty
 staticfg
 beniget==0.3.0
+apache-flink==1.12.2
