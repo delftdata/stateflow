@@ -1,5 +1,6 @@
 import pytest
 from src.analysis.extract_stateful import ExtractStatefulFun, StatefulFun
+
 import libcst as cst
 
 
