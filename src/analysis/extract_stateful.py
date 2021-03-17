@@ -21,4 +21,5 @@ class ExtractStatefulFun(cst.CSTVisitor):
 
 
 class ExtractStatefulEvent(cst.CSTVisitor):
-    pass
+    def visit_Name(self, node: "Name") -> Optional[bool]:
+        pass
