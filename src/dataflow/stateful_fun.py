@@ -1,5 +1,5 @@
 from .event import Event
-from .state import StateDescription
+from .state import StateDescription, NoType
 from typing import Any
 
 
