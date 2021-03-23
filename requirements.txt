@@ -5,6 +5,5 @@ pytest==6.2.2
 dill==0.3.3
 libcst==0.3.17
 astpretty
-staticfg
 beniget==0.3.0
-apache-beam
+apache-beam==2.28.0
