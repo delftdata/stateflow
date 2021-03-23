@@ -3,7 +3,9 @@ import libcst as cst
 from src.dataflow.stateful_fun import StatefulFun, NoType
 from src.dataflow.state import StateDescription
 from src.analysis.extract_stateful_method import ExtractStatefulMethod
+from src.dataflow.method_descriptor import MethodDescriptor
 import libcst.helpers as helpers
+import libcst.matchers as m
 
 
 class ExtractStatefulFun(cst.CSTVisitor):
@@ -16,7 +18,11 @@ class ExtractStatefulFun(cst.CSTVisitor):
         self.is_defined: bool = False
         self.class_name: str = None
 
+        # Used to extract state.
         self.self_attributes: List[Tuple[str, Any]] = []
+
+        # Keep track of all extracted methods.
+        self.method_descriptor: List[MethodDescriptor] = []
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> Optional[bool]:
         """Visits a function definition and analyze it.
@@ -30,13 +36,23 @@ class ExtractStatefulFun(cst.CSTVisitor):
         :param node: the node to analyze.
         :return: always returns False.
         """
-        fun_extractor: ExtractStatefulMethod = ExtractStatefulMethod(
+        if m.matches(node.asynchronous, cst.Asynchronous()):
+            raise AttributeError(
+                "Function within a stateful function cannot be defined asynchronous."
+            )
+
+        method_extractor: ExtractStatefulMethod = ExtractStatefulMethod(
             self.module_node, node
         )
-        node.visit(fun_extractor)
+        node.visit(method_extractor)
 
         # Get self attributes of the function and add to the attributes list of the class.
-        self.self_attributes.extend(fun_extractor.self_attributes)
+        self.self_attributes.extend(method_extractor.self_attributes)
+
+        # Create a wrapper for this analyzed class method.
+        self.method_descriptor.append(
+            ExtractStatefulMethod.create_method_descriptor(method_extractor)
+        )
 
         # We don't need to visit the FunctionDefs, we already analyze them in ExtractStatefulFun
         return False
@@ -89,8 +105,10 @@ class ExtractStatefulFun(cst.CSTVisitor):
 
     @staticmethod
     def create_stateful_fun(analyzed_tree: "ExtractStatefulFun") -> StatefulFun:
-        class_attributes: Dict[str, any] = analyzed_tree.merge_self_attributes()
+        state_desc: StateDescription = StateDescription(
+            analyzed_tree.merge_self_attributes()
+        )
         return StatefulFun(
             class_name=analyzed_tree.class_name,
-            state_desc=StateDescription(class_attributes),
+            state_desc=state_desc,
         )

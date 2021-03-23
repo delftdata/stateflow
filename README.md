@@ -60,6 +60,9 @@ In the first phase of this conversion, we analyze the Abstract Syntax Tree of th
 1. **State extraction**   
 In each `FunctionDef` we look for all attributes associated with `self`. All `self` attributes are extracted and merged, prioritizing typed declarations.
 This approach assumes that __all__ state of a class, is assigned (or defined) at least once somewhere in the functions of the classes.
+2. **Method extration**   
+For each method we extracts its input. For method parameters we do not allow _default_ values nor `*args` and `**kwargs`. We do not allow `async` function definitions. If a parameter has a call or attribute access, we need the type of the parameter to be defined.
+We also extract if a function is read or write (to state).
 ## TODO
 - [x] Add class and function dependencies (think about when state is necessary, when functions need to be called, etc.)
 - [ ] Move the responsibility of parsing each (sub-)AST to a static method in each 'type' (i.e. PyClass, PyFunction, etc.).

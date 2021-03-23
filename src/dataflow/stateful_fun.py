@@ -1,6 +1,8 @@
-from .event import Event
-from .state import StateDescription, NoType
-from typing import Any
+from src.dataflow.event import Event
+from src.dataflow.state import StateDescription
+from typing import Any, NewType
+
+NoType = NewType("NoType", None)
 
 
 class StatefulFun:

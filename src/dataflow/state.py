@@ -1,6 +1,4 @@
-from typing import Dict, NewType, Any
-
-NoType = NewType("NoType", None)
+from typing import Dict, Any
 
 
 class State:
