@@ -57,11 +57,14 @@ class FancyClass:
     def __init__(self):
         self.x = 4
         self.x = self.no
+        self.i = r = 3
+        self.q, no = 2
     
     def other_fun(self):
         self.x: int
         self.y: List[str]
         self.z = 3
+        self.p += 3
         """
     code_tree = cst.parse_module(code)
     visitor = ExtractStatefulFun(code_tree)
@@ -69,7 +72,14 @@ class FancyClass:
     code_tree.visit(visitor)
 
     merged_attributes: Dict[str, Any] = visitor.merge_self_attributes()
-    final_dict = {"x": "int", "y": "List[str]", "z": "NoType"}
+    final_dict = {
+        "x": "int",
+        "y": "List[str]",
+        "z": "NoType",
+        "p": "NoType",
+        "i": "NoType",
+        "q": "NoType",
+    }
 
     assert merged_attributes == final_dict
 
@@ -220,3 +230,65 @@ class FancyClass:
 
     method = visitor.method_descriptor[2]
     assert method.read_only == False
+
+
+def test_method_extraction_attribute_error_call():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self):
+        x = 3
+        y = self.x
+
+    def fun_other(self, item):
+        item.buy(self.x)
+    """
+
+    code_tree = cst.parse_module(code)
+    visitor = ExtractStatefulFun(code_tree)
+
+    with pytest.raises(AttributeError):
+        code_tree.visit(visitor)
+
+
+def test_method_extraction_attribute_error_access():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self):
+        x = 3
+        y = self.x
+
+    def fun_other(self, item):
+        item.buy = 4
+    """
+
+    code_tree = cst.parse_module(code)
+    visitor = ExtractStatefulFun(code_tree)
+
+    with pytest.raises(AttributeError):
+        code_tree.visit(visitor)
+
+
+def test_method_extraction_attribute_no_error():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self):
+        x = 3
+        y = self.x
+
+    def fun_other(self, item: Item):
+        item.buy = 4
+        item.call(self.x)
+    """
+
+    code_tree = cst.parse_module(code)
+    visitor = ExtractStatefulFun(code_tree)
+    code_tree.visit(visitor)

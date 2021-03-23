@@ -31,7 +31,7 @@ class ExtractStatefulFun(cst.CSTVisitor):
         1. The declared self variables (i.e. state).
         2. The input variables of a function.
         3. The output variables of a function.
-        4. If a function is read or write-only.
+        4. If a function is read-only.
 
         :param node: the node to analyze.
         :return: always returns False.
@@ -58,6 +58,13 @@ class ExtractStatefulFun(cst.CSTVisitor):
         return False
 
     def visit_ClassDef(self, node: cst.ClassDef) -> Optional[bool]:
+        """Visits a class and extracts useful information.
+
+        This retrieves the name of the class and ensures that no nested classes are defined.
+
+        :param node: the class definition to analyze.
+        """
+
         if self.is_defined:  # We don't allow nested classes.
             raise AttributeError("Nested classes are not allowed.")
 
@@ -104,11 +111,18 @@ class ExtractStatefulFun(cst.CSTVisitor):
         return attributes
 
     @staticmethod
-    def create_stateful_fun(analyzed_tree: "ExtractStatefulFun") -> StatefulFun:
+    def create_stateful_fun(analyzed_visitor: "ExtractStatefulFun") -> StatefulFun:
+        """Creates a Stateful function.
+
+        Leverages the analyzed visitor to create a Stateful Function.
+
+        :param analyzed_visitor: the visitor that walked the ClassDef tree.
+        :return: a Stateful Function object.
+        """
         state_desc: StateDescription = StateDescription(
-            analyzed_tree.merge_self_attributes()
+            analyzed_visitor.merge_self_attributes()
         )
         return StatefulFun(
-            class_name=analyzed_tree.class_name,
+            class_name=analyzed_visitor.class_name,
             state_desc=state_desc,
         )

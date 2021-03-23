@@ -56,7 +56,7 @@ statefun.visualize()
 This will run a Flask application, visualizing the dataflow on `localhost:5000`. Make sure to have [Graphviz](https://graphviz.org/) installed on your system.
 
 ## Code to Dataflow
-In the first phase of this conversion, we analyze the Abstract Syntax Tree of the class definitions. This analysis includes:
+In the first phase of this conversion, we analyze the AST of the class definitions. This analysis includes:
 1. **State extraction**   
 In each `FunctionDef` we look for all attributes associated with `self`. All `self` attributes are extracted and merged, prioritizing typed declarations.
 This approach assumes that __all__ state of a class, is assigned (or defined) at least once somewhere in the functions of the classes.

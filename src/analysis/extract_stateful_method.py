@@ -22,7 +22,7 @@ class ExtractStatefulMethod(cst.CSTVisitor):
         # We also use this to verify if a parameter call or attribute is properly typed.
         self.parameters: List[Tuple[str, Any]] = []
 
-        # We assume a method is read-only until we find a self assignment.
+        # We assume a method is read-only until we find a 'self' assignment.
         self.read_only = True
 
     def visit_Param(self, node: cst.Param) -> Optional[bool]:
@@ -52,6 +52,15 @@ class ExtractStatefulMethod(cst.CSTVisitor):
 
         self.parameters.append((param_name, param_type))
 
+    def visit_Attribute(self, node: cst.Attribute) -> Optional[bool]:
+        if isinstance(node.value, cst.Name) and node.value.value != "self":
+            for k, v in self.parameters:
+                if k == node.value.value and v == "NoType":
+                    raise AttributeError(
+                        f"This method attributes the parameter {k} (i.e. function call or state access). "
+                        f"However, no type hint is given."
+                    )
+
     def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
         if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
             annotation = ast_utils.extract_types(self.class_node, node.annotation)
@@ -60,7 +69,7 @@ class ExtractStatefulMethod(cst.CSTVisitor):
             self.read_only = False
 
     def visit_AugAssign(self, node: cst.AugAssign) -> Optional[bool]:
-        if ast_utils.is_self(node) and m.matches(node.target.attr, m.Name()):
+        if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
             self.self_attributes.append((node.target.attr.value, NoType))
 
             self.read_only = False
