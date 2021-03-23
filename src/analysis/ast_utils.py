@@ -25,6 +25,4 @@ def extract_types(module_node: cst.CSTNode, node: cst.Annotation) -> Any:
     :param node: the actual annotation object.
     :return: the evaluated type annotation.
     """
-    # print(module_node.code_for_node(node.annotation))
-    # typ = eval(module_node.code_for_node(node.annotation))
     return module_node.code_for_node(node.annotation)
