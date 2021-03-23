@@ -17,8 +17,8 @@ class ExtractStatefulFun(cst.CSTVisitor):
         self.self_attributes: List[Tuple[str, Any]] = []
 
     def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
-        if ast_utils.is_self(node) and m.matches(node.target.attr, m.Name()):
-            annotation = self.extract_types(node.annotation)
+        if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
+            annotation = ast_utils.extract_types(self.module_node, node.annotation)
             self.self_attributes.append((node.target.attr.value, annotation))
 
     def visit_AugAssign(self, node: cst.AugAssign) -> Optional[bool]:
@@ -67,15 +67,20 @@ class ExtractStatefulFun(cst.CSTVisitor):
             if var_name in attributes:
                 if typ == NoType:  # Skip NoTypes.
                     continue
-                if typ != attributes[var_name]:  # Throw error when type hints conflict.
+                elif (
+                    typ != attributes[var_name]
+                ):  # Throw error when type hints conflict.
                     raise AttributeError(
                         f"Stateful Function {self.class_name} has two declarations of {var_name} with different types {typ} != {attributes[var_name]}."
                     )
-                if (
+                elif (
                     attributes[var_name] == NoType
                 ):  # If current type is NoType, update to an actual type.
                     attributes[var_name] = typ
             else:
+                if typ == NoType:
+                    typ = "NoType"  # Rename NoType to a proper str.
+
                 attributes[var_name] = typ
 
         return attributes
