@@ -7,6 +7,8 @@ import libcst.helpers as helpers
 
 
 class ExtractStatefulFun(cst.CSTVisitor):
+    """Visits a ClassDefinition and extracts information to create a StatefulFunction."""
+
     def __init__(self, module_node: cst.CSTNode):
         self.module_node = module_node
         self.is_defined: bool = False
@@ -46,26 +48,35 @@ class ExtractStatefulFun(cst.CSTVisitor):
         self.class_name = helpers.get_full_name_for_node(node)
 
     def merge_self_attributes(self) -> Dict[str, any]:
+        """Merges all self attributes.
+
+        Merges all collected declarations attributing to 'self' into a dictionary. A key can only exist once.
+        Type hints are stored as value for the key. Conflicting type hints for the same key will throw an error.
+        Keys without type hints are valued as 'NoType'. Example:
+        ```
+        self.x : int = 3
+        self.y, self.z = 4
+        ```
+        will be stored as: `{"x": "int", "y": "NoType", "z": "NoType"}`
+
+        :return: the merged attributes.
+        """
         attributes = {}
 
         for var_name, typ in self.self_attributes:
             if var_name in attributes:
-                if typ == NoType:
+                if typ == NoType:  # Skip NoTypes.
                     continue
-                if typ != attributes[var_name]:
+                if typ != attributes[var_name]:  # Throw error when type hints conflict.
                     raise AttributeError(
                         f"Stateful Function {self.class_name} has two declarations of {var_name} with different types {typ} != {attributes[var_name]}."
                     )
-                if attributes[var_name] == NoType:
+                if (
+                    attributes[var_name] == NoType
+                ):  # If current type is NoType, update to an actual type.
                     attributes[var_name] = typ
             else:
                 attributes[var_name] = typ
-
-        for var_name, typ in attributes.items():
-            if typ == NoType:
-                print(f"{var_name} : NoType")
-            else:
-                print(f"{var_name} : {typ}")
 
         return attributes
 
