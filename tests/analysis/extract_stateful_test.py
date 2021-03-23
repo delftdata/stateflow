@@ -11,7 +11,7 @@ class Test:
         pass
     """
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun()
+    visitor = ExtractStatefulFun(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -23,7 +23,7 @@ class FancyClass:
     pass
     """
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun()
+    visitor = ExtractStatefulFun(code_tree)
 
     code_tree.visit(visitor)
 

@@ -1,7 +1,7 @@
 from typing import List, Tuple, Any, Optional, Dict
 import libcst as cst
-from analysis import ast_utils
-from dataflow.stateful_fun import StatefulFun, NoType
+from . import ast_utils
+from ..dataflow.stateful_fun import StatefulFun, NoType
 import libcst.matchers as m
 import libcst.helpers as helpers
 
@@ -83,26 +83,26 @@ class ExtractStatefulEvent(cst.CSTVisitor):
         pass
 
 
-print(List[int])
-code = """
-class Test:
-    
-    def fun(self):
-        #self.z : Tuple[int, str]
-        #self.x: str = 1
-        #self.y += 0
-        #self.x: str = "3"
-        self.x, self.p = 3
-        #self.r = 4
-    
-"""
-import time
-
-one = time.monotonic()
-tree = cst.parse_module(code)
-fun = ExtractStatefulFun(module_node=tree)
-tree.visit(fun)
-ExtractStatefulFun.create_stateful_fun(fun)
-two = time.monotonic()
-final = (two - one) * 1000
-print(final)
+# print(List[int])
+# code = """
+# class Test:
+#
+#     def fun(self):
+#         #self.z : Tuple[int, str]
+#         #self.x: str = 1
+#         #self.y += 0
+#         #self.x: str = "3"
+#         self.x, self.p = 3
+#         #self.r = 4
+#
+# """
+# import time
+#
+# one = time.monotonic()
+# tree = cst.parse_module(code)
+# fun = ExtractStatefulFun(module_node=tree)
+# tree.visit(fun)
+# ExtractStatefulFun.create_stateful_fun(fun)
+# two = time.monotonic()
+# final = (two - one) * 1000
+# print(final)
