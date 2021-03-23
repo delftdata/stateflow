@@ -11,34 +11,24 @@ class ExtractStatefulFun(cst.CSTVisitor):
 
     def __init__(self, module_node: cst.CSTNode):
         self.module_node = module_node
+
+        # Name of the class and if it is already defined.
         self.is_defined: bool = False
         self.class_name: str = None
 
         self.self_attributes: List[Tuple[str, Any]] = []
 
-    def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
-        if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
-            annotation = ast_utils.extract_types(self.module_node, node.annotation)
-            self.self_attributes.append((node.target.attr.value, annotation))
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> Optional[bool]:
+        fun_extractor: ExtractStatefulMethod = ExtractStatefulMethod(
+            self.module_node, node
+        )
+        node.visit(fun_extractor)
 
-    def visit_AugAssign(self, node: cst.AugAssign) -> Optional[bool]:
-        if ast_utils.is_self(node) and m.matches(node.target.attr, m.Name()):
-            self.self_attributes.append((node.target.attr.value, NoType))
+        # Get self attributes of the function and add to the attributes list of the class.
+        self.self_attributes.extend(fun_extractor.self_attributes)
 
-    def visit_AssignTarget(self, node: cst.AssignTarget) -> None:
-        if not m.matches(node, m.AssignTarget(target=m.Tuple())):
-            if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
-                self.self_attributes.append((node.target.attr.value, NoType))
-
-        # We assume it is a Tuple now.
-        if m.matches(node, m.AssignTarget(target=m.Tuple())):
-            for element in node.target.elements:
-                if (
-                    m.matches(element, m.Element())
-                    and ast_utils.is_self(element.value)
-                    and m.matches(element.value.attr, m.Name())
-                ):
-                    self.self_attributes.append((element.value.attr.value, NoType))
+        # We don't need to visit the FunctionDefs, we already analyze them in ExtractStatefulFun
+        return False
 
     def visit_ClassDef(self, node: cst.ClassDef) -> Optional[bool]:
         if self.is_defined:  # We don't allow nested classes.
@@ -68,15 +58,16 @@ class ExtractStatefulFun(cst.CSTVisitor):
                 if typ == NoType:  # Skip NoTypes.
                     continue
                 elif (
+                    attributes[var_name] == "NoType"
+                ):  # If current type is NoType, update to an actual type.
+                    attributes[var_name] = typ
+                elif (
                     typ != attributes[var_name]
                 ):  # Throw error when type hints conflict.
                     raise AttributeError(
                         f"Stateful Function {self.class_name} has two declarations of {var_name} with different types {typ} != {attributes[var_name]}."
                     )
-                elif (
-                    attributes[var_name] == NoType
-                ):  # If current type is NoType, update to an actual type.
-                    attributes[var_name] = typ
+
             else:
                 if typ == NoType:
                     typ = "NoType"  # Rename NoType to a proper str.
@@ -91,31 +82,59 @@ class ExtractStatefulFun(cst.CSTVisitor):
         return StatefulFun(class_name=analyzed_tree.class_name, state_desc=None)
 
 
-class ExtractStatefulEvent(cst.CSTVisitor):
+class ExtractStatefulMethod(cst.CSTVisitor):
+    def __init__(self, class_node: cst.CSTNode, fun_node: cst.CSTNode):
+        self.class_node = class_node
+        self.fun_node = fun_node
+        self.self_attributes: List[Tuple[str, Any]] = []
+
+    def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
+        if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
+            annotation = ast_utils.extract_types(self.class_node, node.annotation)
+            self.self_attributes.append((node.target.attr.value, annotation))
+
+    def visit_AugAssign(self, node: cst.AugAssign) -> Optional[bool]:
+        if ast_utils.is_self(node) and m.matches(node.target.attr, m.Name()):
+            self.self_attributes.append((node.target.attr.value, NoType))
+
+    def visit_AssignTarget(self, node: cst.AssignTarget) -> None:
+        if not m.matches(node, m.AssignTarget(target=m.Tuple())):
+            if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
+                self.self_attributes.append((node.target.attr.value, NoType))
+
+        # We assume it is a Tuple now.
+        if m.matches(node, m.AssignTarget(target=m.Tuple())):
+            for element in node.target.elements:
+                if (
+                    m.matches(element, m.Element())
+                    and ast_utils.is_self(element.value)
+                    and m.matches(element.value.attr, m.Name())
+                ):
+                    self.self_attributes.append((element.value.attr.value, NoType))
+
     def visit_Name(self, node: cst.Name) -> Optional[bool]:
         pass
 
-
-# print(List[int])
-# code = """
-# class Test:
-#
-#     def fun(self):
-#         #self.z : Tuple[int, str]
-#         #self.x: str = 1
-#         #self.y += 0
-#         #self.x: str = "3"
-#         self.x, self.p = 3
-#         #self.r = 4
-#
-# """
-# import time
-#
-# one = time.monotonic()
-# tree = cst.parse_module(code)
-# fun = ExtractStatefulFun(module_node=tree)
-# tree.visit(fun)
-# ExtractStatefulFun.create_stateful_fun(fun)
-# two = time.monotonic()
-# final = (two - one) * 1000
-# print(final)
+    # print(List[int])
+    # code = """
+    # class Test:
+    #
+    #     def fun(self):
+    #         #self.z : Tuple[int, str]
+    #         #self.x: str = 1
+    #         #self.y += 0
+    #         #self.x: str = "3"
+    #         self.x, self.p = 3
+    #         #self.r = 4
+    #
+    # """
+    # import time
+    #
+    # one = time.monotonic()
+    # tree = cst.parse_module(code)
+    # fun = ExtractStatefulFun(module_node=tree)
+    # tree.visit(fun)
+    # ExtractStatefulFun.create_stateful_fun(fun)
+    # two = time.monotonic()
+    # final = (two - one) * 1000
+    # print(final)
