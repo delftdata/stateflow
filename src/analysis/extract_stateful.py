@@ -1,7 +1,7 @@
 from typing import List, Tuple, Any, Optional, Dict
 import libcst as cst
-from . import ast_utils
-from ..dataflow.stateful_fun import StatefulFun, NoType
+from src.analysis import ast_utils
+from src.dataflow.stateful_fun import StatefulFun, NoType
 import libcst.matchers as m
 import libcst.helpers as helpers
 
@@ -13,9 +13,6 @@ class ExtractStatefulFun(cst.CSTVisitor):
         self.class_name: str = None
 
         self.self_attributes: List[Tuple[str, Any]] = []
-
-    def extract_types(self, node: cst.Annotation) -> Any:
-        return eval(self.module_node.code_for_node(node.annotation))
 
     def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
         if ast_utils.is_self(node) and m.matches(node.target.attr, m.Name()):

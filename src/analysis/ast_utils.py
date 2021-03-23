@@ -1,5 +1,6 @@
 import libcst as cst
 import libcst.matchers as m
+from typing import Any
 
 
 def is_self(node: cst.CSTNode) -> bool:
@@ -14,3 +15,16 @@ def is_self(node: cst.CSTNode) -> bool:
         return True
 
     return False
+
+
+def extract_types(module_node: cst.CSTNode, node: cst.Annotation) -> Any:
+    """
+    Extracts the (evaluated) type of an Annotation object.
+
+    :param module_node: the 'context' of this annotation: i.e. the module in which it was declared.
+    :param node: the actual annotation object.
+    :return: the evaluated type annotation.
+    """
+    # print(module_node.code_for_node(node.annotation))
+    # typ = eval(module_node.code_for_node(node.annotation))
+    return module_node.code_for_node(node.annotation)
