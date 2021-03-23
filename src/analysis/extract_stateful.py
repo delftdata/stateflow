@@ -1,5 +1,6 @@
 from typing import List, Tuple, Any, Optional, Dict
 import libcst as cst
+from analysis import ast_utils
 from dataflow.stateful_fun import StatefulFun, NoType
 import libcst.matchers as m
 import libcst.helpers as helpers
@@ -16,24 +17,18 @@ class ExtractStatefulFun(cst.CSTVisitor):
     def extract_types(self, node: cst.Annotation) -> Any:
         return eval(self.module_node.code_for_node(node.annotation))
 
-    def is_self(self, node: cst.CSTNode) -> bool:
-        if m.matches(node, m.Attribute(value=m.Name(value="self"))):
-            return True
-
-        return False
-
     def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
-        if self.is_self(node.target) and m.matches(node.target.attr, m.Name()):
+        if ast_utils.is_self(node) and m.matches(node.target.attr, m.Name()):
             annotation = self.extract_types(node.annotation)
             self.self_attributes.append((node.target.attr.value, annotation))
 
     def visit_AugAssign(self, node: cst.AugAssign) -> Optional[bool]:
-        if self.is_self(node.target) and m.matches(node.target.attr, m.Name()):
+        if ast_utils.is_self(node) and m.matches(node.target.attr, m.Name()):
             self.self_attributes.append((node.target.attr.value, NoType))
 
     def visit_AssignTarget(self, node: cst.AssignTarget) -> None:
         if not m.matches(node, m.AssignTarget(target=m.Tuple())):
-            if self.is_self(node.target) and m.matches(node.target.attr, m.Name()):
+            if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
                 self.self_attributes.append((node.target.attr.value, NoType))
 
         # We assume it is a Tuple now.
@@ -41,7 +36,7 @@ class ExtractStatefulFun(cst.CSTVisitor):
             for element in node.target.elements:
                 if (
                     m.matches(element, m.Element())
-                    and self.is_self(element.value)
+                    and ast_utils.is_self(element.value)
                     and m.matches(element.value.attr, m.Name())
                 ):
                     self.self_attributes.append((element.value.attr.value, NoType))
