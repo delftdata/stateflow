@@ -1,5 +1,5 @@
 import pytest
-from src.analysis.extract_stateful import ExtractStatefulFun, StatefulFun
+from src.analysis.extract_stateful_class import ExtractStatefulFun, StatefulFun
 from typing import Any, Dict
 import libcst as cst
 

@@ -1,8 +1,8 @@
 from typing import List, Tuple, Any, Optional, Dict
 import libcst as cst
-from src.analysis import ast_utils
 from src.dataflow.stateful_fun import StatefulFun, NoType
-import libcst.matchers as m
+from src.dataflow.state import StateDescription
+from src.analysis.extract_stateful_method import ExtractStatefulMethod
 import libcst.helpers as helpers
 
 
@@ -19,6 +19,17 @@ class ExtractStatefulFun(cst.CSTVisitor):
         self.self_attributes: List[Tuple[str, Any]] = []
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> Optional[bool]:
+        """Visits a function definition and analyze it.
+
+        Extracts the following properties of a function:
+        1. The declared self variables (i.e. state).
+        2. The input variables of a function.
+        3. The output variables of a function.
+        4. If a function is read or write-only.
+
+        :param node: the node to analyze.
+        :return: always returns False.
+        """
         fun_extractor: ExtractStatefulMethod = ExtractStatefulMethod(
             self.module_node, node
         )
@@ -79,62 +90,7 @@ class ExtractStatefulFun(cst.CSTVisitor):
     @staticmethod
     def create_stateful_fun(analyzed_tree: "ExtractStatefulFun") -> StatefulFun:
         class_attributes: Dict[str, any] = analyzed_tree.merge_self_attributes()
-        return StatefulFun(class_name=analyzed_tree.class_name, state_desc=None)
-
-
-class ExtractStatefulMethod(cst.CSTVisitor):
-    def __init__(self, class_node: cst.CSTNode, fun_node: cst.CSTNode):
-        self.class_node = class_node
-        self.fun_node = fun_node
-        self.self_attributes: List[Tuple[str, Any]] = []
-
-    def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
-        if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
-            annotation = ast_utils.extract_types(self.class_node, node.annotation)
-            self.self_attributes.append((node.target.attr.value, annotation))
-
-    def visit_AugAssign(self, node: cst.AugAssign) -> Optional[bool]:
-        if ast_utils.is_self(node) and m.matches(node.target.attr, m.Name()):
-            self.self_attributes.append((node.target.attr.value, NoType))
-
-    def visit_AssignTarget(self, node: cst.AssignTarget) -> None:
-        if not m.matches(node, m.AssignTarget(target=m.Tuple())):
-            if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
-                self.self_attributes.append((node.target.attr.value, NoType))
-
-        # We assume it is a Tuple now.
-        if m.matches(node, m.AssignTarget(target=m.Tuple())):
-            for element in node.target.elements:
-                if (
-                    m.matches(element, m.Element())
-                    and ast_utils.is_self(element.value)
-                    and m.matches(element.value.attr, m.Name())
-                ):
-                    self.self_attributes.append((element.value.attr.value, NoType))
-
-    def visit_Name(self, node: cst.Name) -> Optional[bool]:
-        pass
-
-    # print(List[int])
-    # code = """
-    # class Test:
-    #
-    #     def fun(self):
-    #         #self.z : Tuple[int, str]
-    #         #self.x: str = 1
-    #         #self.y += 0
-    #         #self.x: str = "3"
-    #         self.x, self.p = 3
-    #         #self.r = 4
-    #
-    # """
-    # import time
-    #
-    # one = time.monotonic()
-    # tree = cst.parse_module(code)
-    # fun = ExtractStatefulFun(module_node=tree)
-    # tree.visit(fun)
-    # ExtractStatefulFun.create_stateful_fun(fun)
-    # two = time.monotonic()
-    # final = (two - one) * 1000
-    # print(final)
+        return StatefulFun(
+            class_name=analyzed_tree.class_name,
+            state_desc=StateDescription(class_attributes),
+        )
