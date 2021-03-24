@@ -4,7 +4,7 @@ from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 import apache_beam as beam
 
 from runtime.runtime import Runtime
-from dataflow import Dataflow
+from src.dataflow.dataflow import Dataflow
 
 
 class BeamOperator(DoFn):

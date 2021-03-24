@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 from src.dataflow.stateful_fun import NoType
 
 
@@ -11,6 +11,10 @@ class MethodDescriptor:
 
 
 class InputDescriptor:
+    """A description of the input parameters of a function.
+    Includes types if declared. This class works like a dictionary.
+    """
+
     def __init__(self, input_desc: Dict[str, Any]):
         self._input_desc = input_desc
 
@@ -34,3 +38,10 @@ class InputDescriptor:
 
     def __eq__(self, other):
         return self._input_desc == other
+
+
+class OutputDescriptor:
+
+
+    def __init__(self, output_desc: List[Dict[str, Any]]):
+

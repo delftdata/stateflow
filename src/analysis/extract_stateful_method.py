@@ -147,7 +147,7 @@ class ExtractStatefulMethod(cst.CSTVisitor):
         :return: a MethodDescriptor of the analyzed method.
         """
         parameter_dict = {k: v for k, v in analyzed_method.parameters}
-        input_desc = InputDescriptor(parameter_dict)
+        input_desc: InputDescriptor = InputDescriptor(parameter_dict)
 
         # We verify if 'self' is part of the input. This is necessity.
         if "self" not in input_desc:
