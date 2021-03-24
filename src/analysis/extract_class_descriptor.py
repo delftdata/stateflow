@@ -1,14 +1,15 @@
 from typing import List, Tuple, Any, Optional, Dict
 import libcst as cst
-from src.dataflow.stateful_fun import StatefulFun, NoType
+from src.dataflow.stateful_fun import NoType
 from src.dataflow.state import StateDescription
-from src.analysis.extract_stateful_method import ExtractStatefulMethod
+from src.analysis.extract_method_descriptor import ExtractMethodDescriptor
 from src.dataflow.method_descriptor import MethodDescriptor
+from src.dataflow.class_descriptor import ClassDescriptor
 import libcst.helpers as helpers
 import libcst.matchers as m
 
 
-class ExtractStatefulFun(cst.CSTVisitor):
+class ExtractClassDescriptor(cst.CSTVisitor):
     """Visits a ClassDefinition and extracts information to create a StatefulFunction."""
 
     def __init__(self, module_node: cst.CSTNode):
@@ -22,7 +23,7 @@ class ExtractStatefulFun(cst.CSTVisitor):
         self.self_attributes: List[Tuple[str, Any]] = []
 
         # Keep track of all extracted methods.
-        self.method_descriptor: List[MethodDescriptor] = []
+        self.method_descriptors: List[MethodDescriptor] = []
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> Optional[bool]:
         """Visits a function definition and analyze it.
@@ -41,7 +42,7 @@ class ExtractStatefulFun(cst.CSTVisitor):
                 "Function within a stateful function cannot be defined asynchronous."
             )
 
-        method_extractor: ExtractStatefulMethod = ExtractStatefulMethod(
+        method_extractor: ExtractMethodDescriptor = ExtractMethodDescriptor(
             self.module_node, node
         )
         node.visit(method_extractor)
@@ -50,8 +51,8 @@ class ExtractStatefulFun(cst.CSTVisitor):
         self.self_attributes.extend(method_extractor.self_attributes)
 
         # Create a wrapper for this analyzed class method.
-        self.method_descriptor.append(
-            ExtractStatefulMethod.create_method_descriptor(method_extractor)
+        self.method_descriptors.append(
+            ExtractMethodDescriptor.create_method_descriptor(method_extractor)
         )
 
         # We don't need to visit the FunctionDefs, we already analyze them in ExtractStatefulFun
@@ -111,7 +112,9 @@ class ExtractStatefulFun(cst.CSTVisitor):
         return attributes
 
     @staticmethod
-    def create_stateful_fun(analyzed_visitor: "ExtractStatefulFun") -> StatefulFun:
+    def create_stateful_fun(
+        analyzed_visitor: "ExtractClassDescriptor",
+    ) -> ClassDescriptor:
         """Creates a Stateful function.
 
         Leverages the analyzed visitor to create a Stateful Function.
@@ -122,7 +125,8 @@ class ExtractStatefulFun(cst.CSTVisitor):
         state_desc: StateDescription = StateDescription(
             analyzed_visitor.merge_self_attributes()
         )
-        return StatefulFun(
+        return ClassDescriptor(
             class_name=analyzed_visitor.class_name,
             state_desc=state_desc,
+            methods_dec=analyzed_visitor.method_descriptors,
         )

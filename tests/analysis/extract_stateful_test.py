@@ -1,6 +1,7 @@
 import pytest
-from src.analysis.extract_stateful_class import ExtractStatefulFun, StatefulFun
-from src.analysis.extract_stateful_method import ExtractStatefulMethod
+from src.analysis.extract_class_descriptor import ExtractClassDescriptor
+from src.dataflow.class_descriptor import ClassDescriptor
+from src.analysis.extract_method_descriptor import ExtractMethodDescriptor
 from typing import Any, Dict
 import libcst as cst
 
@@ -12,7 +13,7 @@ class Test:
         pass
     """
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -24,12 +25,12 @@ class FancyClass:
     pass
     """
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     code_tree.visit(visitor)
 
-    statefun: StatefulFun = ExtractStatefulFun.create_stateful_fun(visitor)
-    assert statefun.class_name == "FancyClass"
+    clasz: ClassDescriptor = ExtractClassDescriptor.create_stateful_fun(visitor)
+    assert clasz.class_name == "FancyClass"
 
 
 def test_merge_self_attributes_positive():
@@ -42,7 +43,7 @@ class FancyClass:
         self.z = self.z = 2
         """
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     code_tree.visit(visitor)
 
@@ -68,7 +69,7 @@ class FancyClass:
         self.p += 3
         """
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     code_tree.visit(visitor)
 
@@ -93,7 +94,7 @@ class FancyClass:
         self.x : str
         """
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     code_tree.visit(visitor)
 
@@ -112,7 +113,7 @@ class FancyClass:
         pass
             """
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -128,7 +129,7 @@ class FancyClass:
         pass
 """
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -145,10 +146,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
     code_tree.visit(visitor)
 
-    method = visitor.method_descriptor[1]
+    method = visitor.method_descriptors[1]
     fun_params = {"x": "int", "y": "str", "z": "NoType"}
     assert method.input_desc == fun_params
 
@@ -164,7 +165,7 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -181,7 +182,7 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -198,11 +199,11 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     code_tree.visit(visitor)
 
-    method = visitor.method_descriptor[1]
+    method = visitor.method_descriptors[1]
     fun_params = {}
     assert method.input_desc == fun_params
 
@@ -222,14 +223,14 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     code_tree.visit(visitor)
 
-    method = visitor.method_descriptor[1]
+    method = visitor.method_descriptors[1]
     assert method.read_only == True
 
-    method = visitor.method_descriptor[2]
+    method = visitor.method_descriptors[2]
     assert method.read_only == False
 
 
@@ -244,7 +245,7 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -265,7 +266,7 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -286,7 +287,7 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -308,7 +309,7 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
     code_tree.visit(visitor)
 
 
@@ -328,7 +329,7 @@ class FancyClass:
     # Get the function.
     fun_def: cst.FunctionDef = code_tree.body[0].body.body[1]
 
-    visitor = ExtractStatefulMethod(code_tree, fun_def)
+    visitor = ExtractMethodDescriptor(code_tree, fun_def)
     fun_def.visit(visitor)
 
     assert visitor.return_signature == ["str"]
@@ -350,7 +351,7 @@ class FancyClass:
     # Get the function.
     fun_def: cst.FunctionDef = code_tree.body[0].body.body[1]
 
-    visitor = ExtractStatefulMethod(code_tree, fun_def)
+    visitor = ExtractMethodDescriptor(code_tree, fun_def)
     fun_def.visit(visitor)
     assert visitor.return_signature == ["str", "int", "List[List[Dict[Any, str]]]"]
 
@@ -372,7 +373,7 @@ class FancyClass:
     # Get the function.
     fun_def: cst.FunctionDef = code_tree.body[0].body.body[1]
 
-    visitor = ExtractStatefulMethod(code_tree, fun_def)
+    visitor = ExtractMethodDescriptor(code_tree, fun_def)
     with pytest.raises(AttributeError):
         fun_def.visit(visitor)
 
@@ -408,15 +409,15 @@ class FancyClass:
 
     # Get the function.
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
     code_tree.visit(visitor)
 
-    assert visitor.method_descriptor[1].output_desc.output_desc == [["NoType"]]
-    assert visitor.method_descriptor[2].output_desc.output_desc == [["int"]]
-    assert visitor.method_descriptor[3].output_desc.output_desc == [
+    assert visitor.method_descriptors[1].output_desc.output_desc == [["NoType"]]
+    assert visitor.method_descriptors[2].output_desc.output_desc == [["int"]]
+    assert visitor.method_descriptors[3].output_desc.output_desc == [
         ["str", "int", "List[int]"]
     ]
-    assert visitor.method_descriptor[4].output_desc.output_desc == [
+    assert visitor.method_descriptors[4].output_desc.output_desc == [
         ["str", "int", "List[int]"],
         ["str", "int", "List[int]"],
     ]
@@ -441,7 +442,7 @@ class FancyClass:
 
     # Get the function.
     code_tree = cst.parse_module(code)
-    visitor = ExtractStatefulFun(code_tree)
+    visitor = ExtractClassDescriptor(code_tree)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)

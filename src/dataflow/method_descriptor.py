@@ -1,5 +1,4 @@
 from typing import Dict, Any, List
-from src.dataflow.stateful_fun import NoType
 
 
 class MethodDescriptor:

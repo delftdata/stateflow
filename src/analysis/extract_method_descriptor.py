@@ -10,7 +10,7 @@ from src.dataflow.method_descriptor import (
 )
 
 
-class ExtractStatefulMethod(cst.CSTVisitor):
+class ExtractMethodDescriptor(cst.CSTVisitor):
     """Visits a FunctionDef and extracts information to create a MethodWrapper.
     Assumes FunctionDef is part of ClassDef."""
 
@@ -206,7 +206,7 @@ class ExtractStatefulMethod(cst.CSTVisitor):
 
     @staticmethod
     def create_method_descriptor(
-        analyzed_method: "ExtractStatefulMethod",
+        analyzed_method: "ExtractMethodDescriptor",
     ) -> MethodDescriptor:
         """Creates a descriptor of this method.
 
