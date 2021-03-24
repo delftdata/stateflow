@@ -42,23 +42,14 @@ class ExtractStatefulMethod(cst.CSTVisitor):
         if self.fun_node.returns is None:
             return None
 
-        signature: List[Any] = []
-
         annotation: cst.Annotation = self.fun_node.returns
+        signature: Any = ast_utils.extract_types(
+            self.class_node, annotation, unpack=True
+        )
 
-        # If it is a tuple, we extract multiple types.
-        if (
-            m.matches(annotation, cst.Annotation(annotation=cst.Tuple()))
-            and len(annotation.annotation.elements) > 0
-        ):
-            for tuple_element in annotation.annotation.elements:
-                signature.append(
-                    ast_utils.extract_types(self.class_node, tuple_element)
-                )
-        else:
-            signature.append(
-                ast_utils.extract_types(self.class_node, annotation.annotation)
-            )
+        # If it is not a list, we make it a list.
+        if not isinstance(signature, list):
+            signature = [signature]
 
         return signature
 
@@ -81,7 +72,7 @@ class ExtractStatefulMethod(cst.CSTVisitor):
 
         # If we deal with a tuple, we consider multiple return variables.
         # E.g. return x, y, z will return a Tuple of x, y and z.
-        if m.matches(node, cst.Return(value=cst.Tuple())):
+        if m.matches(node, m.Return(value=m.Tuple())):
             amount_of_returns = len(node.value.elements)
         elif node.value is not None:  # You can also call return without a value.
             amount_of_returns = 1
@@ -108,7 +99,7 @@ class ExtractStatefulMethod(cst.CSTVisitor):
         :param node: the node param.
         """
         # We don't allow default values.
-        if m.matches(node.equal, cst.AssignEqual()):
+        if m.matches(node.equal, m.AssignEqual()):
             raise AttributeError(
                 "Default values are currently not supported for class methods."
             )

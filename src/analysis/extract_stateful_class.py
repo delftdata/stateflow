@@ -36,7 +36,7 @@ class ExtractStatefulFun(cst.CSTVisitor):
         :param node: the node to analyze.
         :return: always returns False.
         """
-        if m.matches(node.asynchronous, cst.Asynchronous()):
+        if m.matches(node.asynchronous, m.Asynchronous()):
             raise AttributeError(
                 "Function within a stateful function cannot be defined asynchronous."
             )

@@ -1,5 +1,6 @@
 import pytest
 from src.analysis.extract_stateful_class import ExtractStatefulFun, StatefulFun
+from src.analysis.extract_stateful_method import ExtractStatefulMethod
 from typing import Any, Dict
 import libcst as cst
 
@@ -292,3 +293,46 @@ class FancyClass:
     code_tree = cst.parse_module(code)
     visitor = ExtractStatefulFun(code_tree)
     code_tree.visit(visitor)
+
+
+def test_method_extraction_return_signature():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self) -> str:
+        x = 3
+        y = self.x
+        """
+
+    code_tree = cst.parse_module(code)
+
+    # Get the function.
+    fun_def: cst.FunctionDef = code_tree.body[0].body.body[1]
+
+    visitor = ExtractStatefulMethod(code_tree, fun_def)
+    fun_def.visit(visitor)
+
+    assert visitor.return_signature == ["str"]
+
+
+def test_method_extraction_return_signature():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self) -> Tuple[str, int, List[List[Dict[Any, str]]]]   :
+        x = 3
+        y = self.x
+        """
+
+    code_tree = cst.parse_module(code)
+
+    # Get the function.
+    fun_def: cst.FunctionDef = code_tree.body[0].body.body[1]
+
+    visitor = ExtractStatefulMethod(code_tree, fun_def)
+    fun_def.visit(visitor)
+    assert visitor.return_signature == ["str", "int", "List[List[Dict[Any, str]]]"]
