@@ -5,9 +5,12 @@ from src.dataflow.stateful_fun import NoType
 class MethodDescriptor:
     """A description of a class method."""
 
-    def __init__(self, read_only, input_desc: "InputDescriptor"):
+    def __init__(
+        self, read_only, input_desc: "InputDescriptor", output_desc: "OutputDescriptor"
+    ):
         self.read_only = read_only
         self.input_desc = input_desc
+        self.output_desc = output_desc
 
 
 class InputDescriptor:

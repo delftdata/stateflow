@@ -3,7 +3,11 @@ from typing import List, Tuple, Any, Optional
 from src.analysis import ast_utils
 import libcst.matchers as m
 from src.dataflow.stateful_fun import NoType
-from src.dataflow.method_descriptor import MethodDescriptor, InputDescriptor
+from src.dataflow.method_descriptor import (
+    MethodDescriptor,
+    InputDescriptor,
+    OutputDescriptor,
+)
 
 
 class ExtractStatefulMethod(cst.CSTVisitor):
@@ -63,7 +67,7 @@ class ExtractStatefulMethod(cst.CSTVisitor):
 
         :param node: the return param.
         """
-        if m.findall(node, cst.Call()):  # We don't allow calls in a return node.
+        if m.findall(node, m.Call()):  # We don't allow calls in a return node.
             raise AttributeError(
                 f"Doing a function call in a return statement is not permitted."
             )
@@ -225,4 +229,7 @@ class ExtractStatefulMethod(cst.CSTVisitor):
         # Afterwards we delete it.
         del input_desc["self"]
 
-        return MethodDescriptor(analyzed_method.read_only, input_desc)
+        # Create an OutputDescriptor.
+        output_desc: OutputDescriptor = OutputDescriptor(analyzed_method.returns)
+
+        return MethodDescriptor(analyzed_method.read_only, input_desc, output_desc)

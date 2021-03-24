@@ -233,6 +233,23 @@ class FancyClass:
     assert method.read_only == False
 
 
+def test_method_extraction_no_self():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun_other():
+        self.y = 2
+    """
+
+    code_tree = cst.parse_module(code)
+    visitor = ExtractStatefulFun(code_tree)
+
+    with pytest.raises(AttributeError):
+        code_tree.visit(visitor)
+
+
 def test_method_extraction_attribute_error_call():
     code = """
 class FancyClass:
@@ -336,3 +353,95 @@ class FancyClass:
     visitor = ExtractStatefulMethod(code_tree, fun_def)
     fun_def.visit(visitor)
     assert visitor.return_signature == ["str", "int", "List[List[Dict[Any, str]]]"]
+
+
+def test_method_extraction_return_no_call():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self):
+        self.x = 3
+        y = self.x
+        return x.bye()
+        """
+
+    code_tree = cst.parse_module(code)
+
+    # Get the function.
+    fun_def: cst.FunctionDef = code_tree.body[0].body.body[1]
+
+    visitor = ExtractStatefulMethod(code_tree, fun_def)
+    with pytest.raises(AttributeError):
+        fun_def.visit(visitor)
+
+
+def test_method_extraction_return_argument_extraction():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self):
+        self.x = 3
+        y = self.x
+        return x
+        
+    def fun_2(self) -> int:
+        self.x = 3
+        y = self.x
+        return x
+
+    def fun_3(self) -> Tuple[str, int, List[int]]:
+        self.x = 3
+        y = self.x
+        return x, x, x
+    
+    def fun_4(self) -> Tuple[str, int, List[int]]:
+        self.x = 3
+        y = self.x
+        if y:
+            return y, y, y
+        return x, x, x
+        """
+
+    # Get the function.
+    code_tree = cst.parse_module(code)
+    visitor = ExtractStatefulFun(code_tree)
+    code_tree.visit(visitor)
+
+    assert visitor.method_descriptor[1].output_desc.output_desc == [["NoType"]]
+    assert visitor.method_descriptor[2].output_desc.output_desc == [["int"]]
+    assert visitor.method_descriptor[3].output_desc.output_desc == [
+        ["str", "int", "List[int]"]
+    ]
+    assert visitor.method_descriptor[4].output_desc.output_desc == [
+        ["str", "int", "List[int]"],
+        ["str", "int", "List[int]"],
+    ]
+
+
+def test_method_extraction_return_len_mismatch():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self):
+        self.x = 3
+        y = self.x
+        return x
+
+    def fun_2(self) -> int:
+        self.x = 3
+        y = self.x
+        return x, x
+        """
+
+    # Get the function.
+    code_tree = cst.parse_module(code)
+    visitor = ExtractStatefulFun(code_tree)
+
+    with pytest.raises(AttributeError):
+        code_tree.visit(visitor)
