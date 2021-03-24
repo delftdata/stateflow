@@ -53,6 +53,24 @@ class ExtractStatefulMethod(cst.CSTVisitor):
         self.parameters.append((param_name, param_type))
 
     def visit_Attribute(self, node: cst.Attribute) -> Optional[bool]:
+        """Verifies that attributes on parameters are always typed.
+
+        When a parameter is used for attribution (i.e. function call or state update),
+        we need to know it's type. Especially if another stateful function is called,
+        we need to know which function. An error is thrown when these parameters are not typed.
+
+        If a parameter get's overriden, we still throw the error. For now, we consider this an edge case.
+        For example:
+
+        def fun(self, x):
+            self.x -= x
+            x: Item = Item()
+            x.call()
+
+        This will throw an error because x is untyped in the parameters, but it's overriden in te function.
+
+        :param node: an attribute node which is checked to use a parameter.
+        """
         if isinstance(node.value, cst.Name) and node.value.value != "self":
             for k, v in self.parameters:
                 if k == node.value.value and v == "NoType":
@@ -62,6 +80,13 @@ class ExtractStatefulMethod(cst.CSTVisitor):
                     )
 
     def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
+        """Visit an AnnAssign to extract a StateDescriptor.
+
+        This function verifies if an AnnAssign updates state. This way, we can extract
+        all internal state of a class.
+
+        :param node: the AnnAssign to check.
+        """
         if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
             annotation = ast_utils.extract_types(self.class_node, node.annotation)
             self.self_attributes.append((node.target.attr.value, annotation))
@@ -69,12 +94,26 @@ class ExtractStatefulMethod(cst.CSTVisitor):
             self.read_only = False
 
     def visit_AugAssign(self, node: cst.AugAssign) -> Optional[bool]:
+        """Visit an AugAssign to extract a StateDescriptor.
+
+        This function verifies if an AugAssign updates state. This way, we can extract
+        all internal state of a class.
+
+        :param node: the AugAssign to check.
+        """
         if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
             self.self_attributes.append((node.target.attr.value, NoType))
 
             self.read_only = False
 
     def visit_AssignTarget(self, node: cst.AssignTarget) -> None:
+        """Visit an AssignTarget to extract a StateDescriptor.
+
+        This function verifies if an AssignTarget updates state. This way, we can extract
+        all internal state of a class. If we deal with a tuple, we iterate over each element separately.
+
+        :param node: the AssignTarget to check.
+        """
         if not m.matches(node, m.AssignTarget(target=m.Tuple())):
             if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
                 self.self_attributes.append((node.target.attr.value, NoType))
@@ -95,9 +134,19 @@ class ExtractStatefulMethod(cst.CSTVisitor):
 
     @staticmethod
     def create_method_descriptor(
-        analyzed_tree: "ExtractStatefulMethod",
+        analyzed_method: "ExtractStatefulMethod",
     ) -> MethodDescriptor:
-        parameter_dict = {k: v for k, v in analyzed_tree.parameters}
+        """Creates a descriptor of this method.
+
+        A descriptor involves:
+        1. The parameters of this method.
+        2. The return paths of this method.
+        3. Whether the function is read-only.
+
+        :param analyzed_method: the ExtractStatefulMethod instance that analyzed the method.
+        :return: a MethodDescriptor of the analyzed method.
+        """
+        parameter_dict = {k: v for k, v in analyzed_method.parameters}
         input_desc = InputDescriptor(parameter_dict)
 
         # We verify if 'self' is part of the input. This is necessity.
@@ -108,4 +157,4 @@ class ExtractStatefulMethod(cst.CSTVisitor):
         # Afterwards we delete it.
         del input_desc["self"]
 
-        return MethodDescriptor(analyzed_tree.read_only, input_desc)
+        return MethodDescriptor(analyzed_method.read_only, input_desc)
