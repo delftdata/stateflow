@@ -16,7 +16,7 @@ class InputDescriptor:
     """
 
     def __init__(self, input_desc: Dict[str, Any]):
-        self._input_desc = input_desc
+        self._input_desc: Dict[str, Any] = input_desc
 
     def __contains__(self, item):
         return item in self._input_desc
@@ -41,7 +41,24 @@ class InputDescriptor:
 
 
 class OutputDescriptor:
+    """A description of the output of a function.
+    Includes types if declared. Since a function can have multiple returns,
+    we store each return in a list.
 
+    A return is stored as a List of types. We don't store the return variable,
+    because we do not care about it. We only care about the amount of return variables
+    and potentially its type.
+    """
 
-    def __init__(self, output_desc: List[Dict[str, Any]]):
+    def __init__(self, output_desc: List[List[Any]]):
+        self.output_desc: List[List[Any]] = output_desc
 
+    def num_returns(self):
+        """The amount of (potential) outputs.
+
+        If a method has multiple return paths, these are stored separately.
+        This function returns the amount of these paths.
+
+        :return: the amount of returns.
+        """
+        return len(self.output_desc)

@@ -10,9 +10,12 @@ class ExtractStatefulMethod(cst.CSTVisitor):
     """Visits a FunctionDef and extracts information to create a MethodWrapper.
     Assumes FunctionDef is part of ClassDef."""
 
-    def __init__(self, class_node: cst.CSTNode, fun_node: cst.CSTNode):
+    def __init__(self, class_node: cst.CSTNode, fun_node: cst.FunctionDef):
         self.class_node = class_node
         self.fun_node = fun_node
+
+        # We build the return signature for this function based on the type hint.
+        self.return_signature = self.extract_return_signature()
 
         # Keeps track of all self attributes in this function.
         # This is used to extract state of a complete class.
@@ -22,8 +25,82 @@ class ExtractStatefulMethod(cst.CSTVisitor):
         # We also use this to verify if a parameter call or attribute is properly typed.
         self.parameters: List[Tuple[str, Any]] = []
 
+        # Keep track of all (potential) returns of this function.
+        self.returns: List[List[Any]] = []
+
         # We assume a method is read-only until we find a 'self' assignment.
         self.read_only = True
+
+    def extract_return_signature(self) -> Optional[List[Any]]:
+        """Extracts a signature from the return annotation.
+
+        Attempts to get the types as given in the return annotation of a function definition.
+        If it is a tuple, each element is individually evaluated.
+
+        :return: a list of types.
+        """
+        if self.fun_node.returns is None:
+            return None
+
+        signature: List[Any] = []
+
+        annotation: cst.Annotation = self.fun_node.returns
+
+        # If it is a tuple, we extract multiple types.
+        if (
+            m.matches(annotation, cst.Annotation(annotation=cst.Tuple()))
+            and len(annotation.annotation.elements) > 0
+        ):
+            for tuple_element in annotation.annotation.elements:
+                signature.append(
+                    ast_utils.extract_types(self.class_node, tuple_element)
+                )
+        else:
+            signature.append(
+                ast_utils.extract_types(self.class_node, annotation.annotation)
+            )
+
+        return signature
+
+    def visit_Return(self, node: cst.Return):
+        """A Return is visited to extract a method's OutputDescriptor.
+
+        This method:
+        1. Counts the amount of return variables.
+        2. If a return signature exists, tries to match it.
+        3. Verifies if a return contains call, which is not allowed.
+
+        :param node: the return param.
+        """
+        if m.findall(node, cst.Call()):  # We don't allow calls in a return node.
+            raise AttributeError(
+                f"Doing a function call in a return statement is not permitted."
+            )
+
+        amount_of_returns = 0
+
+        # If we deal with a tuple, we consider multiple return variables.
+        # E.g. return x, y, z will return a Tuple of x, y and z.
+        if m.matches(node, cst.Return(value=cst.Tuple())):
+            amount_of_returns = len(node.value.elements)
+        elif node.value is not None:  # You can also call return without a value.
+            amount_of_returns = 1
+
+        # If we don't have a return signature, we consider all return values to be "NoType".
+        if not self.return_signature:
+            self.returns.append(list(["NoType" for _ in range(0, amount_of_returns)]))
+            return
+
+        # We don't want a mismatch between the length of the signature and the actual amount.
+        if len(self.return_signature) != amount_of_returns:
+            raise AttributeError(
+                f"The return annotation defines {len(self.return_signature)} variables, "
+                f"whereas a return statement only returns {amount_of_returns} variables."
+            )
+
+        self.returns.append(
+            list([self.return_signature[i] for i in range(0, amount_of_returns)])
+        )
 
     def visit_Param(self, node: cst.Param) -> Optional[bool]:
         """A Param is visited to extract a method's InputDescriptor.

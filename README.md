@@ -1,4 +1,4 @@
-# Stateful dataflows
+# StateFlow
 Prototype which extracts stateful dataflows by analysing Python code. 
 
 To visualize a dataflow:
@@ -61,8 +61,16 @@ In the first phase of this conversion, we analyze the AST of the class definitio
 In each `FunctionDef` we look for all attributes associated with `self`. All `self` attributes are extracted and merged, prioritizing typed declarations.
 This approach assumes that __all__ state of a class, is assigned (or defined) at least once somewhere in the functions of the classes.
 2. **Method extraction**   
-For each method we extracts its input. For method parameters we do not allow _default_ values nor `*args` and `**kwargs`. We do not allow `async` function definitions. If a parameter has a call or attribute access, we need the type of the parameter to be defined.
-We also extract if a function is read or write (to state). The `__init__` method is a special method that always needs to be declared and we do not allow any function calls there OR parameters of other functions. 
+We do not allow `async` function definitions.
+For each method we extracts its input:
+ - For method parameters we do not allow _default_ values nor `*args` and `**kwargs`.
+ - If a parameter has a call or attribute access, we need the type of the parameter to be defined.
+For each method we extracts its output:
+ - If a return annotation is given, each return statement needs to match this annotation in terms of length.
+ - No function calls are allowed in a return statement. 
+We also extract if a function is read or write (to state). 
+
+The `__init__` method is a special method that always needs to be declared and we do not allow any function calls there OR parameters of other functions.
 
 ## TODO
 - [x] Add class and function dependencies (think about when state is necessary, when functions need to be called, etc.)
