@@ -30,11 +30,14 @@ class StateDescriptor:
     def __init__(self, state_desc: Dict[str, Any]):
         self._state_desc = state_desc
 
-    def get_keys(self) -> List[str]:
+    def get_keys(self):
         return self._state_desc.keys()
 
     def match(self, state: State) -> State:
         return self.get_keys() == state.get_keys()
+
+    def __str__(self):
+        return str(list(self._state_desc.keys()))
 
     def __contains__(self, item):
         return item in self._state_desc

@@ -6,7 +6,7 @@ from src.descriptors import ClassDescriptor
 from src.wrappers import ClassWrapper
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
 
-registered_class: List[ClassWrapper] = []
+registered_classes: List[ClassWrapper] = []
 
 
 def stateflow(cls):
@@ -27,7 +27,7 @@ def stateflow(cls):
     )
 
     # Register the class.
-    registered_class.append(ClassWrapper(cls, class_desc))
+    registered_classes.append(ClassWrapper(cls, class_desc))
 
 
 class StateFlow:

@@ -50,6 +50,9 @@ class InputDescriptor:
     def match(self, args: Arguments) -> bool:
         return args.get_keys() == self._input_desc.keys()
 
+    def __str__(self):
+        return str(list(self._input_desc.keys()))
+
 
 class OutputDescriptor:
     """A description of the output of a function.

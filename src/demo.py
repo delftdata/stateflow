@@ -19,8 +19,7 @@ class Fun:
         return self.username
 
 
-wrapper = stateflow.registered_class[0]
-
+wrapper = stateflow.registered_classes[0]
 
 # Create the class
 result = wrapper.init_class(Arguments({"username": "wouter"}))
@@ -30,14 +29,15 @@ print(
 )
 print()
 
-# Throws exception
+# Returns failed invocation
 print(wrapper.invoke("LOL", None, None))
 print()
+
 # Invoke delta x
 state = result.updated_state
 args = Arguments({"delta_x": 5})
 result = wrapper.invoke("update_x", state, args)
 
 print(
-    f"Invoked method update_x. \n Updated state {result.updated_state}. \n Result: {result.return_results}"
+    f"Invoked method update_x.\nUpdated state {result.updated_state}.\nResult: {result.return_results}"
 )

@@ -26,6 +26,10 @@ class ClassWrapper:
     """Wrapper around a class implementation.
 
     This is a wrapper around a class implementation.
+    It offers two methods:
+    1. invoke: this invokes a method of a class and returns the updated state + the method results.
+    2. init_class: this calls the __init__ of a class and also evaluates the __key__ method.
+       This needs to be separated from a normal invocation, because we assume that for invoke the state already exists.
     """
 
     def __init__(self, cls, class_desc: ClassDescriptor):
@@ -36,11 +40,21 @@ class ClassWrapper:
         }
 
     def init_class(self, arguments: Arguments) -> InvocationResult:
+        """Initializes the wrapped class.
+
+        Calls the __init__ of a class and evaluates the key. We need to do this separately, because a stateful function
+        will be partitioned according to its key.
+
+        :param arguments: the arguments of the initialization.
+        :return: either a successful InvocationResult or a FailedInvocation.
+                The InvocationResult stores the instance key in its `return_results`.
+        """
         init_method: MethodDescriptor = self.methods_desc["__init__"]
 
         if not init_method.input_desc.match(arguments):
             return FailedInvocation(
-                "Invocation arguments do not match input description of the method."
+                "Invocation arguments do not match input description of the method.\n"
+                f"Expected {init_method.input_desc}, but got {list(arguments.get_keys())}."
             )
 
         try:
@@ -99,19 +113,21 @@ class ClassWrapper:
         # If there exists no method descriptor, we can't handle this invocation.
         if not method_desc:
             return FailedInvocation(
-                f'Method "{method_name}" does not exist in class {self.class_desc.class_name}.'
+                f'Method "{method_name}" does not exist in class {self.class_desc.class_name}. Available methods are: {list(self.methods_desc.keys())}'
             )
 
         # Verify if correct state.
         if not self.class_desc.state_desc.match(state):
             return FailedInvocation(
-                f"Invocation state does not match state description of the class."
+                f"Invocation state does not match state description of the class.\n"
+                f"Expected {self.class_desc.state_desc}, but got {list(state.get_keys())}."
             )
 
         # Verify if correct arguments.
         if not method_desc.input_desc.match(arguments):
             return FailedInvocation(
-                f"Invocation arguments do not match input description of the method."
+                f"Invocation arguments do not match input description of the method.\n"
+                f"Expected {method_desc.input_desc}, but got {list(arguments.get_keys())}."
             )
 
         try:
