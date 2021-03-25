@@ -1,6 +1,6 @@
 import pytest
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from descriptors.class_descriptor import ClassDescriptor
+from src.descriptors import ClassDescriptor
 from src.analysis.extract_method_descriptor import ExtractMethodDescriptor
 from typing import Any, Dict
 import libcst as cst

@@ -1,10 +1,10 @@
 from typing import List, Tuple, Any, Optional, Dict
 import libcst as cst
 from src.dataflow.stateful_fun import NoType
-from src.dataflow.state import StateDescription
+from src.dataflow.state import StateDescriptor
 from src.analysis.extract_method_descriptor import ExtractMethodDescriptor
-from src.dataflow.method_descriptor import MethodDescriptor
-from src.dataflow.class_descriptor import ClassDescriptor
+from src.descriptors import MethodDescriptor
+from src.descriptors import ClassDescriptor
 import libcst.helpers as helpers
 import libcst.matchers as m
 
@@ -132,7 +132,7 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         :param analyzed_visitor: the visitor that walked the ClassDef tree.
         :return: a Stateful Function object.
         """
-        state_desc: StateDescription = StateDescription(
+        state_desc: StateDescriptor = StateDescriptor(
             analyzed_visitor.merge_self_attributes()
         )
         return ClassDescriptor(

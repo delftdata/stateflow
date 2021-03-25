@@ -20,7 +20,7 @@ class State:
         pass
 
 
-class StateDescription:
+class StateDescriptor:
     def __init__(self, state_desc: Dict[str, Any]):
         self._state_desc = state_desc
 

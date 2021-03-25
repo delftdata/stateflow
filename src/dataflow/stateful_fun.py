@@ -1,12 +1,12 @@
 from src.dataflow.event import Event
-from src.dataflow.state import StateDescription
+from src.dataflow.state import StateDescriptor
 from typing import Any, NewType
 
 NoType = NewType("NoType", None)
 
 
 class StatefulFun:
-    def __init__(self, class_name: str, state_desc: StateDescription):
+    def __init__(self, class_name: str, state_desc: StateDescriptor):
         self.class_name = class_name
         self.state_desc = state_desc
 

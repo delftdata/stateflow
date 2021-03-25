@@ -3,7 +3,7 @@ from typing import List, Tuple, Any, Optional
 from src.analysis import ast_utils
 import libcst.matchers as m
 from src.dataflow.stateful_fun import NoType
-from src.dataflow.method_descriptor import (
+from src.descriptors import (
     MethodDescriptor,
     InputDescriptor,
     OutputDescriptor,

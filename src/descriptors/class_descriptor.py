@@ -1,6 +1,6 @@
-from src.dataflow.state import StateDescription
+from src.dataflow.state import StateDescriptor
 from typing import List
-from src.dataflow.method_descriptor import MethodDescriptor
+from src.descriptors import MethodDescriptor
 
 
 class ClassDescriptor:
@@ -9,7 +9,7 @@ class ClassDescriptor:
     def __init__(
         self,
         class_name: str,
-        state_desc: StateDescription,
+        state_desc: StateDescriptor,
         methods_dec: List[MethodDescriptor],
     ):
         self.class_name = class_name
