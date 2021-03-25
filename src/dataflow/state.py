@@ -17,6 +17,9 @@ class State:
     def get_keys(self):
         return self._data.keys()
 
+    def get(self):
+        return self._data
+
     @staticmethod
     def serialize(state: "State") -> bytes:
         pass

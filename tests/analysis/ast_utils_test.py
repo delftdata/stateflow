@@ -79,7 +79,6 @@ x: List[int]
 def test_type_unpacking():
     stmt = "x: Tuple[str, int, bytes]"
     parsed = cst.parse_module(stmt)
-    print(parsed, parsed.body[0].body[0].annotation)
     assert extract_types(parsed, parsed.body[0].body[0].annotation, unpack=True) == [
         "str",
         "int",
