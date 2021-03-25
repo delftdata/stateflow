@@ -29,7 +29,7 @@ class FancyClass:
 
     code_tree.visit(visitor)
 
-    clasz: ClassDescriptor = ExtractClassDescriptor.create_stateful_fun(visitor)
+    clasz: ClassDescriptor = ExtractClassDescriptor.create_class_descriptor(visitor)
     assert clasz.class_name == "FancyClass"
 
 

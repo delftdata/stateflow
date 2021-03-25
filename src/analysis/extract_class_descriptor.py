@@ -122,7 +122,7 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         return attributes
 
     @staticmethod
-    def create_stateful_fun(
+    def create_class_descriptor(
         analyzed_visitor: "ExtractClassDescriptor",
     ) -> ClassDescriptor:
         """Creates a Stateful function.

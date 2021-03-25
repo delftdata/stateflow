@@ -15,7 +15,7 @@ class Item:
         self.stock += delta_stock
         return True
 
-    def __hash__(self):
+    def __key__(self):
         return self.item_id
 
 
@@ -25,12 +25,12 @@ class User:
         self.balance: int = 0
         self.items: List[Item] = []
 
-    def update_balance(self, balance: int) -> bool:
+    def update_balance(self, balance: int):
         if self.balance + balance < 0:
             return False
 
         self.balance += balance
-        return True
+        return True, True
 
     def buy_item(self, item: Item, amount: int) -> bool:
         price = item.price * amount
@@ -43,5 +43,5 @@ class User:
             self.balance -= price
             return True
 
-    def __hash__(self):
+    def __key__(self):
         return self.username

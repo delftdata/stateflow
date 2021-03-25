@@ -12,6 +12,6 @@ class ClassDescriptor:
         state_desc: StateDescriptor,
         methods_dec: List[MethodDescriptor],
     ):
-        self.class_name = class_name
-        self.state_desc = state_desc
-        self.methods_dec = methods_dec
+        self.class_name: str = class_name
+        self.state_desc: StateDescriptor = state_desc
+        self.methods_dec: List[MethodDescriptor] = methods_dec

@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 class State:
@@ -11,18 +11,30 @@ class State:
     def __setitem__(self, key, value):
         self._data[key] = value
 
+    def __str__(self):
+        return str(self._data)
+
+    def get_keys(self):
+        return self._data.keys()
+
     @staticmethod
-    def serialize(state: "State") -> str:
+    def serialize(state: "State") -> bytes:
         pass
 
     @staticmethod
-    def deserialize(state_serialized: str) -> "State":
+    def deserialize(state_serialized: bytes) -> "State":
         pass
 
 
 class StateDescriptor:
     def __init__(self, state_desc: Dict[str, Any]):
         self._state_desc = state_desc
+
+    def get_keys(self) -> List[str]:
+        return self._state_desc.keys()
+
+    def match(self, state: State) -> State:
+        return self.get_keys() == state.get_keys()
 
     def __contains__(self, item):
         return item in self._state_desc

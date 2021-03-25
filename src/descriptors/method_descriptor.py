@@ -1,4 +1,5 @@
 from typing import Dict, Any, List
+from src.dataflow.args import Arguments
 
 
 class MethodDescriptor:
@@ -45,6 +46,9 @@ class InputDescriptor:
 
     def __eq__(self, other):
         return self._input_desc == other
+
+    def match(self, args: Arguments) -> bool:
+        return args.get_keys() == self._input_desc.keys()
 
 
 class OutputDescriptor:
