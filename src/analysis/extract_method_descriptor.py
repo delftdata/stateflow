@@ -18,6 +18,8 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
         self.class_node = class_node
         self.fun_node = fun_node
 
+        self.method_name: str = fun_node.name.value
+
         # We build the return signature for this function based on the type hint.
         self.return_signature = self.extract_return_signature()
 
@@ -232,4 +234,9 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
         # Create an OutputDescriptor.
         output_desc: OutputDescriptor = OutputDescriptor(analyzed_method.returns)
 
-        return MethodDescriptor(analyzed_method.read_only, input_desc, output_desc)
+        return MethodDescriptor(
+            analyzed_method.method_name,
+            analyzed_method.read_only,
+            input_desc,
+            output_desc,
+        )

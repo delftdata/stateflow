@@ -5,11 +5,16 @@ class MethodDescriptor:
     """A description of a class method."""
 
     def __init__(
-        self, read_only, input_desc: "InputDescriptor", output_desc: "OutputDescriptor"
+        self,
+        method_name: str,
+        read_only: bool,
+        input_desc: "InputDescriptor",
+        output_desc: "OutputDescriptor",
     ):
-        self.read_only = read_only
-        self.input_desc = input_desc
-        self.output_desc = output_desc
+        self.method_name: str = method_name
+        self.read_only: bool = read_only
+        self.input_desc: "InputDescriptor" = input_desc
+        self.output_desc: "OutputDescriptor" = output_desc
 
 
 class InputDescriptor:

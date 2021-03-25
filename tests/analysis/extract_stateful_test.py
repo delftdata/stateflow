@@ -1,6 +1,6 @@
 import pytest
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from src.dataflow.class_descriptor import ClassDescriptor
+from descriptors.class_descriptor import ClassDescriptor
 from src.analysis.extract_method_descriptor import ExtractMethodDescriptor
 from typing import Any, Dict
 import libcst as cst
@@ -229,9 +229,11 @@ class FancyClass:
 
     method = visitor.method_descriptors[1]
     assert method.read_only == True
+    assert method.method_name == "fun"
 
     method = visitor.method_descriptors[2]
     assert method.read_only == False
+    assert method.method_name == "fun_other"
 
 
 def test_method_extraction_no_self():
@@ -319,7 +321,7 @@ class FancyClass:
     def __init__(self):
         self.x : int = 4
 
-    def fun(self) -> str:
+    def fun(self) -> "Item":
         x = 3
         y = self.x
         """
@@ -332,7 +334,7 @@ class FancyClass:
     visitor = ExtractMethodDescriptor(code_tree, fun_def)
     fun_def.visit(visitor)
 
-    assert visitor.return_signature == ["str"]
+    assert visitor.return_signature == ["Item"]
 
 
 def test_method_extraction_return_signature():
@@ -341,7 +343,7 @@ class FancyClass:
     def __init__(self):
         self.x : int = 4
 
-    def fun(self) -> Tuple[str, int, List[List[Dict[Any, str]]]]   :
+    def fun(self) -> Tuple[str, int, List[List[Dict[Any, str, "Item"]]], "Item"]:
         x = 3
         y = self.x
         """
@@ -353,7 +355,12 @@ class FancyClass:
 
     visitor = ExtractMethodDescriptor(code_tree, fun_def)
     fun_def.visit(visitor)
-    assert visitor.return_signature == ["str", "int", "List[List[Dict[Any, str]]]"]
+    assert visitor.return_signature == [
+        "str",
+        "int",
+        "List[List[Dict[Any, str, Item]]]",
+        "Item",
+    ]
 
 
 def test_method_extraction_return_no_call():

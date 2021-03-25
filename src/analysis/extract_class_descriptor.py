@@ -50,6 +50,16 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         # Get self attributes of the function and add to the attributes list of the class.
         self.self_attributes.extend(method_extractor.self_attributes)
 
+        duplicates: List[MethodDescriptor] = [
+            method
+            for method in self.method_descriptors
+            if method.method_name == node.name
+        ]
+        if (
+            len(duplicates) > 0
+        ):  # We remove duplicate method definitins, and keep the last.
+            self.method_descriptors.remove(duplicates[0])
+
         # Create a wrapper for this analyzed class method.
         self.method_descriptors.append(
             ExtractMethodDescriptor.create_method_descriptor(method_extractor)

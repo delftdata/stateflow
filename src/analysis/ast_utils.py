@@ -23,6 +23,10 @@ def extract_types(
     """
     Extracts the (evaluated) type of an Annotation object.
 
+    We always remove quotations from the final type. If you define:
+    fun() -> "Item":
+    The type is actually Item and not "Item". However, the quotation marks are necessary for forward declaration.
+
     :param module_node: the 'context' of this annotation: i.e. the module in which it was declared.
     :param node: the actual annotation object.
     :param unpack: if the annotation holds a tuple, its unpacked and each element is individually evaluated.
@@ -37,10 +41,14 @@ def extract_types(
             if m.matches(
                 tuple_element, m.SubscriptElement(slice=m.Index(value=m.Name()))
             ):
-                types.append(tuple_element.slice.value.value)
+                types.append(tuple_element.slice.value.value.replace('"', ""))
             elif m.matches(tuple_element, m.SubscriptElement(slice=m.Index())):
-                types.append(module_node.code_for_node(tuple_element.slice.value))
+                types.append(
+                    module_node.code_for_node(tuple_element.slice.value).replace(
+                        '"', ""
+                    )
+                )
 
         return types
 
-    return module_node.code_for_node(node.annotation)
+    return module_node.code_for_node(node.annotation).replace('"', "")
