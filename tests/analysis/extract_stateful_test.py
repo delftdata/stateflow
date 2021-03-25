@@ -236,6 +236,30 @@ class FancyClass:
     assert method.method_name == "fun_other"
 
 
+def test_method_extraction_duplicate_methods():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self):
+        x = 3
+        y = self.x
+
+    def fun(self, x):
+        self.y = 2
+    """
+
+    code_tree = cst.parse_module(code)
+    visitor = ExtractClassDescriptor(code_tree)
+
+    code_tree.visit(visitor)
+
+    method = visitor.method_descriptors[1]
+    assert len(visitor.method_descriptors) == 2
+    assert method.input_desc == {"x": "NoType"}
+
+
 def test_method_extraction_no_self():
     code = """
 class FancyClass:

@@ -53,11 +53,12 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         duplicates: List[MethodDescriptor] = [
             method
             for method in self.method_descriptors
-            if method.method_name == node.name
+            if method.method_name == node.name.value
         ]
+
         if (
             len(duplicates) > 0
-        ):  # We remove duplicate method definitins, and keep the last.
+        ):  # We remove duplicate method definitions, and keep the last.
             self.method_descriptors.remove(duplicates[0])
 
         # Create a wrapper for this analyzed class method.
