@@ -110,3 +110,12 @@ class TestClassWrapper:
         result = wrapper.invoke("update", state, args)
 
         assert isinstance(result, FailedInvocation)
+
+    def test_simple_invoke_unknown_method(self):
+        wrapper = self.get_wrapper()
+
+        state = State({"name": "wouter", "x": 5})
+        args = Arguments({"x": 5})
+        result = wrapper.invoke("notexist", state, args)
+
+        assert isinstance(result, FailedInvocation)
