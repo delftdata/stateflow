@@ -21,3 +21,13 @@ Lastly, we have some _restrictions_ for a class:
 - There can't be functions with the same name. Similar to Python behaviour, we just pick the latest function declaration.
 - The `__init__` method is a special method that always needs to be declared and we do not allow any function calls there OR parameters of other functions.
 - A class has to define a `__hash__` function to decide on the `key` of the stateful functions. **TODO**: what are the restrictions of this hash func.
+
+## Execution
+For the execution part we wrap a `ClassDescriptor` into a `ClassWrapper`. Effectively, this wrappers stores a reference to the actual class and a reference to the `ClassDescriptor`.
+A `ClassDescriptor` holds references to all `MethodDescriptor`'s. This wrapper is used to invoke a method on the class, for this we distinguish two type of invocations:
+- `invoke(self, method_name: str, state: State, arguments: Arguments) -> InvocationResult`  
+This is a normal invoke, in which we select a method, the state of the class and the method arguments. In case of a successful invocation a `InvocationResult` is returned.
+  This holds the updated state of the class and the returned variables. In case of failure, a `FailedInvocation` is returned. This invoke method verifies if the given method name, state and arguments match that of the method to be invoked.
+- `init_class(self, arguments: Arguments) -> InvocationResult`   
+This is a special case of invoke, in which we initialize the class whereas it has not been created before. Therefore no state is available yet. This method returns an `InvocationResult`
+  with the initialized state, and the key of instance. 
