@@ -1,45 +1,44 @@
 from typing import List
-from src.dataflow.event import Event
-
-
-class Ingress:
-    pass
-
-
-class Egress:
-    pass
+from src.dataflow.event import Event, EventType
+from src.descriptors import ClassDescriptor
 
 
 class Operator:
-    def __init__(self):
-        pass
+    def __init__(self, incoming_edges: List["Edge"], outgoing_edges: List["Edge"]):
+        self.incoming_edges = incoming_edges
+        self.outgoing_edges = outgoing_edges
 
 
 class Edge:
-    def __init__(self, from_operator: Operator, to_operator: Operator):
+    def __init__(
+        self, from_operator: Operator, to_operator: Operator, event_type: EventType
+    ):
         self.from_operator = from_operator
         self.to_operator = to_operator
+        self.event_type = event_type
+
+
+class Ingress(Edge):
+    def __init__(
+        self, from_operator: "Operator", to_operator: "Operator", event_type: EventType
+    ):
+        super().__init__(from_operator, to_operator, event_type)
+
+
+class Egress(Edge):
+    def __init__(
+        self, from_operator: "Operator", to_operator: "Operator", event_type: EventType
+    ):
+        super().__init__(from_operator, to_operator, event_type)
 
 
 class Dataflow:
-    def __init__(
-        self,
-        operators: List[Operator],
-        edges: List[Edge],
-        ingresses: List[Ingress],
-        egresses: List[Egress],
-    ):
+    def __init__(self, operators: List[Operator], edges: List[Edge]):
         self.operators = operators
         self.edges = edges
-        self.ingresses = ingresses
-        self.egresses = egresses
 
-    def get_edge_by_event(self, event: Event) -> Edge:
-        edge_list = [edge for edge in self.edges if edge.get_event() == event]
+    def get_ingresses(self) -> List[Ingress]:
+        return [edge for edge in self.edges if isinstance(edge, Ingress)]
 
-        if len(edge_list) > 1:
-            raise AttributeError(
-                f"Event {event} is used on multiple edges. That should not be possible."
-            )
-
-        return edge_list[0]
+    def get_egresses(self) -> List[Egress]:
+        return [edge for edge in self.edges if isinstance(edge, Egress)]

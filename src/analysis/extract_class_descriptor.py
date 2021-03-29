@@ -1,6 +1,6 @@
 from typing import List, Tuple, Any, Optional, Dict
 import libcst as cst
-from src.dataflow.stateful_fun import NoType
+from src.dataflow.stateful_operator import NoType
 from src.dataflow.state import StateDescriptor
 from src.analysis.extract_method_descriptor import ExtractMethodDescriptor
 from src.descriptors import MethodDescriptor
