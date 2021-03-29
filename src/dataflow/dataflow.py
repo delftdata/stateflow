@@ -1,4 +1,5 @@
 from typing import List
+from src.dataflow.event import Event
 
 
 class Ingress:
@@ -7,6 +8,17 @@ class Ingress:
 
 class Egress:
     pass
+
+
+class Operator:
+    def __init__(self):
+        pass
+
+
+class Edge:
+    def __init__(self, from_operator: Operator, to_operator: Operator):
+        self.from_operator = from_operator
+        self.to_operator = to_operator
 
 
 class Dataflow:

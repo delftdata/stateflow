@@ -1,6 +1,7 @@
 from src.dataflow.state import State
 from src.dataflow.args import Arguments
 from typing import List, Optional
+from enum import Enum
 
 
 class FunctionAddress:
@@ -30,7 +31,25 @@ class FunctionAddress:
         return self.function_type.is_stateless()
 
 
+class EventType(Enum):
+    class Request(Enum):
+        InvokeStateless = "InvokeStateless"
+        InvokeStateful = "InvokeStateful"
+
+        GetState = "GetState"
+        SetState = "SetState"
+        UpdateState = "UpdateState"
+        DeleteState = "DeleteState"
+
+    class Reply(Enum):
+        SuccessfulInvocation = "SuccessfulInvocation"
+        FailedInvocation = "FailedInvocation"
+
+
 class Event:
-    def __init__(self, fun_address: FunctionAddress, args: Arguments):
+    def __init__(
+        self, fun_address: FunctionAddress, event_type: EventType, args: Arguments
+    ):
         self.fun_address = fun_address
+        self.event_type = event_type
         self.arguments = args
