@@ -31,3 +31,12 @@ This is a normal invoke, in which we select a method, the state of the class and
 - `init_class(self, arguments: Arguments) -> InvocationResult`   
 This is a special case of invoke, in which we initialize the class whereas it has not been created before. Therefore no state is available yet. This method returns an `InvocationResult`
   with the initialized state, and the key of instance. 
+  
+## Function Address
+Similar to stateful functions by Flink, functions are addressable by their `FunctionAddress`. Our `FunctionAddress` is very similar to the one used by Flink, except that we already have a flag for stateful functions.
+Flink does not have the notion of a stateless function. The FunctionAddress holds a FunctionType and a key. See the image below:  
+![address fun](img/fun_address.svg)
+
+The function address consists of two parts:
+- The function type: name and namespace of a function and a (boolean) flag for if it's stateful or not. The namespace is used to deal with naming conflicts. 
+- The key: this key is used to identify an instance of a function. That is, a key which uniquely identifies a piece of state bound to a (stateful) function. For a stateless function this key is None.
