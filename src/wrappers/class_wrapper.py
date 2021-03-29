@@ -2,7 +2,6 @@ from src.dataflow.state import State
 from typing import List, Optional, Any, Dict
 from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.dataflow.args import Arguments
-from src.dataflow.event import Event
 
 
 class InvocationResult:

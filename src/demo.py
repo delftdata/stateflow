@@ -19,6 +19,7 @@ class Fun:
         return self.username
 
 
+stateflow.init()
 wrapper = stateflow.registered_classes[0]
 
 # Create the class

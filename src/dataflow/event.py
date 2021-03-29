@@ -1,7 +1,25 @@
-from src.dataflow.state import State
-from src.dataflow.args import Arguments
+from src.wrappers import ClassWrapper
+from src.dataflow import Arguments
 from typing import List, Optional
 from enum import Enum
+
+
+class FunctionType:
+    def __init__(self, namespace: str, name: str, stateful: bool):
+        self.namespace = namespace
+        self.name = name
+        self.stateful = stateful
+
+    def is_stateless(self):
+        return not self.stateful
+
+    @staticmethod
+    def create(wrapper: ClassWrapper) -> "FunctionType":
+        name = wrapper.class_desc.class_name
+        namespace = "global"  # for now we have a global namespace
+        stateful = True  # for now we only cover stateful functions
+
+        return FunctionType(namespace, name, stateful)
 
 
 class FunctionAddress:
@@ -13,15 +31,6 @@ class FunctionAddress:
 
     This address can be used to route an event correctly through a dataflow.
     """
-
-    class FunctionType:
-        def __init__(self, namespace: str, name: str, stateful: bool):
-            self.namespace = namespace
-            self.name = name
-            self.stateful = stateful
-
-        def is_stateless(self):
-            return not self.stateful
 
     def __init__(self, function_type: FunctionType, key: Optional[str]):
         self.function_type = function_type
