@@ -5,16 +5,9 @@ from typing import List
 from src.descriptors import ClassDescriptor
 from src.wrappers import ClassWrapper
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from src.dataflow import (
-    Dataflow,
-    FunctionType,
-    StatefulOperator,
-    Ingress,
-    Egress,
-    EventType,
-    Edge,
-    Operator,
-)
+from src.dataflow.stateful_operator import StatefulOperator
+from src.dataflow.dataflow import Dataflow, Operator, Edge, Ingress, Egress
+from src.dataflow.event import FunctionType, EventType
 
 registered_classes: List[ClassWrapper] = []
 
@@ -87,6 +80,7 @@ def init():
         f"Registered {len(flow.operators)} operators with the names: {operator_names}."
     )
     ###
+    return flow
 
 
 class StateFlow:

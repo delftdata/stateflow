@@ -1,6 +1,8 @@
-from src.dataflow import Operator, Edge, FunctionType
+from src.dataflow.dataflow import Operator, Edge, FunctionType
+from src.dataflow.event import Event
+from src.dataflow.state import State
 from src.wrappers import ClassWrapper
-from typing import NewType, List
+from typing import NewType, List, Tuple
 
 NoType = NewType("NoType", None)
 
@@ -15,3 +17,7 @@ class StatefulOperator(Operator):
     ):
         super().__init__(incoming_edges, outgoing_edges, function_type)
         self.class_wrapper = class_wrapper
+
+    def handle(self, event: Event, state: State) -> Tuple[Event, State]:
+        print(f"Now handling event {event}, with state {state}")
+        return event, state

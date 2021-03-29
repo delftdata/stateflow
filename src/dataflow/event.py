@@ -40,19 +40,24 @@ class FunctionAddress:
         return self.function_type.is_stateless()
 
 
+class _Request(Enum):
+    InvokeStateless = "InvokeStateless"
+    InvokeStateful = "InvokeStateful"
+
+    GetState = "GetState"
+    SetState = "SetState"
+    UpdateState = "UpdateState"
+    DeleteState = "DeleteState"
+
+
+class _Reply(Enum):
+    SuccessfulInvocation = "SuccessfulInvocation"
+    FailedInvocation = "FailedInvocation"
+
+
 class EventType(Enum):
-    class Request(Enum):
-        InvokeStateless = "InvokeStateless"
-        InvokeStateful = "InvokeStateful"
-
-        GetState = "GetState"
-        SetState = "SetState"
-        UpdateState = "UpdateState"
-        DeleteState = "DeleteState"
-
-    class Reply(Enum):
-        SuccessfulInvocation = "SuccessfulInvocation"
-        FailedInvocation = "FailedInvocation"
+    Request = _Request
+    Reply = _Reply
 
 
 class Event:
