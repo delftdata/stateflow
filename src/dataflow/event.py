@@ -15,6 +15,16 @@ class FunctionType:
     def is_stateless(self):
         return not self.stateful
 
+    def __eq__(self, other):
+        if not isinstance(other, FunctionType):
+            return False
+
+        namespace_eq = self.namespace == other.namespace
+        name_eq = self.name == other.name
+        stateful_eq = self.stateful == other.stateful
+
+        return namespace_eq and name_eq and stateful_eq
+
     @staticmethod
     def create(wrapper: ClassWrapper) -> "FunctionType":
         name = wrapper.class_desc.class_name

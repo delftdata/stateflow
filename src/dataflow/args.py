@@ -1,4 +1,5 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from descriptors import MethodDescriptor
 
 
 class Arguments:
@@ -19,3 +20,10 @@ class Arguments:
 
     def get_keys(self) -> List[str]:
         return self._args.keys()
+
+    @staticmethod
+    def from_args_and_kwargs(
+        descriptor: MethodDescriptor, *args, **kwargs
+    ) -> Optional["Arguments"]:
+        if (len(args) + len(kwargs)) != len(descriptor.input_desc):
+            return None

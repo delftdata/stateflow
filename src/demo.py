@@ -4,7 +4,11 @@ from src.dataflow.state import State
 from src.dataflow.args import Arguments
 from src.wrappers.class_wrapper import FailedInvocation, ClassWrapper
 from src.runtime.beam_runtime import BeamRuntime
-from src.dataflow.event import Event, EventType
+from src.dataflow.event import Event, EventType, FunctionType
+from client.class_ref import ClassRef
+import time
+
+start = time.perf_counter()
 
 
 @stateflow.stateflow
@@ -22,20 +26,30 @@ class Fun:
 
 
 flow = stateflow.init()
-operator = BeamRuntime()
-operator.transform(flow)
-operator.run(
-    [
-        (
-            "wouter",
-            Event(
-                None,
-                EventType.Request.value.InvokeStateful,
-                Arguments({"username": "wouter"}),
-            ),
-        )
-    ]
-)
+
+fun_type = FunctionType("global", "Fun", True)
+class_descriptor = flow.get_descriptor_by_type(FunctionType("global", "Fun", True))
+class_ref = ClassRef(fun_type, class_descriptor, Fun)
+
+class_ref.update_x("hoi", 123)
+
+end = time.perf_counter()
+print((end - start) * 1000)
+print(class_descriptor)
+# operator = BeamRuntime()
+# operator.transform(flow)
+# operator.run(
+#     [
+#         (
+#             "wouter",
+#             Event(
+#                 None,
+#                 EventType.Request.value.InvokeStateful,
+#                 Arguments({"username": "wouter"}),
+#             ),
+#         )
+#     ]
+# )
 
 
 # wrapper = stateflow.registered_classes[0]

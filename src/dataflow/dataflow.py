@@ -1,5 +1,6 @@
 from typing import List, Optional
 from src.dataflow.event import EventType, FunctionType
+from descriptors import ClassDescriptor
 
 
 class Operator:
@@ -48,3 +49,17 @@ class Dataflow:
 
     def get_egresses(self) -> List[Egress]:
         return [edge for edge in self.edges if isinstance(edge, Egress)]
+
+    def get_descriptor_by_type(
+        self, function_type: FunctionType
+    ) -> Optional[ClassDescriptor]:
+        get_operator = [
+            op.class_wrapper.class_desc
+            for op in self.operators
+            if op.function_type == function_type
+        ]
+
+        if len(get_operator) == 0:
+            return None
+
+        return get_operator[0]
