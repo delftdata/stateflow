@@ -1,6 +1,6 @@
 from typing import List, Optional
 from src.dataflow.event import EventType, FunctionType
-from descriptors import ClassDescriptor
+from src.descriptors import ClassDescriptor
 
 
 class Operator:
