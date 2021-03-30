@@ -2,6 +2,9 @@ from typing import Dict, Any, List
 
 
 class Arguments:
+
+    __slots__ = "args"
+
     def __init__(self, args: Dict[str, Any]):
         self._args = args
 

@@ -1,5 +1,5 @@
 from apache_beam import DoFn
-from apache_beam.coders import BytesCoder
+from apache_beam.coders import StrUtf8Coder
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 import apache_beam as beam
 from src.dataflow import StatefulOperator
@@ -12,7 +12,7 @@ from src.dataflow import State, Event
 
 class BeamOperator(DoFn):
 
-    STATE_SPEC = ReadModifyWriteStateSpec("state", BytesCoder())
+    STATE_SPEC = ReadModifyWriteStateSpec("state", StrUtf8Coder())
 
     def __init__(self, operator: StatefulOperator):
         self.operator = operator
@@ -29,7 +29,6 @@ class BeamOperator(DoFn):
         operator_return, updated_state = self.operator.handle(element[1], state_decoded)
 
         # Update state.
-
         if updated_state is not None:
             state_encoded = State.serialize(updated_state)
             operator_state.write(state_encoded)

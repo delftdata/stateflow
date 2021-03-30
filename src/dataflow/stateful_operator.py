@@ -20,4 +20,5 @@ class StatefulOperator(Operator):
 
     def handle(self, event: Event, state: State) -> Tuple[Event, State]:
         print(f"Now handling event {event}, with state {state}")
-        return event, state
+        result = self.class_wrapper.init_class(event.arguments)
+        return event, result.updated_state

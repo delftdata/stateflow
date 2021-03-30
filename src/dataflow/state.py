@@ -3,6 +3,8 @@ import ujson
 
 
 class State:
+    __slots__ = "_data"
+
     def __init__(self, data: dict):
         self._data = data
 
@@ -23,11 +25,11 @@ class State:
 
     @staticmethod
     def serialize(state: "State") -> str:
-        return ujson.encode(state)
+        return ujson.dumps(state._data)
 
     @staticmethod
     def deserialize(state_serialized: str) -> "State":
-        return ujson.decode(state_serialized)
+        return State(ujson.load(state_serialized))
 
 
 class StateDescriptor:

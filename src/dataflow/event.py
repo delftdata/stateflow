@@ -5,6 +5,8 @@ from enum import Enum
 
 
 class FunctionType:
+    __slots__ = "namespace", "name", "stateful"
+
     def __init__(self, namespace: str, name: str, stateful: bool):
         self.namespace = namespace
         self.name = name
@@ -31,6 +33,8 @@ class FunctionAddress:
 
     This address can be used to route an event correctly through a dataflow.
     """
+
+    __slots__ = "function_type", "key"
 
     def __init__(self, function_type: FunctionType, key: Optional[str]):
         self.function_type = function_type

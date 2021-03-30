@@ -25,7 +25,16 @@ flow = stateflow.init()
 operator = BeamRuntime()
 operator.transform(flow)
 operator.run(
-    [("wouter", Event(None, EventType.Request.value.InvokeStateful, Arguments({})))]
+    [
+        (
+            "wouter",
+            Event(
+                None,
+                EventType.Request.value.InvokeStateful,
+                Arguments({"username": "wouter"}),
+            ),
+        )
+    ]
 )
 
 
