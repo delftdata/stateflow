@@ -4,6 +4,11 @@ from libcst.helpers import parse_template_expression
 from typing import Optional, Union
 
 
+class ClientMeta(type):
+    def __new__(cls, *args, **kwargs):
+        pass
+
+
 class ClientTransformer(cst.CSTTransformer):
     def __init__(self, module_node: cst.CSTNode):
         self.module_node = module_node
@@ -13,6 +18,8 @@ class ClientTransformer(cst.CSTTransformer):
     ) -> Union[cst.BaseStatement, cst.RemovalSentinel]:
         import_future = "from concurrent.futures import Future"
         import_node = cst.parse_statement(import_future)
+
+        set_metaclass = "__metaclass__ = stateflow.ClientMeta"
 
         body_node = updated_node.body.with_changes(body=[import_node])
 
