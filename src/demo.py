@@ -25,17 +25,20 @@ class Fun:
         return self.username
 
 
+print(Fun)
 flow = stateflow.init()
-
-fun_type = FunctionType("global", "Fun", True)
-class_descriptor = flow.get_descriptor_by_type(FunctionType("global", "Fun", True))
-class_ref = ClassRef(fun_type, class_descriptor, Fun)
-
-class_ref.update_x("hoi", 123)
-
-end = time.perf_counter()
-print((end - start) * 1000)
-print(class_descriptor)
+fun = Fun("wouter")
+print(fun.username)
+# fun.username
+# fun_type = FunctionType("global", "Fun", True)
+# class_descriptor = flow.get_descriptor_by_type(FunctionType("global", "Fun", True))
+# class_ref = ClassRef(fun_type, class_descriptor, Fun)
+#
+# class_ref.update_x("hoi", 123)
+#
+# end = time.perf_counter()
+# print((end - start) * 1000)
+# print(class_descriptor)
 # operator = BeamRuntime()
 # operator.transform(flow)
 # operator.run(

@@ -12,6 +12,18 @@ from src.dataflow.event import FunctionType, EventType
 registered_classes: List[ClassWrapper] = []
 
 
+class GenericMeta(type):
+    def __new__(meta, name, bases, dct):
+        print("Generated class")
+        return super(GenericMeta, meta).__new__(meta, name, bases, dct)
+
+    def __call__(meta, *args, **kwargs):
+        print(f"Calling with {args} and {kwargs}")
+        print(meta)
+        # Hier "creeren" we de class (stoppen we t in een class-reference maybe)?.
+        return super(GenericMeta, meta).__call__(*args, **kwargs)
+
+
 def stateflow(cls):
     if not isclass(cls):
         raise AttributeError(f"Expected a class but got an {cls}.")
@@ -31,6 +43,8 @@ def stateflow(cls):
 
     # Register the class.
     registered_classes.append(ClassWrapper(cls, class_desc))
+
+    return GenericMeta(str(cls.__name__), tuple(cls.__bases__), dict(cls.__dict__))
 
 
 def build_dataflow(registered_classes: List[ClassWrapper]) -> Dataflow:
