@@ -17,18 +17,13 @@ class MethodRef:
 
 
 class ClassRef:
-    def __init__(self, fun_type: FunctionType, class_desc: ClassDescriptor, cls):
+    def __init__(self, fun_type: FunctionType, class_desc: ClassDescriptor):
         self._fun_type = fun_type
         self._class_desc = class_desc
         self._attributes = list(class_desc.state_desc.get_keys())
         self._methods = {
             method.method_name: method for method in class_desc.methods_dec
         }
-
-        self.__name__ = str(cls.__name__)
-        self.__bases__ = tuple(cls.__bases__)
-        self.__dict__ = dict(cls.__dict__)
-        self.__dict__["__wrapped__"] = cls
 
     def _invoke_method(self, handle: str, arguments):
         pass

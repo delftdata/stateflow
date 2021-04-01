@@ -6,6 +6,7 @@ from src.wrappers.class_wrapper import FailedInvocation, ClassWrapper
 from src.runtime.beam_runtime import BeamRuntime
 from src.dataflow.event import Event, EventType, FunctionType
 from client.class_ref import ClassRef
+from src.client.kafka_client import StateflowKafkaClient, StateflowClient
 import time
 
 start = time.perf_counter()
@@ -27,6 +28,10 @@ class Fun:
 
 print(Fun)
 flow = stateflow.init()
+
+client: StateflowClient = StateflowKafkaClient(flow)
+
+
 fun = Fun("wouter")
 print(fun.username)
 # fun.username

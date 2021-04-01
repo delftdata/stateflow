@@ -8,20 +8,25 @@ from src.analysis.extract_class_descriptor import ExtractClassDescriptor
 from src.dataflow.stateful_operator import StatefulOperator
 from src.dataflow.dataflow import Dataflow, Operator, Edge, Ingress, Egress
 from src.dataflow.event import FunctionType, EventType
+from src.client.stateflow_client import StateflowClient
 
 registered_classes: List[ClassWrapper] = []
 
 
 class GenericMeta(type):
-    def __new__(meta, name, bases, dct):
+    def __new__(msc, name, bases, dct, descriptor):
         print("Generated class")
-        return super(GenericMeta, meta).__new__(meta, name, bases, dct)
+        msc.client = None
+        return super(GenericMeta, msc).__new__(msc, name, bases, dct)
 
-    def __call__(meta, *args, **kwargs):
+    def __call__(msc, *args, **kwargs):
         print(f"Calling with {args} and {kwargs}")
-        print(meta)
+        print(msc)
         # Hier "creeren" we de class (stoppen we t in een class-reference maybe)?.
-        return super(GenericMeta, meta).__call__(*args, **kwargs)
+        return super(GenericMeta, msc).__call__(*args, **kwargs)
+
+    def set_client(msc, client: StateflowClient):
+        msc.client = client
 
 
 def stateflow(cls):
@@ -44,7 +49,14 @@ def stateflow(cls):
     # Register the class.
     registered_classes.append(ClassWrapper(cls, class_desc))
 
-    return GenericMeta(str(cls.__name__), tuple(cls.__bases__), dict(cls.__dict__))
+    # Create a meta class.
+    meta_classes = []
+    meta_class = GenericMeta(
+        str(cls.__name__), tuple(cls.__bases__), dict(cls.__dict__)
+    )
+    meta_classes.append(meta_class)
+
+    return meta_class
 
 
 def build_dataflow(registered_classes: List[ClassWrapper]) -> Dataflow:
