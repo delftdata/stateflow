@@ -19,8 +19,6 @@ class ClientTransformer(cst.CSTTransformer):
         import_future = "from concurrent.futures import Future"
         import_node = cst.parse_statement(import_future)
 
-        set_metaclass = "__metaclass__ = stateflow.ClientMeta"
-
         body_node = updated_node.body.with_changes(body=[import_node])
 
         # return updated_node.with_changes(body=body_node)

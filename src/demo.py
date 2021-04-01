@@ -31,9 +31,11 @@ flow = stateflow.init()
 
 client: StateflowClient = StateflowKafkaClient(flow)
 
+stateflow.meta_classes[0].set_client(client)
+stateflow.meta_classes[0].set_descriptor(stateflow.registered_classes[0].class_desc)
+
 
 fun = Fun("wouter")
-print(fun.username)
 # fun.username
 # fun_type = FunctionType("global", "Fun", True)
 # class_descriptor = flow.get_descriptor_by_type(FunctionType("global", "Fun", True))

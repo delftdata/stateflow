@@ -9,24 +9,33 @@ from src.dataflow.stateful_operator import StatefulOperator
 from src.dataflow.dataflow import Dataflow, Operator, Edge, Ingress, Egress
 from src.dataflow.event import FunctionType, EventType
 from src.client.stateflow_client import StateflowClient
+from src.client.class_ref import ClassRef
 
 registered_classes: List[ClassWrapper] = []
+meta_classes: List["GenericMeta"] = []
 
 
 class GenericMeta(type):
-    def __new__(msc, name, bases, dct, descriptor):
+    def __new__(msc, name, bases, dct):
         print("Generated class")
         msc.client = None
+        msc.descriptor = None
         return super(GenericMeta, msc).__new__(msc, name, bases, dct)
 
     def __call__(msc, *args, **kwargs):
+        print(f"Calling class {msc} with client {msc.client}")
         print(f"Calling with {args} and {kwargs}")
         print(msc)
+
         # Hier "creeren" we de class (stoppen we t in een class-reference maybe)?.
-        return super(GenericMeta, msc).__call__(*args, **kwargs)
+        return ClassRef(FunctionType.create(msc.descriptor), msc.descriptor)
+        # return super(GenericMeta, msc).__call__(*args, **kwargs)
 
     def set_client(msc, client: StateflowClient):
         msc.client = client
+
+    def set_descriptor(msc, descriptor: ClassDescriptor):
+        msc.descriptor = descriptor
 
 
 def stateflow(cls):
@@ -50,7 +59,6 @@ def stateflow(cls):
     registered_classes.append(ClassWrapper(cls, class_desc))
 
     # Create a meta class.
-    meta_classes = []
     meta_class = GenericMeta(
         str(cls.__name__), tuple(cls.__bases__), dict(cls.__dict__)
     )
@@ -65,7 +73,7 @@ def build_dataflow(registered_classes: List[ClassWrapper]) -> Dataflow:
 
     for wrapper in registered_classes:
         name: str = wrapper.class_desc.class_name
-        fun_type: FunctionType = FunctionType.create(wrapper)
+        fun_type: FunctionType = FunctionType.create(wrapper.class_desc)
 
         # Create operator, we will add the edges later.
         operator: StatefulOperator = StatefulOperator([], [], fun_type, wrapper)

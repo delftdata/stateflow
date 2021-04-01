@@ -1,4 +1,4 @@
-from src.wrappers import ClassWrapper
+from src.descriptors import ClassDescriptor
 from src.dataflow import Arguments
 from typing import List, Optional
 from enum import Enum
@@ -26,8 +26,8 @@ class FunctionType:
         return namespace_eq and name_eq and stateful_eq
 
     @staticmethod
-    def create(wrapper: ClassWrapper) -> "FunctionType":
-        name = wrapper.class_desc.class_name
+    def create(desc: ClassDescriptor) -> "FunctionType":
+        name = desc.class_name
         namespace = "global"  # for now we have a global namespace
         stateful = True  # for now we only cover stateful functions
 
