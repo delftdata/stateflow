@@ -36,6 +36,8 @@ stateflow.meta_classes[0].set_descriptor(stateflow.registered_classes[0].class_d
 
 
 fun = Fun("wouter")
+fun.username
+fun.update_x
 # fun.username
 # fun_type = FunctionType("global", "Fun", True)
 # class_descriptor = flow.get_descriptor_by_type(FunctionType("global", "Fun", True))
