@@ -2,6 +2,7 @@ from src.descriptors import ClassDescriptor
 from src.dataflow import Arguments
 from typing import List, Optional
 from enum import Enum
+import ujson
 
 
 class FunctionType:
@@ -57,6 +58,7 @@ class FunctionAddress:
 class _Request(Enum):
     InvokeStateless = "InvokeStateless"
     InvokeStateful = "InvokeStateful"
+    InitClass = "InitClass"
 
     GetState = "GetState"
     SetState = "SetState"
@@ -76,8 +78,21 @@ class EventType(Enum):
 
 class Event:
     def __init__(
-        self, fun_address: FunctionAddress, event_type: EventType, args: Arguments
+        self,
+        event_id: str,
+        fun_address: FunctionAddress,
+        event_type: EventType,
+        args: Arguments,
     ):
-        self.fun_address = fun_address
-        self.event_type = event_type
-        self.arguments = args
+        self.event_id: str = event_id
+        self.fun_address: str = fun_address
+        self.event_type: str = event_type
+        self.arguments: str = args
+
+    @staticmethod
+    def serialize(event: "Event") -> str:
+        return ujson.dumps(event)
+
+    @staticmethod
+    def deserialize(event_serialized: str) -> "Event":
+        return ujson.load(event_serialized)

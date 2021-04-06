@@ -1,15 +1,8 @@
 import stateflow
-from src.example.shop import User
-from src.dataflow.state import State
-from src.dataflow.args import Arguments
-from src.wrappers.class_wrapper import FailedInvocation, ClassWrapper
-from src.runtime.beam_runtime import BeamRuntime
-from src.dataflow.event import Event, EventType, FunctionType
+from src.client.future import StateflowFuture
 from client.class_ref import ClassRef
 from src.client.kafka_client import StateflowKafkaClient, StateflowClient
 import time
-
-start = time.perf_counter()
 
 
 @stateflow.stateflow
@@ -26,18 +19,22 @@ class Fun:
         return self.username
 
 
-print(Fun)
+# Initialize stateflow
 flow = stateflow.init()
 
+# Setup the client.
 client: StateflowClient = StateflowKafkaClient(flow)
 
-stateflow.meta_classes[0].set_client(client)
-stateflow.meta_classes[0].set_descriptor(stateflow.registered_classes[0].class_desc)
+# Create a class.
+fun: StateflowFuture = Fun()
+
+print(fun)
+
+#
+# stateflow.meta_classes[0].set_client(client)
+# stateflow.meta_classes[0].set_descriptor(stateflow.registered_classes[0].class_desc)
 
 
-fun = Fun("wouter")
-fun.username
-fun.update_x
 # fun.username
 # fun_type = FunctionType("global", "Fun", True)
 # class_descriptor = flow.get_descriptor_by_type(FunctionType("global", "Fun", True))

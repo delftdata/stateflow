@@ -1,5 +1,5 @@
-from dataflow import FunctionType
-from descriptors import ClassDescriptor, MethodDescriptor
+from src.dataflow import FunctionType
+from src.descriptors import ClassDescriptor, MethodDescriptor
 from concurrent.futures import Future
 
 

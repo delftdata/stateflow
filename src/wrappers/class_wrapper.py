@@ -94,13 +94,12 @@ class ClassWrapper:
 
         Will perform the following procedure:
         1. Find the correct descriptor of the method, given the method name.
-        2. Verifies arguments matches InputDescriptor.
-        3. Verifies state matches StateDescriptor.
-        4. Constructs the class and sets the state (without invoking __init__).
-        5. Execute method with arguments.
-        6. Return method output and resulting state in an InvocationResult.
+        2. Constructs the class and sets the state (without invoking __init__).
+        3. Execute method with arguments.
+        4. Return method output and resulting state in an InvocationResult.
 
         In case of failure, we will return a FailedInvocation.
+        We assume that arguments are already checked on the client side, due to performance reasons.
 
         :param method_name: the method to invoke.
         :param state: the state of the class.
@@ -113,20 +112,6 @@ class ClassWrapper:
         if not method_desc:
             return FailedInvocation(
                 f'Method "{method_name}" does not exist in class {self.class_desc.class_name}. Available methods are: {list(self.methods_desc.keys())}'
-            )
-
-        # Verify if correct state.
-        if not self.class_desc.state_desc.match(state):
-            return FailedInvocation(
-                f"Invocation state does not match state description of the class.\n"
-                f"Expected {self.class_desc.state_desc}, but got {list(state.get_keys())}."
-            )
-
-        # Verify if correct arguments.
-        if not method_desc.input_desc.match(arguments):
-            return FailedInvocation(
-                f"Invocation arguments do not match input description of the method.\n"
-                f"Expected {method_desc.input_desc}, but got {list(arguments.get_keys())}."
             )
 
         try:
