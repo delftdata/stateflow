@@ -2,6 +2,7 @@ from src.client import ClassRef, StateflowClient, StateflowFuture
 from src.dataflow import FunctionType
 from src.descriptors import ClassDescriptor
 from src.dataflow.event import Event, FunctionType, FunctionAddress, EventType
+from src.dataflow.args import Arguments
 import uuid
 
 
@@ -19,14 +20,17 @@ class MetaWrapper(type):
         # We didn't create it yet, so key is still None.
         fun_address = FunctionAddress(FunctionType.create(msc.descriptor), None)
 
-        event_id: str = uuid.uuid4()
+        event_id: str = str(uuid.uuid4())
+
+        # Build arguments.
+        args = Arguments.from_args_and_kwargs(
+            msc.descriptor.get_method_by_name("__init__").input_desc.get(), args, kwargs
+        )
 
         # Creates a class event.
         create_class_event = Event(
-            event_id, fun_address, EventType.Request.value.InitClass, None
+            event_id, fun_address, EventType.Request.value.InitClass, args
         )
-
-        # args = ...
 
         # ClassRef(FunctionType.create(msc.descriptor), msc.descriptor)
 

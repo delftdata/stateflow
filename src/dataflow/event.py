@@ -26,6 +26,13 @@ class FunctionType:
 
         return namespace_eq and name_eq and stateful_eq
 
+    def to_dict(self):
+        return {
+            "namespace": self.namespace,
+            "name": self.name,
+            "stateful": self.stateful,
+        }
+
     @staticmethod
     def create(desc: ClassDescriptor) -> "FunctionType":
         name = desc.class_name
@@ -54,6 +61,9 @@ class FunctionAddress:
     def is_stateless(self):
         return self.function_type.is_stateless()
 
+    def to_dict(self):
+        return {"function_type": self.function_type.to_dict(), "key": self.key}
+
 
 class _Request(Enum):
     InvokeStateless = "InvokeStateless"
@@ -68,6 +78,7 @@ class _Request(Enum):
 
 class _Reply(Enum):
     SuccessfulInvocation = "SuccessfulInvocation"
+    SuccessfulCreateClass = "SuccessfulCreateClass"
     FailedInvocation = "FailedInvocation"
 
 
@@ -82,16 +93,25 @@ class Event:
         event_id: str,
         fun_address: FunctionAddress,
         event_type: EventType,
-        args: Arguments,
+        args: Optional[Arguments],
     ):
         self.event_id: str = event_id
-        self.fun_address: str = fun_address
-        self.event_type: str = event_type
-        self.arguments: str = args
+        self.fun_address: FunctionAddress = fun_address
+        self.event_type: EventType = event_type
+        self.arguments: Optional[Arguments] = args
 
     @staticmethod
     def serialize(event: "Event") -> str:
-        return ujson.dumps(event)
+        function_addr = event.fun_address.to_dict()
+
+        return ujson.dumps(
+            [
+                event.event_id,
+                function_addr,
+                event.event_type.value,
+                event.arguments.get(),
+            ]
+        )
 
     @staticmethod
     def deserialize(event_serialized: str) -> "Event":

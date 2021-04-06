@@ -21,5 +21,23 @@ class Arguments:
         return self._args.keys()
 
     @staticmethod
-    def from_args_and_kwargs(*args, **kwargs) -> Optional["Arguments"]:
-        pass
+    def from_args_and_kwargs(
+        desc: Dict[str, Any], *args, **kwargs
+    ) -> Optional["Arguments"]:
+        args_dict = {}
+        print("--")
+        print(desc)
+        print(args)
+
+        for arg, name in zip(list(args), desc.keys()):
+            args_dict[name] = arg
+
+        for key, value in kwargs:
+            args_dict[key] = value
+
+        arguments = Arguments(args_dict)
+
+        if not desc.keys() == args_dict.keys():
+            raise AttributeError(f"Expected arguments: {desc} but got {args_dict}.")
+
+        return arguments

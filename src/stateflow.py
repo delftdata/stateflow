@@ -1,14 +1,10 @@
-from runtime.runtime import Runtime
 from inspect import isclass, getsource
 import libcst as cst
 from typing import List
-from src.descriptors import ClassDescriptor
-from src.wrappers import ClassWrapper
+from src.dataflow import *
+from src.wrappers import *
+from src.descriptors import *
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from src.dataflow.stateful_operator import StatefulOperator
-from src.dataflow.dataflow import Dataflow, Operator, Edge, Ingress, Egress
-from src.dataflow.event import FunctionType, EventType
-from src.wrappers import MetaWrapper
 
 registered_classes: List[ClassWrapper] = []
 meta_classes: List["GenericMeta"] = []
@@ -98,11 +94,3 @@ def init():
     )
     ###
     return flow
-
-
-class StateFlow:
-    def __init__(self, runtime: Runtime):
-        self.runtime = runtime
-
-    def run(self):
-        self.runtime.run()

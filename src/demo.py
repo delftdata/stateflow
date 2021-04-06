@@ -1,6 +1,5 @@
 import stateflow
 from src.client.future import StateflowFuture
-from client.class_ref import ClassRef
 from src.client.kafka_client import StateflowKafkaClient, StateflowClient
 import time
 
@@ -23,14 +22,12 @@ class Fun:
 flow = stateflow.init()
 
 # Setup the client.
-client: StateflowClient = StateflowKafkaClient(flow)
+client: StateflowClient = StateflowKafkaClient(flow, brokers="localhost:9092")
 
 # Create a class.
-fun: StateflowFuture = Fun()
+fun: StateflowFuture = Fun("wouter")
 
-print(fun)
 
-#
 # stateflow.meta_classes[0].set_client(client)
 # stateflow.meta_classes[0].set_descriptor(stateflow.registered_classes[0].class_desc)
 

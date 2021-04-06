@@ -38,11 +38,11 @@ class StateflowKafkaClient(StateflowClient):
         [op.meta_wrapper.set_client(self) for op in flow.operators]
 
         # Start consumer thread.
-        self.consumer_thread = threading.Thread(target=self.start_consuming())
+        self.consumer_thread = threading.Thread(target=self.start_consuming)
         self.consumer_thread.start()
 
     def start_consuming(self):
-        self.consumer.subscribe(self.reply_topic)
+        self.consumer.subscribe([self.reply_topic])
 
         while True:
             msg = self.consumer.poll(1.0)
@@ -61,7 +61,7 @@ class StateflowKafkaClient(StateflowClient):
     def send(self, event: Event, return_type: T):
 
         self.producer.produce(
-            self.req_topic, value=Event.serialize(event), key=self.client_id
+            self.req_topic, value=Event.serialize(event), key=event.event_id
         )
 
         future = StateflowFuture(
@@ -69,6 +69,8 @@ class StateflowKafkaClient(StateflowClient):
         )
 
         self.futures[event.event_id] = future
+
+        self.producer.flush()
 
         return future
 

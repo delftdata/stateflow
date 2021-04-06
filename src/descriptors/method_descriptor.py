@@ -47,6 +47,9 @@ class InputDescriptor:
     def __eq__(self, other):
         return self._input_desc == other
 
+    def get(self) -> Dict[str, Any]:
+        return self._input_desc
+
     def match(self, args: Arguments) -> bool:
         return args.get_keys() == self._input_desc.keys()
 
