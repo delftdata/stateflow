@@ -1,5 +1,7 @@
-from typing import Generic, TypeVar
-from src.dataflow.event import FunctionAddress
+from typing import Generic, TypeVar, Optional
+from src.dataflow.event import FunctionAddress, Event
+import time
+
 
 T = TypeVar("T")
 
@@ -13,5 +15,15 @@ class StateflowFuture(Generic[T]):
         self.function_addr = function_addr
         self.return_type = return_type
 
+        self.is_completed: bool = False
+        self.result: Optional[T] = None
+
+    def complete(self, event: Event):
+        self.is_completed = event
+        self.result = event
+
     def get(self) -> T:
-        pass
+        while not self.is_completed:
+            time.sleep(0.01)
+
+        return self.result
