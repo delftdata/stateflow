@@ -41,6 +41,8 @@ client: StateflowClient = StateflowKafkaClient(flow, brokers="localhost:9092")
 # Create a class.
 fun: StateflowFuture[Fun] = Fun("wouter")
 
+# Blocks everything.
+# client.await_futures()
 
 print(fun.get())
 print(Fun("wouter").get())

@@ -21,8 +21,7 @@ class Fun:
 # Initialize stateflow
 flow = stateflow.init()
 
-runtime = BeamRuntime()
-runtime.transform(dataflow=flow)
+runtime = BeamRuntime(flow)
 runtime.run()
 
 

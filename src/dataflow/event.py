@@ -16,6 +16,9 @@ class FunctionType:
     def is_stateless(self):
         return not self.stateful
 
+    def get_full_name(self):
+        return f"{self.namespace}/{self.name}"
+
     def __eq__(self, other):
         if not isinstance(other, FunctionType):
             return False
@@ -134,48 +137,10 @@ class Event:
         self.event_id: str = event_id
         self.fun_address: FunctionAddress = fun_address
         self.event_type: EventType = event_type
-        self.payload = payload
-
-        # self.arguments: Optional[Arguments] = args
+        self.payload: Dict = payload
 
     def get_arguments(self) -> Optional[Arguments]:
         if "args" in self.payload:
             return self.payload["args"]
         else:
             return None
-
-    @staticmethod
-    def serialize(event: "Event") -> str:
-        function_addr = event.fun_address.to_dict()
-
-        if event.arguments == None:
-            args = None
-        else:
-            args = event.arguments.get()
-
-        return ujson.dumps(
-            {
-                "event_id": event.event_id,
-                "function_addr": function_addr,
-                "event_type": event.event_type.value,
-                "event_args": args,
-            }
-        )
-
-    @staticmethod
-    def deserialize(event_serialized: str) -> "Event":
-        json = ujson.decode(event_serialized)
-
-        event_id = json["event_id"]
-        function_addr = FunctionAddress(
-            FunctionType(
-                json["function_addr"]["function_type"]["namespace"],
-                json["function_addr"]["function_type"]["name"],
-                json["function_addr"]["function_type"]["stateful"],
-            ),
-            json["function_addr"]["key"],
-        )
-        event_type = json["event_type"]
-        args = json["event_args"]
-
-        return Event(event_id, function_addr, event_type, Arguments(args))

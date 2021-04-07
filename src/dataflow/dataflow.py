@@ -1,6 +1,7 @@
-from typing import List, Optional
-from src.dataflow.event import EventType, FunctionType
+from typing import List, Optional, Tuple
+from src.dataflow.event import EventType, FunctionType, Event
 from src.descriptors import ClassDescriptor
+from src.serialization.serde import SerDe
 
 
 class Operator:
@@ -25,6 +26,29 @@ class Edge:
         self.from_operator = from_operator
         self.to_operator = to_operator
         self.event_type = event_type
+
+
+class Router:
+    def __init__(self, flow: "Dataflow", current: Edge, serializer: SerDe):
+        self.flow = flow
+        self.current = current
+        self.serializer = serializer
+
+    def parse(self):
+        pass
+
+    def _parse(self, key_and_event: Tuple[bytes, bytes]) -> Tuple[str, Event]:
+        return (key_and_event[0].decode("utf-8"),)
+
+    def flow(self, event: Event):
+        if (
+            isinstance(event, tuple)
+            and isinstance(event[0], bytes)
+            and isinstance(event[1], bytes)
+        ):
+            _, event = self._parse(event)
+
+        pass
 
 
 class Ingress(Edge):

@@ -51,8 +51,7 @@ class StatefulOperator(Operator):
                     event.fun_address,
                     EventType.Reply.FailedInvocation,
                     {
-                        "error_message": f"{event.fun_address.function_type.namespace}"
-                        f"/{event.fun_address.function_type.name} class "
+                        "error_message": f"{event.fun_address.function_type.get_full_name()} class "
                         f"with key={event.fun_address.key} already exists."
                     },
                 )
