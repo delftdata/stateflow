@@ -121,7 +121,7 @@ class BeamRuntime(Runtime):
 
         with beam.Pipeline(
             options=PipelineOptions(
-                streaming=True,
+                streaming=True, runner="FlinkRunner", flink_master="localhost:8081"
             )
         ) as pipeline:
 
@@ -152,7 +152,7 @@ class BeamRuntime(Runtime):
 
             for operator, init_operator in zip(self.operators, self.init_operators):
                 name = operator.operator.function_type.get_full_name()
-                beam_operator = name >> beam.ParDo(operator)
+                beam_operator = name >> beam.ParDo(operator) | kafka_producer
 
                 ingress_to_init_to_op = (
                     input_and_router[
@@ -161,12 +161,12 @@ class BeamRuntime(Runtime):
                     | f"init-{name}" >> beam.ParDo(init_operator)
                     | f"init-to-{name}" >> beam_operator
                 )
+
                 ingress_to_operator = (
                     input_and_router[
                         f"{operator.operator.function_type.get_full_name()}-{EventType.Request.InvokeStateful}"
                     ]
                     | beam_operator
-                    | f"{name}-to-kafka" >> kafka_producer
                 )
 
             # print(
