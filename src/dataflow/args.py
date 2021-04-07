@@ -25,12 +25,10 @@ class Arguments:
         desc: Dict[str, Any], *args, **kwargs
     ) -> Optional["Arguments"]:
         args_dict = {}
-        print("--")
-        print(desc)
-        print(args)
-
+        print(list(args))
         for arg, name in zip(list(args), desc.keys()):
             args_dict[name] = arg
+            print(f"Now set {name} and {arg}")
 
         for key, value in kwargs:
             args_dict[key] = value

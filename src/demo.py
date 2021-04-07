@@ -1,7 +1,7 @@
 import stateflow
 from src.client.future import StateflowFuture
 from src.client.kafka_client import StateflowKafkaClient, StateflowClient
-import time
+from src.runtime.beam_runtime import BeamRuntime
 
 
 @stateflow.stateflow
@@ -21,11 +21,9 @@ class Fun:
 # Initialize stateflow
 flow = stateflow.init()
 
-# Setup the client.
-client: StateflowClient = StateflowKafkaClient(flow, brokers="localhost:9092")
-
-# Create a class.
-fun: StateflowFuture = Fun("wouter")
+runtime = BeamRuntime()
+runtime.transform(dataflow=flow)
+runtime.run()
 
 
 # stateflow.meta_classes[0].set_client(client)

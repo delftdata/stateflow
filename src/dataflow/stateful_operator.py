@@ -44,4 +44,4 @@ class StatefulOperator(Operator):
         elif event.event_type == EventType.Request.value.InvokeStateful:
             pass
 
-        return event, result.updated_state
+        return event

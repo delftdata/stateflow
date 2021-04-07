@@ -24,7 +24,9 @@ class MetaWrapper(type):
 
         # Build arguments.
         args = Arguments.from_args_and_kwargs(
-            msc.descriptor.get_method_by_name("__init__").input_desc.get(), args, kwargs
+            msc.descriptor.get_method_by_name("__init__").input_desc.get(),
+            *args,
+            **kwargs,
         )
 
         # Creates a class event.
