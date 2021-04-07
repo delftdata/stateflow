@@ -39,19 +39,23 @@ flow = stateflow.init()
 client: StateflowClient = StateflowKafkaClient(flow, brokers="localhost:9092")
 
 # Create a class.
+fun: StateflowFuture[Fun] = Fun("wouter")
 
 
-start = time.time()
-fun_list = []
-for x in range(0, 10000):
-    fun: StateflowFuture[Fun] = Fun(f"wouter_{x}")
-    fun_list.append(fun)
-end = time.time()
-client.await_futures(fun_list)
-print(f"Non blocking future took {end-start}s")
+print(fun.get())
+print(Fun("wouter").get())
 
-start = time.time()
-for x in range(0, 10000):
-    Fun2(f"wouter_{x}")
-end = time.time()
-print(f"Fun2 took {end-start}s")
+# start = time.time()
+# fun_list = []
+# for x in range(0, 10000):
+#     fun: StateflowFuture[Fun] = Fun(f"wouter_{x}")
+#     fun_list.append(fun)
+# end = time.time()
+# client.await_futures(fun_list)
+# print(f"Non blocking future took {end-start}s")
+#
+# start = time.time()
+# for x in range(0, 10000):
+#     Fun2(f"wouter_{x}")
+# end = time.time()
+# print(f"Fun2 took {end-start}s")

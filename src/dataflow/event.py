@@ -1,7 +1,7 @@
 from src.descriptors import ClassDescriptor
 from src.dataflow import Arguments
-from typing import List, Optional
-from enum import Enum
+from typing import List, Optional, Dict
+from enum import Enum, EnumMeta
 import ujson
 
 
@@ -26,7 +26,7 @@ class FunctionType:
 
         return namespace_eq and name_eq and stateful_eq
 
-    def to_dict(self):
+    def to_dict(self) -> Dict:
         return {
             "namespace": self.namespace,
             "name": self.name,
@@ -64,8 +64,28 @@ class FunctionAddress:
     def to_dict(self):
         return {"function_type": self.function_type.to_dict(), "key": self.key}
 
+    @staticmethod
+    def from_dict(dictionary: Dict) -> "FunctionAddress":
+        return FunctionAddress(
+            FunctionType(
+                dictionary["function_type"]["namespace"],
+                dictionary["function_type"]["name"],
+                dictionary["function_type"]["stateful"],
+            ),
+            dictionary["key"],
+        )
 
-class _Request(Enum):
+
+class MetaEnum(EnumMeta):
+    def __contains__(cls, item):
+        try:
+            cls(item)
+        except ValueError:
+            return False
+        return True
+
+
+class _Request(Enum, metaclass=MetaEnum):
     InvokeStateless = "InvokeStateless"
     InvokeStateful = "InvokeStateful"
     InitClass = "InitClass"
@@ -76,15 +96,31 @@ class _Request(Enum):
     DeleteState = "DeleteState"
 
 
-class _Reply(Enum):
+class _Reply(Enum, metaclass=MetaEnum):
     SuccessfulInvocation = "SuccessfulInvocation"
     SuccessfulCreateClass = "SuccessfulCreateClass"
     FailedInvocation = "FailedInvocation"
 
+    def __contains__(cls, item):
+        try:
+            cls(item)
+        except ValueError:
+            return False
+        return True
 
-class EventType(Enum):
+
+class EventType:
     Request = _Request
     Reply = _Reply
+
+    @staticmethod
+    def from_str(input_str: str) -> Optional["EvenType"]:
+        if input_str in EventType.Request:
+            return EventType.Request[input_str]
+        elif input_str in EventType.Reply:
+            return EventType.Reply[input_str]
+        else:
+            return None
 
 
 class Event:
@@ -93,12 +129,20 @@ class Event:
         event_id: str,
         fun_address: FunctionAddress,
         event_type: EventType,
-        args: Optional[Arguments],
+        payload: Dict,
     ):
         self.event_id: str = event_id
         self.fun_address: FunctionAddress = fun_address
         self.event_type: EventType = event_type
-        self.arguments: Optional[Arguments] = args
+        self.payload = payload
+
+        # self.arguments: Optional[Arguments] = args
+
+    def get_arguments(self) -> Optional[Arguments]:
+        if "args" in self.payload:
+            return self.payload["args"]
+        else:
+            return None
 
     @staticmethod
     def serialize(event: "Event") -> str:

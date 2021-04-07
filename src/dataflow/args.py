@@ -20,6 +20,13 @@ class Arguments:
     def get_keys(self) -> List[str]:
         return self._args.keys()
 
+    def to_dict(self) -> Dict:
+        return self._args
+
+    @staticmethod
+    def from_dict(dictionary: Dict):
+        return Arguments(dictionary)
+
     @staticmethod
     def from_args_and_kwargs(
         desc: Dict[str, Any], *args, **kwargs

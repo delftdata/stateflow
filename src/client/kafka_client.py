@@ -1,4 +1,4 @@
-from src.client.stateflow_client import StateflowClient, Dataflow
+from src.client.stateflow_client import StateflowClient, Dataflow, SerDe, JsonSerializer
 from src.dataflow.event import Event
 from src.client.future import StateflowFuture, T
 from typing import Optional, Any, List
@@ -10,8 +10,10 @@ import time
 
 
 class StateflowKafkaClient(StateflowClient):
-    def __init__(self, flow: Dataflow, brokers: str):
-        super().__init__(flow)
+    def __init__(
+        self, flow: Dataflow, brokers: str, serializer: SerDe = JsonSerializer()
+    ):
+        super().__init__(flow, serializer)
         self.brokers = brokers
 
         # We should a client id later.
@@ -19,7 +21,7 @@ class StateflowKafkaClient(StateflowClient):
 
         # Producer and consumer.
         self.producer = Producer({"bootstrap.servers": brokers})
-        self.consumer = c = Consumer(
+        self.consumer = Consumer(
             {
                 "bootstrap.servers": brokers,
                 "group.id": "mygroup",
@@ -55,16 +57,19 @@ class StateflowKafkaClient(StateflowClient):
             key = msg.key().decode("utf-8")
 
             if key in self.futures.keys():
-                self.futures[key].complete(Event.deserialize(msg.value()))
+                self.futures[key].complete(
+                    self.serializer.deserialize_event(msg.value())
+                )
                 del self.futures[key]
 
             # print(self.futures.keys())
             # print("Received message: {}".format(msg.value().decode("utf-8")))
 
     def send(self, event: Event, return_type: T):
-
         self.producer.produce(
-            self.req_topic, value=Event.serialize(event), key=event.event_id
+            self.req_topic,
+            value=self.serializer.serialize_event(event),
+            key=event.event_id,
         )
 
         future = StateflowFuture(

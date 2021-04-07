@@ -3,6 +3,7 @@ from src.dataflow import FunctionType
 from src.descriptors import ClassDescriptor
 from src.dataflow.event import Event, FunctionType, FunctionAddress, EventType
 from src.dataflow.args import Arguments
+from typing import Union
 import uuid
 
 
@@ -12,12 +13,12 @@ class MetaWrapper(type):
         msc.descriptor: ClassDescriptor = descriptor
         return super(MetaWrapper, msc).__new__(msc, name, bases, dct)
 
-    def __call__(msc, *args, **kwargs) -> StateflowFuture[ClassRef]:
-        # print(f"Calling class {msc} with client {msc.client}")
-        # print(f"Calling with {args} and {kwargs}")
-        # print(msc)
+    def __call__(msc, *args, **kwargs) -> Union[ClassRef, StateflowFuture]:
+        if "__key" in kwargs:
+            return ClassRef(
+                FunctionType.create(msc.descriptor), msc.descriptor, kwargs["__key"]
+            )
 
-        # We didn't create it yet, so key is still None.
         fun_address = FunctionAddress(FunctionType.create(msc.descriptor), None)
 
         event_id: str = str(uuid.uuid4())
@@ -29,16 +30,14 @@ class MetaWrapper(type):
             **kwargs,
         )
 
+        payload = {"args": args}
+
         # Creates a class event.
         create_class_event = Event(
-            event_id, fun_address, EventType.Request.value.InitClass, args
+            event_id, fun_address, EventType.Request.InitClass, payload
         )
 
-        # ClassRef(FunctionType.create(msc.descriptor), msc.descriptor)
-
-        # Hier "creeren" we de class (stoppen we t in een class-reference maybe)?.
-        return msc.client.send(create_class_event, ClassRef)
-        # return super(GenericMeta, msc).__call__(*args, **kwargs)
+        return msc.client.send(create_class_event, msc)
 
     def set_client(msc, client: StateflowClient):
         msc.client = client

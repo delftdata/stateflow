@@ -17,9 +17,7 @@ class MethodRef:
 
 
 class ClassRef:
-    def __init__(
-        self, fun_type: FunctionType, class_desc: ClassDescriptor, *args, **kwargs
-    ):
+    def __init__(self, fun_type: FunctionType, class_desc: ClassDescriptor, key: str):
         self._fun_type = fun_type
         self._class_desc = class_desc
         self._attributes = list(class_desc.state_desc.get_keys())
@@ -27,7 +25,7 @@ class ClassRef:
             method.method_name: method for method in class_desc.methods_dec
         }
 
-        self.initialized = False
+        self.key: str = key
 
     def _invoke_method(self, handle: str, arguments):
         pass
