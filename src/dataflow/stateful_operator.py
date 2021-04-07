@@ -32,15 +32,33 @@ class StatefulOperator(Operator):
         return event
 
     def handle(self, event: Event, state: State) -> Tuple[Event, State]:
-        print(f"Now handling event {event}, with state {state}")
-
         updated_state = None
 
         # initialize class
-        if event.event_type == EventType.Request.value.InitClass:
-            state = event.arguments["__state"]
+        if event.event_type == EventType.Request.value.InitClass.value:
+            new_state = event.arguments["__state"]
 
-            return Event(event.event_id, event.fun_address)
+            if state is not None:
+                print("State already exists!")
+                return (
+                    Event(
+                        event.event_id,
+                        event.fun_address,
+                        EventType.Reply.value.FailedInvocation,
+                        None,
+                    ),
+                    None,
+                )
+
+            return (
+                Event(
+                    event.event_id,
+                    event.fun_address,
+                    EventType.Reply.value.SuccessfulCreateClass,
+                    None,
+                ),
+                State(new_state),
+            )
         elif event.event_type == EventType.Request.value.InvokeStateful:
             pass
 

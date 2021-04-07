@@ -3,9 +3,10 @@ from apache_beam.coders import StrUtf8Coder
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from beam_nuggets.io import kafkaio
 
 from src.dataflow import StatefulOperator
-from typing import List, Tuple
+from typing import List, Tuple, Any
 import apache_beam.io.kafka as kafka
 
 from runtime.runtime import Runtime
@@ -16,18 +17,17 @@ from src.dataflow import State, Event
 class BeamRouter(DoFn):
     def process(self, element: Tuple[bytes, bytes]) -> List[Event]:
         event: Event = Event.deserialize(element[1])
-        raise AttributeError(f"WHAT {event}")
 
-        return [event]
+        yield event
 
 
 class BeamInitOperator(DoFn):
     def __init__(self, operator: StatefulOperator):
         self.operator = operator
 
-    def process(self, element: Event) -> List[Event]:
+    def process(self, element: Event) -> Tuple[str, Any]:
         return_event = self.operator.handle_create(element)
-        return [return_event]
+        yield (return_event.fun_address.key, return_event)
 
 
 class BeamOperator(DoFn):
@@ -38,22 +38,23 @@ class BeamOperator(DoFn):
         self.operator = operator
 
     def process(
-        self, element, operator_state=DoFn.StateParam(STATE_SPEC)
-    ) -> List[Event]:
+        self, element: Tuple[str, Any], operator_state=DoFn.StateParam(STATE_SPEC)
+    ) -> Tuple[str, Event]:
+        # print(f"Now getting event {element[1]} for user {element[0]}.")
         if operator_state.read() is not None:
             state_decoded = State.deserialize(operator_state.read())
         else:
             state_decoded = None
 
         # Execute event.
-        operator_return, updated_state = self.operator.handle(element[1], state_decoded)
+        return_event, updated_state = self.operator.handle(element[1], state_decoded)
 
         # Update state.
         if updated_state is not None:
             state_encoded = State.serialize(updated_state)
             operator_state.write(state_encoded)
 
-        return [operator_return]
+        yield (return_event.event_id, Event.serialize(return_event))
 
 
 class BeamRuntime(Runtime):
@@ -76,23 +77,20 @@ class BeamRuntime(Runtime):
         with beam.Pipeline(
             options=PipelineOptions(
                 streaming=True,
-                runner="FlinkRunner",
-                flink_master="localhost:8081",
-                flink_version="1.11",
             )
         ) as pipeline:
 
-            kafka_client = kafka.ReadFromKafka(
-                {
-                    "bootstrap.servers": "host.docker.internal:19092",
-                    "auto.offset.reset": "earliest",
-                    "group.id": "nowqw",
-                },
-                ["client_request"],
+            kafka_client = kafkaio.KafkaConsume(
+                consumer_config={
+                    "bootstrap_servers": "localhost:9092",
+                    "auto_offset_reset": "earliest",
+                    "group_id": "nowwww",
+                    "topic": "client_request",
+                }
             )
 
-            kafka_producer = kafka.WriteToKafka(
-                {"bootstrap.servers": "host.docker.internal:19092"},
+            kafka_producer = kafkaio.KafkaProduce(
+                servers="localhost:9092",
                 topic="client_reply",
             )
 
@@ -104,5 +102,6 @@ class BeamRuntime(Runtime):
                 input_kafka
                 | beam.ParDo(self.router)
                 | beam.ParDo(self.init_operators[0])
-                | beam.Map(print)
+                | beam.ParDo(self.operators[0])
+                | kafka_producer
             )

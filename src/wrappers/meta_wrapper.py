@@ -13,9 +13,9 @@ class MetaWrapper(type):
         return super(MetaWrapper, msc).__new__(msc, name, bases, dct)
 
     def __call__(msc, *args, **kwargs) -> StateflowFuture[ClassRef]:
-        print(f"Calling class {msc} with client {msc.client}")
-        print(f"Calling with {args} and {kwargs}")
-        print(msc)
+        # print(f"Calling class {msc} with client {msc.client}")
+        # print(f"Calling with {args} and {kwargs}")
+        # print(msc)
 
         # We didn't create it yet, so key is still None.
         fun_address = FunctionAddress(FunctionType.create(msc.descriptor), None)

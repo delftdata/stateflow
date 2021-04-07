@@ -29,7 +29,7 @@ class StateflowKafkaClient(StateflowClient):
 
         # Topics are hardcoded now.
         self.req_topic = "client_request"
-        self.reply_topic = "client_result"
+        self.reply_topic = "client_reply"
 
         # The futures still to complete.
         self.futures: dict[str, StateflowFuture] = {}
@@ -46,17 +46,20 @@ class StateflowKafkaClient(StateflowClient):
 
         while True:
             msg = self.consumer.poll(1.0)
-
             if msg is None:
                 continue
             if msg.error():
                 print("Consumer error: {}".format(msg.error()))
                 continue
-            if msg.key() in self.futures.keys():
-                self.futures[msg.key()].complete(Event.deserialize(msg.value()))
-                del self.futures[msg.key()]
 
-            print("Received message: {}".format(msg.value().decode("utf-8")))
+            key = msg.key().decode("utf-8")
+
+            if key in self.futures.keys():
+                self.futures[key].complete(Event.deserialize(msg.value()))
+                del self.futures[key]
+
+            # print(self.futures.keys())
+            # print("Received message: {}".format(msg.value().decode("utf-8")))
 
     def send(self, event: Event, return_type: T):
 
@@ -69,8 +72,6 @@ class StateflowKafkaClient(StateflowClient):
         )
 
         self.futures[event.event_id] = future
-
-        self.producer.flush()
 
         return future
 

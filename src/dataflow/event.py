@@ -104,18 +104,23 @@ class Event:
     def serialize(event: "Event") -> str:
         function_addr = event.fun_address.to_dict()
 
+        if event.arguments == None:
+            args = None
+        else:
+            args = event.arguments.get()
+
         return ujson.dumps(
             {
                 "event_id": event.event_id,
                 "function_addr": function_addr,
                 "event_type": event.event_type.value,
-                "event_args": event.arguments.get(),
+                "event_args": args,
             }
         )
 
     @staticmethod
     def deserialize(event_serialized: str) -> "Event":
-        json = ujson.load(event_serialized)
+        json = ujson.decode(event_serialized)
 
         event_id = json["event_id"]
         function_addr = FunctionAddress(

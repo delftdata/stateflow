@@ -1,6 +1,7 @@
 from src.dataflow import Dataflow
-from typing import Optional, Any
+from typing import Optional, Any, List
 from src.client.future import StateflowFuture, T
+import time
 
 
 class StateflowClient:
@@ -12,3 +13,8 @@ class StateflowClient:
 
     def find(self) -> Optional[Any]:
         pass
+
+    def await_futures(self, future_list: List[StateflowFuture[T]]):
+        waiting_for = [fut for fut in future_list if not fut.is_completed]
+        while len(waiting_for):
+            waiting_for = [fut for fut in future_list if not fut.is_completed]

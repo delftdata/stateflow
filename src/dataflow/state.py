@@ -25,11 +25,11 @@ class State:
 
     @staticmethod
     def serialize(state: "State") -> str:
-        return ujson.dumps(state._data)
+        return ujson.encode(state._data)
 
     @staticmethod
     def deserialize(state_serialized: str) -> "State":
-        return State(ujson.load(state_serialized))
+        return State(ujson.decode(state_serialized))
 
 
 class StateDescriptor:
