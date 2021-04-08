@@ -60,7 +60,7 @@ class StatefulOperator(Operator):
                     event.event_id,
                     event.fun_address,
                     EventType.Reply.SuccessfulCreateClass,
-                    {"key": f"{event.fun_address}"},
+                    {"key": f"{event.fun_address.key}"},
                 )
                 updated_state = State(new_state)
 
@@ -68,5 +68,5 @@ class StatefulOperator(Operator):
             pass
 
         if updated_state is not None:
-            return return_event, self.serializer.serialize_dict(updated_state.get())
+            return return_event, bytes(self.serializer.serialize_dict(updated_state.get()), 'utf-8')
         return return_event, updated_state

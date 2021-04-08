@@ -10,3 +10,5 @@ coverage==5.5
 ujson==4.0.2
 confluent-kafka==1.6.1
 beam-nuggets==0.17.1
+httplib2==0.15.0
+google-api-python-client==1.7.8
