@@ -2,6 +2,8 @@ import stateflow
 from src.client.future import StateflowFuture
 from src.client.kafka_client import StateflowKafkaClient, StateflowClient
 from src.runtime.beam_runtime import BeamRuntime
+from src.dataflow.event import Event, FunctionType, FunctionAddress, EventType
+from src.dataflow.args import Arguments
 import time
 
 
@@ -44,8 +46,18 @@ fun: StateflowFuture[Fun] = Fun("wouter")
 # Blocks everything.
 # client.await_futures()
 
-print(fun.get())
-print(Fun("wouter").get())
+print(fun)
+print(Fun("wouter"))
+
+client.send(
+    Event(
+        "123",
+        FunctionAddress(FunctionType("global", "Fun", True), "wouter"),
+        EventType.Request.InvokeStateful,
+        {"args": Arguments({"username": "wouter"})},
+    ),
+    Fun,
+)
 
 # start = time.time()
 # fun_list = []

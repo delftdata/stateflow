@@ -65,8 +65,13 @@ class StatefulOperator(Operator):
                 updated_state = State(new_state)
 
         elif event.event_type == EventType.Request.InvokeStateful:
-            pass
+            self.class_wrapper.invoke(
+                event.payload["method_name"],
+                state,
+            )
 
         if updated_state is not None:
-            return return_event, bytes(self.serializer.serialize_dict(updated_state.get()), 'utf-8')
+            return return_event, bytes(
+                self.serializer.serialize_dict(updated_state.get()), "utf-8"
+            )
         return return_event, updated_state
