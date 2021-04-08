@@ -7,7 +7,7 @@ from collections.abc import Iterable
 T = TypeVar("T")
 
 
-class StateflowFailure:
+class StateflowFailure(Exception):
     def __init__(self, error_msg: str):
         self.error_msg = error_msg
 
@@ -38,7 +38,6 @@ class StateflowFuture(Generic[T]):
         elif event.event_type == EventType.Reply.SuccessfulCreateClass:
             self.result = self.return_type(__key=event.fun_address.key)
         elif event.event_type == EventType.Reply.SuccessfulInvocation:
-            print(event.payload)
             self.result = event.payload["return_results"]
         elif event.event_type == EventType.Reply.SuccessfulStateRequest:
             if "state" in event.payload:
@@ -57,4 +56,8 @@ class StateflowFuture(Generic[T]):
                 return self.result[0]
             else:
                 return tuple(self.result)
+
+        if isinstance(self.result, StateflowFailure):
+            raise StateflowFailure(self.result.error_msg)
+
         return self.result

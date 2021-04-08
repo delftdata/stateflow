@@ -47,7 +47,7 @@ class StateflowKafkaClient(StateflowClient):
         self.consumer.subscribe([self.reply_topic])
 
         while True:
-            msg = self.consumer.poll(1.0)
+            msg = self.consumer.poll(0.01)
             if msg is None:
                 continue
             if msg.error():
@@ -55,7 +55,7 @@ class StateflowKafkaClient(StateflowClient):
                 continue
 
             key = msg.key().decode("utf-8")
-
+            # print(f"{key} -> Received message")
             if key in self.futures.keys():
                 self.futures[key].complete(
                     self.serializer.deserialize_event(msg.value())
@@ -78,6 +78,8 @@ class StateflowKafkaClient(StateflowClient):
 
         self.futures[event.event_id] = future
 
+        self.producer.flush()
+        # print(f"{event.event_id} -> Send message")
         return future
 
     def find(self) -> Optional[Any]:

@@ -16,9 +16,9 @@ class MethodRef:
         self.method_desc = method_desc
 
     def __call__(self, *args, **kwargs) -> StateflowFuture:
-        print(
-            f"Now invoking method: {self.method_name}, with arguments: {args} and {kwargs}."
-        )
+        # print(
+        #     f"Now invoking method: {self.method_name}, with arguments: {args} and {kwargs}."
+        # )
 
         return self._class_ref.invoke_method(
             self.method_name,
@@ -76,18 +76,18 @@ class ClassRef(object):
 
     def __getattr__(self, item):
         if item in self._attributes:
-            print(f"Attribute access: {item}")
+            # print(f"Attribute access: {item}")
             return self.get_attribute(item)
 
         if item in self._methods.keys():
-            print(f"Method invocation: {item}")
+            # print(f"Method invocation: {item}")
             return MethodRef(item, self, self._methods[item])
 
         return object.__getattribute__(self, item)
 
     def __setattr__(self, key, value):
         if key not in self.__slots__:
-            print(f"Attribute update: {key}")
+            # print(f"Attribute update: {key}")
             return self.set_attribute(key, value)
 
         return object.__setattr__(self, key, value)
