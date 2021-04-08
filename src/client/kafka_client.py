@@ -65,7 +65,7 @@ class StateflowKafkaClient(StateflowClient):
             # print(self.futures.keys())
             # print("Received message: {}".format(msg.value().decode("utf-8")))
 
-    def send(self, event: Event, return_type: T):
+    def send(self, event: Event, return_type: T = None):
         self.producer.produce(
             self.req_topic,
             value=bytes(self.serializer.serialize_event(event), "utf-8"),

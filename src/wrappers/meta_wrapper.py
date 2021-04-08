@@ -16,7 +16,9 @@ class MetaWrapper(type):
     def __call__(msc, *args, **kwargs) -> Union[ClassRef, StateflowFuture]:
         if "__key" in kwargs:
             return ClassRef(
-                FunctionType.create(msc.descriptor), msc.descriptor, kwargs["__key"]
+                FunctionAddress(FunctionType.create(msc.descriptor), kwargs["__key"]),
+                msc.descriptor,
+                msc.client,
             )
 
         fun_address = FunctionAddress(FunctionType.create(msc.descriptor), None)

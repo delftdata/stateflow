@@ -36,44 +36,35 @@ class IngressBeamRouter(DoFn):
 
                 self.outputs.add(f"{name}")
 
-    def process(
-        self, element: Tuple[bytes, bytes]
-    ) -> List[Union[Tuple[str, Any], Any]]:
+    def process(self, element: Tuple[bytes, bytes]) -> Union[Tuple[str, Any], Any]:
         event: Event = self.serializer.deserialize_event(element[1])
         event_type: str = event.event_type
         route_name: str = f"{event.fun_address.function_type.get_full_name()}"
-        print(element[1])
+
         if not isinstance(event_type, EventType.Request):
-            return [
-                (
-                    event.event_id,
-                    Event(
-                        event.event_id,
-                        event.fun_address,
-                        EventType.Reply.FailedInvocation,
-                        {
-                            "error_message": "This IngressRouter only supports event requests."
-                        },
-                    ),
-                )
-            ]
-        elif not route_name in self.outputs:
-            return [
-                (
-                    event.event_id,
-                    Event(
-                        event.event_id,
-                        event.fun_address,
-                        EventType.Reply.FailedInvocation,
-                        {"error_message": "This event could not be routed."},
-                    ),
-                )
-            ]
+            yield (
+                event.event_id,
+                event.copy(
+                    event_type=EventType.Reply.FailedInvocation,
+                    payload={
+                        "error_message": "This IngressRouter only supports event requests."
+                    },
+                ),
+            )
+        elif route_name not in self.outputs:
+            yield (
+                event.event_id,
+                event.copy(
+                    event_type=EventType.Reply.FailedInvocation,
+                    payload={"error_message": "This event could not be routed."},
+                ),
+            )
+
         # if the key is available, then we set that as key otherwise we set the event_id.
         elif event.fun_address.key:
-            return [pvalue.TaggedOutput(route_name, (event.fun_address.key, event))]
+            yield pvalue.TaggedOutput(route_name, (event.fun_address.key, event))
         else:
-            return [pvalue.TaggedOutput(route_name, (event.event_id, event))]
+            yield pvalue.TaggedOutput(route_name, (event.event_id, event))
 
 
 class BeamInitOperator(DoFn):
@@ -83,11 +74,11 @@ class BeamInitOperator(DoFn):
     @beam.typehints.with_input_types(Tuple[str, Any])
     def process(self, element: Tuple[str, Any]) -> Tuple[str, Any]:
         if element[1].event_type != EventType.Request.InitClass:
-            yield (element[0], element[1])
+            yield element[0], element[1]
         else:
             return_event = self.operator.handle_create(element[1])
             print(f"{return_event} with key {return_event.fun_address.key}")
-            yield (return_event.fun_address.key, return_event)
+            yield return_event.fun_address.key, return_event
 
 
 class BeamOperator(DoFn):

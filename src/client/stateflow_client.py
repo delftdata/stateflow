@@ -10,7 +10,7 @@ class StateflowClient:
         self.flow = flow
         self.serializer: SerDe = serializer
 
-    def send(self) -> StateflowFuture[T]:
+    def send(self, Event) -> StateflowFuture[T]:
         pass
 
     def find(self) -> Optional[Any]:

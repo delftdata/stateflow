@@ -2,7 +2,7 @@ from typing import Generic, TypeVar, Optional
 from src.dataflow.event import FunctionAddress, Event
 import time
 from src.dataflow.event import EventType
-
+from collections.abc import Iterable
 
 T = TypeVar("T")
 
@@ -37,6 +37,9 @@ class StateflowFuture(Generic[T]):
             self.result = StateflowFailure(event.payload["error_message"])
         elif event.event_type == EventType.Reply.SuccessfulCreateClass:
             self.result = self.return_type(__key=event.fun_address.key)
+        elif event.event_type == EventType.Reply.SuccessfulInvocation:
+            print(event.payload)
+            self.result = event.payload["return_results"]
         else:
             raise AttributeError(
                 f"Can't complete unknown even type: {event.event_type}"
@@ -46,4 +49,9 @@ class StateflowFuture(Generic[T]):
         while not self.is_completed:
             time.sleep(0.01)
 
+        if isinstance(self.result, Iterable):
+            if len(self.result) == 1:
+                return self.result[0]
+            else:
+                return tuple(self.result)
         return self.result

@@ -98,18 +98,17 @@ class _Request(Enum, metaclass=MetaEnum):
     UpdateState = "UpdateState"
     DeleteState = "DeleteState"
 
+    def __str__(self):
+        return f"Request.{self.value}"
+
 
 class _Reply(Enum, metaclass=MetaEnum):
     SuccessfulInvocation = "SuccessfulInvocation"
     SuccessfulCreateClass = "SuccessfulCreateClass"
     FailedInvocation = "FailedInvocation"
 
-    def __contains__(cls, item):
-        try:
-            cls(item)
-        except ValueError:
-            return False
-        return True
+    def __str__(self):
+        return f"Reply.{self.value}"
 
 
 class EventType:
@@ -127,6 +126,8 @@ class EventType:
 
 
 class Event:
+    __slots__ = "event_id", "fun_address", "event_type", "payload"
+
     def __init__(
         self,
         event_id: str,
@@ -144,3 +145,15 @@ class Event:
             return self.payload["args"]
         else:
             return None
+
+    def copy(self, **kwargs) -> "Event":
+        new_args = {}
+        for key, value in kwargs.items():
+            if key in self.__slots__:
+                new_args[key] = value
+
+        for key in self.__slots__:
+            if key not in new_args:
+                new_args[key] = getattr(self, key)
+
+        return Event(**new_args)

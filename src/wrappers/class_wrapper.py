@@ -1,15 +1,17 @@
 from src.dataflow.state import State
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any, Dict, Union
 from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.dataflow.args import Arguments
 
 
 class InvocationResult:
     def __init__(
-        self, updated_state: Optional[State], return_results: Optional[List[Any]]
+        self,
+        updated_state: Optional[State],
+        return_results: Optional[Union[Any, List[Any]]],
     ):
         self.updated_state: Optional[State] = updated_state
-        self.return_results: Optional[List[Any]] = return_results
+        self.return_results: Optional[Union[Any, List[Any]]] = return_results
 
 
 class FailedInvocation(InvocationResult):
@@ -132,7 +134,7 @@ class ClassWrapper:
                 updated_state[k] = getattr(constructed_class, k)
 
             # Return the results.
-            return InvocationResult(State(updated_state), [method_result])
+            return InvocationResult(State(updated_state), method_result)
         except Exception as e:
             return FailedInvocation(f"Exception occurred during invocation: {e}.")
 

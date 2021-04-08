@@ -2,6 +2,7 @@ import stateflow
 from src.client.future import StateflowFuture
 from src.client.kafka_client import StateflowKafkaClient, StateflowClient
 from src.runtime.beam_runtime import BeamRuntime
+from typing import Tuple
 
 
 @stateflow.stateflow
@@ -10,9 +11,9 @@ class Fun:
         self.x = 3
         self.username = username
 
-    def update_x(self, delta_x: int) -> int:
+    def update_x(self, delta_x: int) -> Tuple[int, int]:
         self.x -= delta_x
-        return self.x
+        return self.x, self.x
 
     def __key__(self):
         return self.username

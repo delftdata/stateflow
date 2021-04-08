@@ -1,7 +1,7 @@
 from src.dataflow.dataflow import Operator, Edge, FunctionType, EventType
 from src.dataflow.event import Event
 from src.dataflow.state import State
-from src.wrappers import ClassWrapper, MetaWrapper, InvocationResult
+from src.wrappers import ClassWrapper, MetaWrapper, InvocationResult, FailedInvocation
 from typing import NewType, List, Tuple, Optional
 from src.serialization.json_serde import SerDe, JsonSerializer
 
@@ -46,29 +46,36 @@ class StatefulOperator(Operator):
             new_state = event.payload["init_class_state"]
 
             if state is not None:
-                return_event = Event(
-                    event.event_id,
-                    event.fun_address,
-                    EventType.Reply.FailedInvocation,
-                    {
+                return_event = event.copy(
+                    event_type=EventType.Reply.FailedInvocation,
+                    payload={
                         "error_message": f"{event.fun_address.function_type.get_full_name()} class "
                         f"with key={event.fun_address.key} already exists."
                     },
                 )
             else:
-                return_event = Event(
-                    event.event_id,
-                    event.fun_address,
-                    EventType.Reply.SuccessfulCreateClass,
-                    {"key": f"{event.fun_address.key}"},
+                return_event = event.copy(
+                    event_type=EventType.Reply.SuccessfulCreateClass,
+                    payload={"key": f"{event.fun_address.key}"},
                 )
                 updated_state = State(new_state)
 
         elif event.event_type == EventType.Request.InvokeStateful:
-            self.class_wrapper.invoke(
-                event.payload["method_name"],
-                state,
+            invocation: InvocationResult = self.class_wrapper.invoke(
+                event.payload["method_name"], state, event.payload["args"]
             )
+
+            if isinstance(invocation, FailedInvocation):
+                return_event = event.copy(
+                    event_type=EventType.Reply.FailedInvocation,
+                    payload={"error_message": invocation.message},
+                )
+            else:
+                return_event = event.copy(
+                    event_type=EventType.Reply.SuccessfulInvocation,
+                    payload={"return_results": invocation.return_results},
+                )
+                updated_state = invocation.updated_state
 
         if updated_state is not None:
             return return_event, bytes(
