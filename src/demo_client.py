@@ -14,9 +14,9 @@ class Fun:
         self.x = 3
         self.username = username
 
-    def update_x(self, delta_x: int) -> Tuple[int, int]:
+    def update_x(self, delta_x: int) -> int:
         self.x -= delta_x
-        return self.x, self.x
+        return self.x
 
     def __key__(self):
         return self.username
@@ -44,4 +44,6 @@ client: StateflowClient = StateflowKafkaClient(flow, brokers="localhost:9092")
 # Create a class.
 fun: Fun = Fun("wouter").get()
 update_delta: int = fun.update_x(5).get()
-print(update_x)
+print(update_delta)
+print(fun.username.get())
+print(fun.x.get())

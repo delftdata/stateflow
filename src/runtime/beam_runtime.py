@@ -96,6 +96,7 @@ class BeamOperator(DoFn):
         print(f"Executing event for {element[0]} {element[1].event_type}")
         print(f"{operator_state.read()}")
         # Execute event.
+        print(element)
         return_event, updated_state = self.operator.handle(
             element[1], operator_state.read()
         )

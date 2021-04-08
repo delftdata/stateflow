@@ -54,7 +54,14 @@ class ClassRef:
         return self._client.send(invoke_method_event)
 
     def get_attribute(self, attr: str) -> StateflowFuture:
-        pass
+        payload = {"attribute": attr}
+        event_id: str = str(uuid.uuid4())
+
+        invoke_method_event = Event(
+            event_id, self._fun_addr, EventType.Request.GetState, payload
+        )
+
+        return self._client.send(invoke_method_event)
 
     def set_attribute(self, attr: str, new) -> StateflowFuture:
         pass
@@ -62,6 +69,7 @@ class ClassRef:
     def __getattr__(self, item):
         if item in self._attributes:
             print(f"Attribute access: {item}")
+            return self.get_attribute(item)
 
         if item in self._methods.keys():
             print(f"Method invocation: {item}")

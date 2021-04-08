@@ -40,6 +40,8 @@ class StateflowFuture(Generic[T]):
         elif event.event_type == EventType.Reply.SuccessfulInvocation:
             print(event.payload)
             self.result = event.payload["return_results"]
+        elif event.event_type == EventType.Reply.SuccessfulStateRequest:
+            self.result = event.payload["state"]
         else:
             raise AttributeError(
                 f"Can't complete unknown even type: {event.event_type}"
@@ -49,7 +51,7 @@ class StateflowFuture(Generic[T]):
         while not self.is_completed:
             time.sleep(0.01)
 
-        if isinstance(self.result, Iterable):
+        if isinstance(self.result, list):
             if len(self.result) == 1:
                 return self.result[0]
             else:

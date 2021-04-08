@@ -76,6 +76,14 @@ class StatefulOperator(Operator):
                     payload={"return_results": invocation.return_results},
                 )
                 updated_state = invocation.updated_state
+        elif event.event_type == EventType.Request.GetState:
+            if state == None:  # class does not exist
+                return event, state
+            return_event = event.copy(
+                event_type=EventType.Reply.SuccessfulStateRequest,
+                payload={"state": state[event.payload["attribute"]]},
+            )
+            updated_state = state
 
         if updated_state is not None:
             return return_event, bytes(

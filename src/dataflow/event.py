@@ -105,6 +105,9 @@ class _Request(Enum, metaclass=MetaEnum):
 class _Reply(Enum, metaclass=MetaEnum):
     SuccessfulInvocation = "SuccessfulInvocation"
     SuccessfulCreateClass = "SuccessfulCreateClass"
+
+    SuccessfulStateRequest = "SuccessfulStateRequest"
+
     FailedInvocation = "FailedInvocation"
 
     def __str__(self):
