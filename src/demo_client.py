@@ -41,9 +41,14 @@ flow = stateflow.init()
 # Setup the client.
 client: StateflowClient = StateflowKafkaClient(flow, brokers="localhost:9092")
 
-# Create a class.
+# start = time.time()
 fun: Fun = Fun("wouter").get()
-update_delta: int = fun.update_x(5).get()
-print(update_delta)
-print(fun.username.get())
+print(fun)
+
+fun.x = 10
+
 print(fun.x.get())
+
+
+# end = time.time()
+# print(f"{end-start}s")

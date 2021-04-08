@@ -28,7 +28,9 @@ class MethodRef:
         )
 
 
-class ClassRef:
+class ClassRef(object):
+    __slots__ = "_fun_addr", "_class_desc", "_attributes", "_methods", "_client"
+
     def __init__(
         self,
         fun_addr: FunctionAddress,
@@ -64,7 +66,13 @@ class ClassRef:
         return self._client.send(invoke_method_event)
 
     def set_attribute(self, attr: str, new) -> StateflowFuture:
-        pass
+        payload = {"attribute": attr, "attribute_value": new}
+        event_id: str = str(uuid.uuid4())
+
+        invoke_method_event = Event(
+            event_id, self._fun_addr, EventType.Request.UpdateState, payload
+        )
+        return self._client.send(invoke_method_event)
 
     def __getattr__(self, item):
         if item in self._attributes:
@@ -75,5 +83,14 @@ class ClassRef:
             print(f"Method invocation: {item}")
             return MethodRef(item, self, self._methods[item])
 
+        return object.__getattribute__(self, item)
+
+    def __setattr__(self, key, value):
+        if key not in self.__slots__:
+            print(f"Attribute update: {key}")
+            return self.set_attribute(key, value)
+
+        return object.__setattr__(self, key, value)
+
     def __str__(self):
-        return f"Class reference for {self._fun_type.name}."
+        return f"Class reference for {self._fun_addr.function_type.name} with key {self._fun_addr.key}."

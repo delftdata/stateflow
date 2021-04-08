@@ -85,6 +85,16 @@ class StatefulOperator(Operator):
             )
             updated_state = state
 
+        elif event.event_type == EventType.Request.UpdateState:
+            if state == None:  # class does not exist
+                return event, state
+            state[event.payload["attribute"]] = event.payload["attribute_value"]
+            return_event = event.copy(
+                event_type=EventType.Reply.SuccessfulStateRequest,
+                payload={},
+            )
+            updated_state = state
+
         if updated_state is not None:
             return return_event, bytes(
                 self.serializer.serialize_dict(updated_state.get()), "utf-8"
