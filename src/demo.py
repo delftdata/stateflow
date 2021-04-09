@@ -19,6 +19,20 @@ class Fun:
         return self.username
 
 
+@stateflow.stateflow
+class Other:
+    def __init__(self, username: str):
+        self.x = 3
+        self.username = username
+
+    def update_x(self, delta_x: int) -> int:
+        self.x -= delta_x
+        return self.x
+
+    def __key__(self):
+        return self.username
+
+
 # Initialize stateflow
 flow = stateflow.init()
 

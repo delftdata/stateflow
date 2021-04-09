@@ -10,7 +10,7 @@ import uuid
 class MetaWrapper(type):
     def __new__(msc, name, bases, dct, descriptor):
         msc.client: StateflowClient = None
-        msc.descriptor: ClassDescriptor = descriptor
+        dct["descriptor"]: ClassDescriptor = descriptor
         return super(MetaWrapper, msc).__new__(msc, name, bases, dct)
 
     def __call__(msc, *args, **kwargs) -> Union[ClassRef, StateflowFuture]:
