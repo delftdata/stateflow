@@ -93,6 +93,8 @@ class _Request(Enum, metaclass=MetaEnum):
     InvokeStateful = "InvokeStateful"
     InitClass = "InitClass"
 
+    FindClass = "FindClass"
+
     GetState = "GetState"
     SetState = "SetState"
     UpdateState = "UpdateState"
@@ -106,8 +108,9 @@ class _Reply(Enum, metaclass=MetaEnum):
     SuccessfulInvocation = "SuccessfulInvocation"
     SuccessfulCreateClass = "SuccessfulCreateClass"
 
-    SuccessfulStateRequest = "SuccessfulStateRequest"
+    FoundClass = "FoundClass"
 
+    SuccessfulStateRequest = "SuccessfulStateRequest"
     FailedInvocation = "FailedInvocation"
 
     def __str__(self):

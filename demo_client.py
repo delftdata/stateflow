@@ -1,6 +1,6 @@
 from demo_common import User, stateflow
 from src.client.kafka_client import StateflowClient, StateflowKafkaClient
-from src.client.future import StateflowFuture
+from src.client.future import StateflowFuture, StateflowFailure
 
 
 client: StateflowClient = StateflowKafkaClient(
@@ -10,5 +10,10 @@ client: StateflowClient = StateflowKafkaClient(
 print("Creating a user: ")
 
 future_user: StateflowFuture[User] = User("wouter-user")
-user: User = future_user.get()
+
+try:
+    user: User = future_user.get()
+except StateflowFailure:
+    user: User = client.find(User, "wouter-user").get()
+
 print(user.balance.get())

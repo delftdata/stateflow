@@ -42,6 +42,8 @@ class StateflowFuture(Generic[T]):
         elif event.event_type == EventType.Reply.SuccessfulStateRequest:
             if "state" in event.payload:
                 self.result = event.payload["state"]
+        elif event.event_type == EventType.Reply.FoundClass:
+            self.result = self.return_type(__key=event.fun_address.key)
         else:
             raise AttributeError(
                 f"Can't complete unknown even type: {event.event_type}"

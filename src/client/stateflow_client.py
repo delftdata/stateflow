@@ -13,11 +13,10 @@ class StateflowClient:
     def send(self, Event) -> StateflowFuture[T]:
         pass
 
-    def find(self) -> Optional[Any]:
+    def find(self, clasz, key: str) -> Optional[Any]:
         pass
 
     def await_futures(self, future_list: List[StateflowFuture[T]]):
         waiting_for = [fut for fut in future_list if not fut.is_completed]
         while len(waiting_for):
             waiting_for = [fut for fut in future_list if not fut.is_completed]
-            time.sleep(0.001)

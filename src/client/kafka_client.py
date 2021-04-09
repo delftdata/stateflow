@@ -1,5 +1,5 @@
 from src.client.stateflow_client import StateflowClient, Dataflow, SerDe, JsonSerializer
-from src.dataflow.event import Event
+from src.dataflow.event import Event, FunctionType, FunctionAddress, EventType
 from src.client.future import StateflowFuture, T
 from typing import Optional, Any, List
 import threading
@@ -82,5 +82,10 @@ class StateflowKafkaClient(StateflowClient):
         # print(f"{event.event_id} -> Send message")
         return future
 
-    def find(self) -> Optional[Any]:
-        pass
+    def find(self, clasz, key: str) -> StateflowFuture[Optional[Any]]:
+        event_id = str(uuid.uuid4())
+        event_type = EventType.Request.FindClass
+        fun_address = FunctionAddress(FunctionType.create(clasz.descriptor), key)
+        payload = {}
+
+        return self.send(Event(event_id, fun_address, event_type, payload), clasz)

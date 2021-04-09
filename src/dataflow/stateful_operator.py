@@ -94,6 +94,12 @@ class StatefulOperator(Operator):
                 payload={},
             )
             updated_state = state
+        elif event.event_type == EventType.Request.FindClass:
+            if state == None:  # class does not exist
+                return event, state
+
+            updated_state = state
+            return_event = event.copy(event_type=EventType.Reply.FoundClass)
 
         if updated_state is not None:
             return return_event, bytes(
