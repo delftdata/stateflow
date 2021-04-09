@@ -78,7 +78,7 @@ class StateflowKafkaClient(StateflowClient):
 
         self.futures[event.event_id] = future
 
-        # self.producer.flush()
+        self.producer.flush()
         # print(f"{event.event_id} -> Send message")
         return future
 
