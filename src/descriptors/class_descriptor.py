@@ -1,6 +1,6 @@
 from src.dataflow.state import StateDescriptor
 from typing import List, Optional
-from src.descriptors import MethodDescriptor
+from src.descriptors.method_descriptor import MethodDescriptor
 
 
 class ClassDescriptor:
@@ -23,3 +23,7 @@ class ClassDescriptor:
             return None
 
         return filter[0]
+
+    def link_to_other_classes(self, descriptors: List["ClassDescriptor"]):
+        for method in self.methods_dec:
+            method.link_to_other_classes(descriptors)

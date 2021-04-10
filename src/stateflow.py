@@ -83,6 +83,13 @@ def init():
             "Please register one using the @stateflow decorator."
         )
 
+    class_descs: List[ClassDescriptor] = [
+        wrapper.class_desc for wrapper in registered_classes
+    ]
+
+    for desc in class_descs:
+        desc.link_to_other_classes(class_descs)
+
     flow: Dataflow = _build_dataflow(registered_classes, meta_classes)
 
     ### DEBUG

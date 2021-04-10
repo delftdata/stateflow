@@ -31,6 +31,7 @@ class User:
         self.balance += x
 
     def buy_item(self, amount: int, item: Item) -> bool:
+        item_2: Item = item
         total_price = amount * item.price
 
         if self.balance < total_price:

@@ -1,4 +1,4 @@
-from src.descriptors import ClassDescriptor
+from src.descriptors.class_descriptor import ClassDescriptor
 from src.dataflow import Arguments
 from typing import List, Optional, Dict
 from enum import Enum, EnumMeta

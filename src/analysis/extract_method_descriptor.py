@@ -39,10 +39,11 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
 
         # We use this set to verify if a method has one or more external invocations.
         # The set stores names of all the attributes.
-        self.external_attributes: Set[str] = {}
+        self.external_attributes: Set[str] = set()
 
         # We also keep track of the typed declarations.
         # We need to match an attribute to the correct type.
+        # This excludes 'self' declarations.
         self.typed_declarations: Dict[str, str] = {}
 
     def extract_return_signature(self) -> Optional[List[Any]]:
@@ -129,6 +130,9 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
         # If we have an annotation, we extract its type.
         if node.annotation:
             param_type = ast_utils.extract_types(self.class_node, node.annotation)
+
+            # We consider parameters with types also 'typed' declarations.
+            self.typed_declarations[param_name] = param_type
         else:
             param_type = "NoType"
 
@@ -161,11 +165,8 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
                         f"However, no type hint is given."
                     )
 
-
             # We are now having an attribute access of 'another' instance.
-            self.external_invocation.add(node.value.value)
-
-
+            self.external_attributes.add(node.value.value)
 
     def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
         """Visit an AnnAssign to extract a StateDescriptor.
@@ -180,6 +181,9 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
             self.self_attributes.append((node.target.attr.value, annotation))
 
             self.read_only = False
+        elif m.matches(node.target, m.Name()):
+            annotation = ast_utils.extract_types(self.class_node, node.annotation)
+            self.typed_declarations[node.target.value] = annotation
 
     def visit_AugAssign(self, node: cst.AugAssign) -> Optional[bool]:
         """Visit an AugAssign to extract a StateDescriptor.
@@ -253,4 +257,6 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
             analyzed_method.read_only,
             input_desc,
             output_desc,
+            analyzed_method.external_attributes,
+            analyzed_method.typed_declarations,
         )

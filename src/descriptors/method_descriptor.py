@@ -1,5 +1,5 @@
-from typing import Dict, Any, List
-from src.dataflow.args import Arguments
+from typing import Dict, Any, List, Set
+from src.dataflow import *
 
 
 class MethodDescriptor:
@@ -11,12 +11,43 @@ class MethodDescriptor:
         read_only: bool,
         input_desc: "InputDescriptor",
         output_desc: "OutputDescriptor",
-
+        external_attributes: Set[str],
+        typed_declarations: Dict[str, str],
     ):
         self.method_name: str = method_name
         self.read_only: bool = read_only
         self.input_desc: "InputDescriptor" = input_desc
         self.output_desc: "OutputDescriptor" = output_desc
+
+        self._external_attributes = external_attributes
+        self._typed_declarations = typed_declarations
+
+        self.other_class_links: List = []
+
+    def link_to_other_classes(self, descriptors: List):
+        for d in descriptors:
+            name = d.class_name
+
+            if name in self._typed_declarations.values():
+                # These are the declarations with a type equal to a class name.
+                decl_with_type = [
+                    key
+                    for key, value in self._typed_declarations.items()
+                    if value == name
+                ]
+
+                # We now check if this declaration is also attributed (i.e. get state, update state or invoke method).
+                if len(set(decl_with_type).intersection(self._external_attributes)) > 0:
+                    # Now we know this method is linked to another class or class method.
+                    self.other_class_links.append(d)
+                else:
+                    # TODO; we have a type decl to another class, but it is not used? Maybe throw a warning/error.
+                    pass
+
+        if len(self.other_class_links) > 0:
+            print(
+                f"{self.method_name} method is linked to {[d.class_name for d in self.other_class_links]}"
+            )
 
 
 class InputDescriptor:
