@@ -11,6 +11,7 @@ class MethodDescriptor:
         read_only: bool,
         input_desc: "InputDescriptor",
         output_desc: "OutputDescriptor",
+
     ):
         self.method_name: str = method_name
         self.read_only: bool = read_only

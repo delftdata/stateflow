@@ -14,11 +14,11 @@ def stateflow(cls):
     if not isclass(cls):
         raise AttributeError(f"Expected a class but got an {cls}.")
 
-    # Parse
+    # Parse source.
     class_source = getsource(cls)
     parsed_class = cst.parse_module(class_source)
 
-    # Extract
+    # Extract class description.
     extraction: ExtractClassDescriptor = ExtractClassDescriptor(parsed_class)
     parsed_class.visit(extraction)
 
@@ -30,7 +30,7 @@ def stateflow(cls):
     # Register the class.
     registered_classes.append(ClassWrapper(cls, class_desc))
 
-    # Create a meta class.
+    # Create a meta class..
     meta_class = MetaWrapper(
         str(cls.__name__),
         tuple(cls.__bases__),

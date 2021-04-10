@@ -1,5 +1,5 @@
 import libcst as cst
-from typing import List, Tuple, Any, Optional
+from typing import List, Tuple, Any, Optional, Set, Dict
 from src.analysis import ast_utils
 import libcst.matchers as m
 from src.dataflow.stateful_operator import NoType
@@ -36,6 +36,14 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
 
         # We assume a method is read-only until we find a 'self' assignment.
         self.read_only = True
+
+        # We use this set to verify if a method has one or more external invocations.
+        # The set stores names of all the attributes.
+        self.external_attributes: Set[str] = {}
+
+        # We also keep track of the typed declarations.
+        # We need to match an attribute to the correct type.
+        self.typed_declarations: Dict[str, str] = {}
 
     def extract_return_signature(self) -> Optional[List[Any]]:
         """Extracts a signature from the return annotation.
@@ -141,7 +149,7 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
             x: Item = Item()
             x.call()
 
-        This will throw an error because x is untyped in the parameters, but it's overriden in te function.
+        This will throw an error because x is untyped in the parameters, but it's overriden in the function.
 
         :param node: an attribute node which is checked to use a parameter.
         """
@@ -152,6 +160,12 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
                         f"This method attributes the parameter {k} (i.e. function call or state access). "
                         f"However, no type hint is given."
                     )
+
+
+            # We are now having an attribute access of 'another' instance.
+            self.external_invocation.add(node.value.value)
+
+
 
     def visit_AnnAssign(self, node: cst.AnnAssign) -> Optional[bool]:
         """Visit an AnnAssign to extract a StateDescriptor.
