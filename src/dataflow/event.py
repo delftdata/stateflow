@@ -163,3 +163,8 @@ class Event:
                 new_args[key] = getattr(self, key)
 
         return Event(**new_args)
+
+
+class Action:
+    def __init__(self, event_type: EventType):
+        self.event_type = event_type

@@ -1,6 +1,7 @@
 from src.dataflow.state import StateDescriptor
 from typing import List, Optional
 from src.descriptors.method_descriptor import MethodDescriptor
+import libcst as cst
 
 
 class ClassDescriptor:
@@ -9,10 +10,12 @@ class ClassDescriptor:
     def __init__(
         self,
         class_name: str,
+        class_node: cst.ClassDef,
         state_desc: StateDescriptor,
         methods_dec: List[MethodDescriptor],
     ):
         self.class_name: str = class_name
+        self.class_node: cst.ClassDef = class_node
         self.state_desc: StateDescriptor = state_desc
         self.methods_dec: List[MethodDescriptor] = methods_dec
 

@@ -18,6 +18,7 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         # Name of the class and if it is already defined.
         self.is_defined: bool = False
         self.class_name: str = None
+        self.class_node: cst.ClassDef = None
 
         # Used to extract state.
         self.self_attributes: List[Tuple[str, Any]] = []
@@ -82,6 +83,7 @@ class ExtractClassDescriptor(cst.CSTVisitor):
 
         self.is_defined = True
         self.class_name = helpers.get_full_name_for_node(node)
+        self.class_node = node
 
     def merge_self_attributes(self) -> Dict[str, any]:
         """Merges all self attributes.
@@ -138,6 +140,7 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         )
         return ClassDescriptor(
             class_name=analyzed_visitor.class_name,
+            class_node=analyzed_visitor.class_node,
             state_desc=state_desc,
             methods_dec=analyzed_visitor.method_descriptors,
         )

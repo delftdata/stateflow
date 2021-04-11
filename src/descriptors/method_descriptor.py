@@ -1,4 +1,7 @@
 from typing import Dict, Any, List, Set
+
+import libcst as cst
+
 from src.dataflow import *
 
 
@@ -9,6 +12,7 @@ class MethodDescriptor:
         self,
         method_name: str,
         read_only: bool,
+        method_node: cst.FunctionDef,
         input_desc: "InputDescriptor",
         output_desc: "OutputDescriptor",
         external_attributes: Set[str],
@@ -16,6 +20,7 @@ class MethodDescriptor:
     ):
         self.method_name: str = method_name
         self.read_only: bool = read_only
+        self.method_node: cst.FunctionDef = method_node
         self.input_desc: "InputDescriptor" = input_desc
         self.output_desc: "OutputDescriptor" = output_desc
 
@@ -44,10 +49,8 @@ class MethodDescriptor:
                     # TODO; we have a type decl to another class, but it is not used? Maybe throw a warning/error.
                     pass
 
-        if len(self.other_class_links) > 0:
-            print(
-                f"{self.method_name} method is linked to {[d.class_name for d in self.other_class_links]}"
-            )
+    def has_links(self) -> bool:
+        return len(self.other_class_links) > 0
 
 
 class InputDescriptor:

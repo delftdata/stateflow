@@ -255,6 +255,7 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
         return MethodDescriptor(
             analyzed_method.method_name,
             analyzed_method.read_only,
+            analyzed_method.fun_node,
             input_desc,
             output_desc,
             analyzed_method.external_attributes,

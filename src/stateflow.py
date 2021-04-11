@@ -5,6 +5,7 @@ from src.dataflow import *
 from src.wrappers import *
 from src.descriptors import *
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
+from src.split.split import Split
 
 registered_classes: List[ClassWrapper] = []
 meta_classes: List["GenericMeta"] = []
@@ -83,12 +84,17 @@ def init():
             "Please register one using the @stateflow decorator."
         )
 
+    # We now link classes to each other.
     class_descs: List[ClassDescriptor] = [
         wrapper.class_desc for wrapper in registered_classes
     ]
 
     for desc in class_descs:
         desc.link_to_other_classes(class_descs)
+
+    # We execute the split phase
+    split: Split = Split(class_descs)
+    split.split_methods()
 
     flow: Dataflow = _build_dataflow(registered_classes, meta_classes)
 
