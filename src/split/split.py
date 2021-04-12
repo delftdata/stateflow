@@ -6,6 +6,16 @@ import libcst as cst
 import libcst.matchers as m
 
 
+class SplitTransformer(cst.CSTTransformer):
+    def __init__(self):
+        pass
+
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.CSTNode:
+        print("HERE")
+
+
 class SplitAnalyzer(cst.CSTVisitor):
     def __init__(
         self,
@@ -26,10 +36,27 @@ class SplitAnalyzer(cst.CSTVisitor):
 
         # Parsed blocks
         self.current_block_id: int = 0
-        self.parsed_statements: List["SplitStatementBlock"] = []
+        self.parsed_statements: List["StatementBlock"] = []
 
         # Analyze this method.
         self._analyze()
+
+        if len(self.parsed_statements) > 0:
+            last_block = self.parsed_statements[-1]
+        else:
+            last_block = None
+
+        # Parse the 'last' statement.
+        self.parsed_statements.append(
+            StatementBlock(
+                self.current_block_id,
+                self.expression_provider,
+                self.statements,
+                self.method_node,
+                self.method_desc,
+                last_block=last_block,
+            )
+        )
 
     def _analyze(self):
         if not m.matches(self.method_node, m.FunctionDef()):
@@ -61,15 +88,15 @@ class SplitAnalyzer(cst.CSTVisitor):
     def _process_stmt_block(
         self, class_invoked: ClassDescriptor, method: str, args: List[cst.Arg]
     ):
-        split_block = SplitStatementBlock(
+        split_block = StatementBlock(
             self.current_block_id,
             self.expression_provider,
             self.statements,
             self.method_node,
             self.method_desc,
-            class_invoked,
-            method,
-            args,
+            class_invoked=class_invoked,
+            method_invoked=method,
+            call_args=args,
         )
         self.parsed_statements.append(split_block)
 
@@ -78,7 +105,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.current_block_id += 1
 
 
-class StatementBlockAnalyzer(cst.CSTVisitor):
+class StatementBlockAnalyzer(cst.CSTTransformer):
     def __init__(self, expression_provider):
         self.expression_provider = expression_provider
 
@@ -106,8 +133,20 @@ class StatementBlockAnalyzer(cst.CSTVisitor):
         self.returns += 1
 
 
-class SetStateRequest:
-    pass
+class RemoveCall(cst.CSTTransformer):
+    def __init__(self, method_name: str, replace_block: cst.CSTNode):
+        self.method_name: str = method_name
+        self.replace_block: cst.CSTNode = replace_block
+
+    def leave_Call(
+        self, original_node: cst.Call, updated_node: cst.Call
+    ) -> cst.BaseExpression:
+        if m.matches(original_node.func, m.Attribute(m.Name(), m.Name())):
+            attr: cst.Attribute = original_node.func
+            method: str = attr.attr.value
+
+            if method == self.method_name:
+                return self.replace_block
 
 
 class InvokeMethodRequest:
@@ -117,7 +156,7 @@ class InvokeMethodRequest:
         self.args = args
 
 
-class SplitStatementBlock:
+class StatementBlock:
     def __init__(
         self,
         block_id: int,
@@ -125,16 +164,18 @@ class SplitStatementBlock:
         statements: List[cst.BaseStatement],
         original_method: cst.FunctionDef,
         method_desc: MethodDescriptor,
-        class_invoked: ClassDescriptor,
-        method_invoked: str,
-        call_args: List[cst.Arg],
-        last_block: bool = False,
+        class_invoked: Optional[ClassDescriptor] = None,
+        method_invoked: Optional[str] = None,
+        call_args: Optional[List[cst.Arg]] = None,
+        last_block: Optional["StatementBlock"] = False,
     ):
         self.block_id = block_id
         self.last_block: bool = last_block
         self.returns = 0
         self.original_method = original_method
         self.method_desc = method_desc
+
+        self.statements = statements
 
         self.class_invoked = class_invoked
         self.method_invoked = method_invoked
@@ -143,7 +184,7 @@ class SplitStatementBlock:
         definitions: List[str] = []
         usages: List[str] = []
 
-        for statement in statements:
+        for statement in self.statements:
             stmt_analyzer = StatementBlockAnalyzer(expression_provider)
             statement.visit(stmt_analyzer)
 
@@ -156,7 +197,7 @@ class SplitStatementBlock:
         self.definitions: Set[str] = set(definitions)
         self.usages: Set[str] = set(usages)
 
-        self.build()
+        self.new_function: cst.FunctionDef = self.build()
 
     def _get_invoked_method_descriptor(self) -> MethodDescriptor:
         return self.class_invoked.get_method_by_name(self.method_invoked)
@@ -199,38 +240,97 @@ class SplitStatementBlock:
         else:
             return cst.Return(cst.Tuple([cst.Element(name) for name in return_names]))
 
+    def _build_first_block(self) -> cst.FunctionDef:
+        self.definitions = self.definitions.union(self.method_desc.input_desc.keys())
+
+        diff_usages_def = self.usages.difference(self.definitions)
+        if len(
+            diff_usages_def
+        ):  # We have usages which are never defined, we should probably throw an error?
+            pass
+
+        # Function signature
+        fun_name: cst.Name = cst.Name(
+            f"{self.original_method.name.value}_{self.block_id}"
+        )
+        params: cst.Parameters = self.original_method.params
+
+        # Assignments for the call.
+        argument_assignments = self._build_argument_assignments()
+
+        # Return statement
+        return_stmt: cst.Return = self._build_return(
+            [name for name, _ in argument_assignments]
+        )
+
+        if m.matches(self.original_method.body, m.IndentedBlock()):
+            final_body = (
+                self.statements
+                + [assign for _, assign in argument_assignments]
+                + [return_stmt]
+            )
+
+            function_body = cst.IndentedBlock(
+                body=final_body,
+                header=self.original_method.body.header,
+                indent=self.original_method.body.indent,
+                footer=self.original_method.body.footer,
+            )
+
+        else:
+            raise AttributeError(
+                f"Expected the body of a function to be in an indented block, but got an {self.original_method.body}."
+            )
+
+        return cst.FunctionDef(fun_name, params, function_body)
+
+    def _previous_call_result(self) -> cst.Name:
+        return cst.Name(f"{self.last_block.method_invoked}_return")
+
+    def _build_last_block(self) -> cst.FunctionDef:
+        # Function signature
+        fun_name: cst.Name = cst.Name(
+            f"{self.original_method.name.value}_{self.block_id}"
+        )
+
+        params: List[cst.Param] = []
+        for usage in self.usages:
+            params.append(cst.Param(cst.Name(value=usage)))
+
+        previous_block_call: cst.Name = self._previous_call_result()
+        params.append(cst.Param(previous_block_call))
+
+        param_node: cst.Parameters() = cst.Parameters(params)
+        returns_signature = self.original_method.returns
+
+        self.statements[0] = self.statements[0].visit(
+            RemoveCall(self.last_block.method_invoked, self._previous_call_result())
+        )
+
+        if m.matches(self.original_method.body, m.IndentedBlock()):
+            final_body = self.statements
+
+            function_body = cst.IndentedBlock(
+                body=final_body,
+                header=self.original_method.body.header,
+                indent=self.original_method.body.indent,
+                footer=self.original_method.body.footer,
+            )
+
+        else:
+            raise AttributeError(
+                f"Expected the body of a function to be in an indented block, but got an {self.original_method.body}."
+            )
+
+        return cst.FunctionDef(fun_name, params, function_body, returns_signature)
+
     def build(self) -> cst.FunctionDef:
         # We know this is the 'first' block in the flow.
         # We can simple use the same signature as the original function.
-        if self.block_id == 0:
-            self.definitions = self.definitions.union(
-                self.method_desc.input_desc.keys()
-            )
-
-            diff_usages_def = self.usages.difference(self.definitions)
-            if len(
-                diff_usages_def
-            ):  # We have usages which are never defined, we should probably throw an error?
-                pass
-
-            # Function signature
-            fun_name: str = f"{self.original_method.name}_{self.block_id}"
-            params: cst.Parameters = self.original_method.params
-
-            # Assignments for the call.
-            argument_assignments = self._build_argument_assignments()
-
-            # Return statement
-            return_stmt: cst.Return = self._build_return(
-                [name for name, assign in argument_assignments]
-            )
-
-            if m.matches(self.original_method.body, m.IndentedBlock):
-                final_body = []
-            else:
-                raise AttributeError(
-                    f"Expected the body of a function to be in an indented block, but got an {self.original_method.body}."
-                )
+        if self.block_id == 0 and not self.last_block:
+            return self._build_first_block()
+        elif self.last_block:
+            return self._build_last_block()
 
 
 class Split:
@@ -248,7 +348,7 @@ class Split:
                         f"{method.method_name} has links to other classes/functions. Now analyzing:"
                     )
 
-                    analyzer = SplitAnalyzer(
+                    SplitAnalyzer(
                         self,
                         desc.class_node,
                         method.method_node,
