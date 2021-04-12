@@ -12,8 +12,12 @@ import libcst.matchers as m
 class ExtractClassDescriptor(cst.CSTVisitor):
     """Visits a ClassDefinition and extracts information to create a StatefulFunction."""
 
-    def __init__(self, module_node: cst.CSTNode):
+    def __init__(self, module_node: cst.CSTNode, expression_provider):
         self.module_node = module_node
+
+        # This maps an AST node to it's expression context (i.e. LOAD, STORE, DEL), we will use this in downstream tasks
+        # especially for splitting methods.
+        self.expression_provider = expression_provider
 
         # Name of the class and if it is already defined.
         self.is_defined: bool = False
@@ -143,4 +147,5 @@ class ExtractClassDescriptor(cst.CSTVisitor):
             class_node=analyzed_visitor.class_node,
             state_desc=state_desc,
             methods_dec=analyzed_visitor.method_descriptors,
+            expression_provider=analyzed_visitor.expression_provider,
         )

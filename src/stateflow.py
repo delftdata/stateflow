@@ -19,9 +19,14 @@ def stateflow(cls):
     class_source = getsource(cls)
     parsed_class = cst.parse_module(class_source)
 
+    wrapper = cst.metadata.MetadataWrapper(parsed_class)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
     # Extract class description.
-    extraction: ExtractClassDescriptor = ExtractClassDescriptor(parsed_class)
-    parsed_class.visit(extraction)
+    extraction: ExtractClassDescriptor = ExtractClassDescriptor(
+        parsed_class, expression_provider
+    )
+    wrapper.visit(extraction)
 
     # Create ClassDescriptor
     class_desc: ClassDescriptor = ExtractClassDescriptor.create_class_descriptor(

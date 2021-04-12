@@ -13,11 +13,13 @@ class ClassDescriptor:
         class_node: cst.ClassDef,
         state_desc: StateDescriptor,
         methods_dec: List[MethodDescriptor],
+        expression_provider,
     ):
         self.class_name: str = class_name
         self.class_node: cst.ClassDef = class_node
         self.state_desc: StateDescriptor = state_desc
         self.methods_dec: List[MethodDescriptor] = methods_dec
+        self.expression_provider = expression_provider
 
     def get_method_by_name(self, name: str) -> Optional[MethodDescriptor]:
         filter = [desc for desc in self.methods_dec if desc.method_name == name]
