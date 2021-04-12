@@ -26,8 +26,18 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.current_block_id: int = 0
         self.parsed_statements: List["SplitStatementBlock"] = []
 
-    def visit_FunctionDef(self, node: cst.FunctionDef):
-        print(f"HERE {node.name}")
+        # Analyze this method.
+        self._analyze()
+
+    def _analyze(self):
+        if not m.matches(self.method_node, m.FunctionDef()):
+            raise AttributeError(
+                f"Expected a function definition but got an {self.method_node}."
+            )
+
+        for stmt in self.method_node.body.children:
+            self.statements.append(stmt)
+            stmt.visit(self)
 
     def visit_Call(self, node: cst.Call):
         # Simple case: `item.update_stock()`
@@ -40,30 +50,13 @@ class SplitAnalyzer(cst.CSTVisitor):
             print(f"{callee}.{method}")
             self._process_stmt_block()
 
-    def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine):
-        self.statements.append(node)
-
-    def visit_SimpleStatementSuite(self, node: "SimpleStatementSuite"):
-        print(f"HM { node}")
-
-    def visit_If(self, node: cst.If):
-        self.statements.append(node)
-
-    def visit_For(self, node: cst.For):
-        self.statements.append(node)
-
-    def visit_While(self, node: cst.While):
-        self.statements.append(node)
-
-    def visit_Try(self, node: cst.Try):
-        self.statements.append(node)
-
-    def visit_With(self, node: cst.With):
-        self.statements.append(node)
-
     def _process_stmt_block(self):
         split_block = SplitStatementBlock(
-            self.current_block_id, self.expression_provider, self.statements
+            self.current_block_id,
+            self.expression_provider,
+            self.statements,
+            self.method_node,
+            self.method_desc,
         )
         self.parsed_statements.append(split_block)
 
@@ -97,7 +90,6 @@ class StatementBlockAnalyzer(cst.CSTVisitor):
                 self.usages.append(node.value)
 
     def visit_Return(self, node: cst.Return):
-        print(node)
         self.returns += 1
 
 
@@ -107,16 +99,18 @@ class SplitStatementBlock:
         block_id: int,
         expression_provider,
         statements: List[cst.BaseStatement],
+        original_method: cst.FunctionDef,
+        method_desc: MethodDescriptor,
     ):
         self.block_id = block_id
         self.returns = 0
+        self.original_method = original_method
+        self.method_desc = method_desc
 
         definitions: List[str] = []
         usages: List[str] = []
 
-        # print(len(statements))
         for statement in statements:
-            # print(f"Now visiting {statement}")
             stmt_analyzer = StatementBlockAnalyzer(expression_provider)
             statement.visit(stmt_analyzer)
 
@@ -131,6 +125,20 @@ class SplitStatementBlock:
         print(f"Definitions {set(self.definitions)}")
         print(f"Usages {set(self.usages)}")
         print(f"Amount of returns in this block {self.returns}")
+
+    def build(self) -> cst.FunctionDef:
+        # We know this is the 'first' block in the flow.
+        # We can simple use the same signature as the original function.
+        if self.block_id == 0:
+            self.definitions = self.definitions.union(
+                self.method_desc.input_desc.keys()
+            )
+
+            diff_usages_def = self.usages.difference(self.definitions)
+            if len(
+                diff_usages_def
+            ):  # We have usages which are never defined, we should probably throw an error?
+                pass
 
 
 class Split:
@@ -151,4 +159,3 @@ class Split:
                         method,
                         desc.expression_provider,
                     )
-                    method.method_node.visit(analyzer)
