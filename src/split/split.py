@@ -4,6 +4,7 @@ from src.descriptors import ClassDescriptor, MethodDescriptor
 from typing import List, Optional, Any, Set, Tuple, Dict, Union
 import libcst as cst
 import libcst.matchers as m
+import importlib
 
 
 class SplitTransformer(cst.CSTTransformer):
@@ -127,13 +128,25 @@ class SplitAnalyzer(cst.CSTVisitor):
 
 
 class StatementBlockAnalyzer(cst.CSTTransformer):
-    def __init__(self, expression_provider):
+    def __init__(self, expression_provider, method_name: Optional[str] = None):
         self.expression_provider = expression_provider
+        self.method_name = method_name
 
         self.definitions: List[str] = []
         self.usages: List[str] = []
 
         self.returns = 0
+
+    def visit_Call(self, node: cst.Call):
+        if m.matches(node.func, m.Attribute(m.Name(), m.Name())):
+            attr: cst.Attribute = node.func
+            method: str = attr.attr.value
+
+            # We don't want to visit this node, because it will give LOAD/STORE of unused variables.
+            # I.e. we will replace this node later on.
+            if method == self.method_name:
+                print("I'm here!")
+                return False
 
     def visit_Name(self, node: cst.Name):
         if node in self.expression_provider:
@@ -189,10 +202,10 @@ class StatementBlock:
         class_invoked: Optional[ClassDescriptor] = None,
         method_invoked: Optional[str] = None,
         call_args: Optional[List[cst.Arg]] = None,
-        last_block: Optional["StatementBlock"] = False,
+        last_block: Optional["StatementBlock"] = None,
     ):
         self.block_id = block_id
-        self.last_block: bool = last_block
+        self.last_block = last_block
         self.returns = 0
         self.original_method = original_method
         self.method_desc = method_desc
@@ -206,13 +219,16 @@ class StatementBlock:
         definitions: List[str] = []
         usages: List[str] = []
 
-        if last_block:
-            self.statements[0] = self.statements[0].visit(
-                RemoveCall(self.last_block.method_invoked, self._previous_call_result())
-            )
+        if m.matches(self.statements[0], m.TrailingWhitespace()):
+            self.statements.pop(0)
 
         for statement in self.statements:
-            stmt_analyzer = StatementBlockAnalyzer(expression_provider)
+            if self.last_block:
+                method_invoked = self.last_block.method_invoked
+            else:
+                method_invoked = None
+
+            stmt_analyzer = StatementBlockAnalyzer(expression_provider, method_invoked)
             statement.visit(stmt_analyzer)
 
             # Merge usages and definitions
@@ -223,6 +239,8 @@ class StatementBlock:
 
         self.definitions: Set[str] = set(definitions)
         self.usages: Set[str] = set(usages)
+
+        print(f"Definitions {self.definitions}")
 
         self.new_function: cst.FunctionDef = self.build()
 
@@ -361,6 +379,10 @@ class StatementBlock:
         param_node: cst.Parameters() = cst.Parameters(tuple(params))
         returns_signature = self.original_method.returns
 
+        self.statements[0] = self.statements[0].visit(
+            RemoveCall(self.last_block.method_invoked, self._previous_call_result())
+        )
+
         if m.matches(self.original_method.body, m.IndentedBlock()):
             final_body = self.statements
 
@@ -418,4 +440,7 @@ class Split:
 
             modified_tree = desc.module_node.visit(SplitTransformer(updated_methods))
             # print(modified_tree)
-            print(modified_tree.code)
+            import dis
+
+            # We need to somehow retrieve the imports of the file...
+            print(exec(compile(modified_tree.code, "", mode="exec")))
