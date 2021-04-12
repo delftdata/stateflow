@@ -100,6 +100,8 @@ class _Request(Enum, metaclass=MetaEnum):
     UpdateState = "UpdateState"
     DeleteState = "DeleteState"
 
+    EventFlow = "EventFlow"
+
     def __str__(self):
         return f"Request.{self.value}"
 
