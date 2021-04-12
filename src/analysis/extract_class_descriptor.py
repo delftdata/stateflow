@@ -144,6 +144,7 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         )
         return ClassDescriptor(
             class_name=analyzed_visitor.class_name,
+            module_node=analyzed_visitor.module_node,
             class_node=analyzed_visitor.class_node,
             state_desc=state_desc,
             methods_dec=analyzed_visitor.method_descriptors,

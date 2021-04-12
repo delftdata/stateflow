@@ -10,12 +10,14 @@ class ClassDescriptor:
     def __init__(
         self,
         class_name: str,
+        module_node: cst.Module,
         class_node: cst.ClassDef,
         state_desc: StateDescriptor,
         methods_dec: List[MethodDescriptor],
         expression_provider,
     ):
         self.class_name: str = class_name
+        self.module_node: cst.Module = module_node
         self.class_node: cst.ClassDef = class_node
         self.state_desc: StateDescriptor = state_desc
         self.methods_dec: List[MethodDescriptor] = methods_dec
