@@ -3,7 +3,9 @@ import libcst as cst
 from typing import List, Dict
 from src.wrappers.class_wrapper import ClassWrapper
 from src.wrappers.meta_wrapper import MetaWrapper
-from src.dataflow.dataflow import Dataflow
+from src.dataflow.dataflow import Dataflow, Ingress, Egress
+from src.dataflow.stateful_operator import StatefulOperator, Edge, Operator
+from src.dataflow.event import FunctionType, EventType
 from src.descriptors import *
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
 from src.split.split import Split

@@ -136,6 +136,9 @@ class EventFlowNode:
 
     REQUEST_STATE = "REQUEST_STATE"
     INVOKE_SPLIT_FUN = "INVOKE_SPLIT_FUN"
+
+    INVOKE_EXTERNAL = "INVOKE_EXTERNAL"
+
     RETURN = "RETURN"
     START = "START"
 
@@ -156,23 +159,99 @@ class EventFlowNode:
     def get_next(self) -> List["EventFlowNode"]:
         return self.next
 
+    def to_dict(self) -> Dict:
+        return {"type": self.typ, "fun_type": self.fun_type.to_dict()}
+
+    @staticmethod
+    def from_dict(dict: Dict) -> "EventFlowNode":
+        fun_type = FunctionType(
+            dict["fun_type"]["namespace"],
+            dict["fun_type"]["name"],
+            dict["fun_type"]["stateful"],
+        )
+
+        return EventFlowNode(dict["type"], fun_type)
+
+    def print_all(self, indent: str = ""):
+        self.print(indent)
+        if self.next:
+            if isinstance(self.next, list):
+                for n in self.next:
+                    n.print_all(indent + "\t")
+            else:
+                self.next.print_all(indent + "\t")
+
+    def print(self, indent: str = ""):
+        pass
+
 
 class StartNode(EventFlowNode):
     def __init__(self):
         super().__init__(EventFlowNode.START, None)
 
+    def to_dict(self):
+        return super().to_dict()
+
+    def print(self, indent: str = ""):
+        print(f"{indent}START")
+
+
+class ReturnNode(EventFlowNode):
+    def __init__(self):
+        super().__init__(EventFlowNode.RETURN, None)
+
+    def to_dict(self):
+        return super().to_dict()
+
+    def print(self, indent: str = ""):
+        print(f"{indent}RETURN")
+
+
+class InvokeExternal(EventFlowNode):
+    def __init__(self, fun_type, ref_variable_name, method_name, args: List[str]):
+        super().__init__(EventFlowNode.INVOKE_EXTERNAL, fun_type)
+        self.ref_variable_name = ref_variable_name
+        self.method = method_name
+        self.args = args
+
+    def to_dict(self):
+        return_dict = super().to_dict()
+        return_dict["ref_variable_name"] = self.ref_variable_name
+        return_dict["method"] = self.method
+        return_dict["args"] = self.args
+
+    def print(self, indent: str = ""):
+        print(
+            f"{indent}InvokeExternal({self.ref_variable_name}, {self.method}, {self.args})"
+        )
+
 
 class InvokeSplitFun(EventFlowNode):
-    def __init__(self, fun_type: FunctionType, fun_name: str, params: List[str]):
+    def __init__(
+        self,
+        fun_type: FunctionType,
+        fun_name: str,
+        params: List[str],
+        definitions: List[str],
+    ):
         super().__init__(EventFlowNode.INVOKE_SPLIT_FUN, fun_type)
         self.fun_name: str = fun_name
         self.params = params
+        self.definitions = definitions
+
+    def print(self, indent: str = ""):
+        print(
+            f"{indent}InvokeSplitFun({self.fun_name}, {self.params}, {self.definitions})"
+        )
 
 
 class RequestState(EventFlowNode):
     def __init__(self, fun_type: FunctionType, var_name: str):
         super().__init__(EventFlowNode.REQUEST_STATE, fun_type)
         self.var_name: str = var_name
+
+    def print(self, indent: str = ""):
+        print(f"{indent}RequestState({self.var_name})")
 
 
 class EventFlowDescriptor:

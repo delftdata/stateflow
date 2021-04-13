@@ -5,6 +5,13 @@ from src.client.future import StateflowFuture, StateflowFailure
 
 stateflow.init()
 
+# TODO
+# 1. Being able to serialize these flow nodes (encode with uuid).
+# 2. Add flags to each flow node PENDING AND DONE
+# 3. Have a results per flow node
+# 4. Implementation in router and class wrapper.
+# 5. E2E
+
 
 # client: StateflowClient = StateflowKafkaClient(
 #     stateflow.init(), brokers="localhost:9092"

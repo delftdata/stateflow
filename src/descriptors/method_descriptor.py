@@ -3,7 +3,15 @@ from typing import Dict, Any, List, Set, Optional
 import libcst as cst
 
 from src.dataflow.args import Arguments
-from src.dataflow.event import EventFlowNode, StartNode, RequestState, FunctionType
+from src.dataflow.event import (
+    EventFlowNode,
+    StartNode,
+    RequestState,
+    FunctionType,
+    InvokeSplitFun,
+    ReturnNode,
+    InvokeExternal,
+)
 
 
 class MethodDescriptor:
@@ -35,7 +43,9 @@ class MethodDescriptor:
     def is_splitted_function(self) -> bool:
         return len(self.statement_blocks) > 0
 
-    def split_function(self, blocks: List["StatementBlock"], descriptors: List):
+    def split_function(
+        self, class_name: str, blocks: List["StatementBlock"], descriptors: List
+    ):
         self.statement_blocks = blocks
 
         # 'build' action flow.
@@ -48,11 +58,53 @@ class MethodDescriptor:
         flow_start: EventFlowNode = StartNode()
         flow: EventFlowNode = flow_start
 
-        for input, input_type in self.input_desc.get():
+        for input, input_type in self.input_desc.get().items():
             matched_type = self._match_type(input_type, descriptors)
 
             if matched_type:
-                flow = flow.next(RequestState(FunctionType.create(matched_type), input))
+                flow = flow.set_next(
+                    RequestState(FunctionType.create(matched_type), input)
+                )
+
+        for block in blocks:
+            if block.block_id == 0:
+                split_node = InvokeSplitFun(
+                    FunctionType.create(self._match_type(class_name, descriptors)),
+                    block.fun_name(),
+                    list(self.input_desc.keys()),
+                    list(block.definitions),
+                )
+                if block.returns > 0:
+                    return_node = ReturnNode()
+                    flow = flow.set_next([split_node, return_node])[0]
+                else:
+                    flow = flow.set_next(split_node)[0]
+
+                flow = flow.set_next(
+                    InvokeExternal(
+                        FunctionType.create(
+                            self._match_type(
+                                block.class_invoked.class_name, descriptors
+                            )
+                        ),
+                        block.class_invoked.class_name,
+                        block.method_invoked,
+                        block.get_call_arguments(),
+                    )
+                )
+
+            elif block.last_block:
+                split_node = InvokeSplitFun(
+                    FunctionType.create(self._match_type(class_name, descriptors)),
+                    block.fun_name(),
+                    list(self.input_desc.keys()),
+                    [],
+                )
+
+                flow = flow.set_next(split_node)
+                flow = flow.set_next(ReturnNode())
+
+        flow_start.print_all()
 
     def _match_type(self, input_type, descriptors) -> Optional:
         descriptors_filter = [

@@ -143,10 +143,14 @@ class SplitAnalyzer(cst.CSTVisitor):
             )
 
             print(f"{callee}.{method}")
-            self._process_stmt_block(desc, method, node.args)
+            self._process_stmt_block(desc, callee, method, node.args)
 
     def _process_stmt_block(
-        self, class_invoked: ClassDescriptor, method: str, args: List[cst.Arg]
+        self,
+        class_invoked: ClassDescriptor,
+        class_call_ref: str,
+        method: str,
+        args: List[cst.Arg],
     ):
         split_block = StatementBlock(
             self.current_block_id,
@@ -155,6 +159,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             self.method_node,
             self.method_desc,
             class_invoked=class_invoked,
+            class_call_ref=class_call_ref,
             method_invoked=method,
             call_args=args,
         )
@@ -231,6 +236,7 @@ class StatementBlock:
         original_method: cst.FunctionDef,
         method_desc: "MethodDescriptor",
         class_invoked: Optional["ClassDescriptor"] = None,
+        class_call_ref: Optional[str] = None,
         method_invoked: Optional[str] = None,
         call_args: Optional[List[cst.Arg]] = None,
         last_block: Optional["StatementBlock"] = None,
@@ -245,7 +251,10 @@ class StatementBlock:
 
         self.class_invoked = class_invoked
         self.method_invoked = method_invoked
+        self.class_call_ref = class_call_ref
         self.call_args = call_args
+
+        self.arguments_for_call = []
 
         definitions: List[str] = []
         usages: List[str] = []
@@ -275,6 +284,9 @@ class StatementBlock:
 
     def _get_invoked_method_descriptor(self) -> "MethodDescriptor":
         return self.class_invoked.get_method_by_name(self.method_invoked)
+
+    def fun_name(self) -> str:
+        return f"{self.original_method.name.value}_{self.block_id}"
 
     def _build_argument_assignments(
         self,
@@ -325,6 +337,9 @@ class StatementBlock:
                 )
         return assign_list
 
+    def get_call_arguments(self) -> List[str]:
+        return ",".join([n.value for n in self.arguments_for_call])
+
     def _build_return(self, call_arguments: List[cst.Name]) -> cst.SimpleStatementLine:
         return_names: List[cst.BaseExpression] = []
         for definition in self.definitions:
@@ -332,7 +347,7 @@ class StatementBlock:
 
         call_arguments_names: str = ",".join([n.value for n in call_arguments])
         call_expression: cst.BaseExpression = cst.parse_expression(
-            f"InvokeMethodRequest('{self.class_invoked.class_name}', '{self.method_invoked}', [{call_arguments_names}])"
+            f"InvokeMethodRequest('{self.class_invoked.class_name}', {self.class_call_ref}, '{self.method_invoked}', [{call_arguments_names}])"
         )
 
         return_names.append(call_expression)
@@ -364,10 +379,10 @@ class StatementBlock:
         # Assignments for the call.
         argument_assignments = self._build_argument_assignments()
 
+        self.arguments_for_call = [name for name, _ in argument_assignments]
+
         # Return statement
-        return_stmt: cst.Return = self._build_return(
-            [name for name, _ in argument_assignments]
-        )
+        return_stmt: cst.Return = self._build_return(self.arguments_for_call)
 
         if m.matches(self.original_method.body, m.IndentedBlock()):
             final_body = (
@@ -441,8 +456,15 @@ class StatementBlock:
 
 
 class InvokeMethodRequest:
-    def __init__(self, class_name: str, method_to_invoke: str, args: List[Any]):
+    def __init__(
+        self,
+        class_name: str,
+        instance_ref_var: str,
+        method_to_invoke: str,
+        args: List[Any],
+    ):
         self.class_name = class_name
+        self.instance_ref_var = instance_ref_var
         self.method_to_invoke = method_to_invoke
         self.args = args
 
@@ -474,7 +496,9 @@ class Split:
                     parsed_stmts: List[StatementBlock] = analyzer.parsed_statements
                     updated_methods[method.method_name] = parsed_stmts
 
-                    method.split_function(parsed_stmts, self.descriptors)
+                    method.split_function(
+                        desc.class_name, parsed_stmts, self.descriptors
+                    )
 
             if len(updated_methods) > 0:
                 remove_after_class_def = RemoveAfterClassDefinition(desc.class_name)

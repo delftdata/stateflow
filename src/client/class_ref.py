@@ -19,6 +19,9 @@ class MethodRef:
         #     f"Now invoking method: {self.method_name}, with arguments: {args} and {kwargs}."
         # )
 
+        if self.method_desc.is_splitted_function():
+            print(f"Now calling a splitted function! {self.method_name}")
+
         return self._class_ref.invoke_method(
             self.method_name,
             Arguments.from_args_and_kwargs(
