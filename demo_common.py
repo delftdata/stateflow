@@ -17,6 +17,9 @@ class Item:
         self.stock += amount
         return True
 
+    def __key__(self):
+        return self.item_name
+
 
 @stateflow.stateflow
 class User:
