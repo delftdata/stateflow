@@ -1,8 +1,9 @@
 from inspect import isclass, getsource, getfile
 import libcst as cst
-from typing import List
-from src.dataflow import *
-from src.wrappers import *
+from typing import List, Dict
+from src.wrappers.class_wrapper import ClassWrapper
+from src.wrappers.meta_wrapper import MetaWrapper
+from src.dataflow.dataflow import Dataflow
 from src.descriptors import *
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
 from src.split.split import Split

@@ -1,4 +1,5 @@
-from src.client.stateflow_client import StateflowClient, Dataflow, SerDe, JsonSerializer
+from src.client.stateflow_client import StateflowClient, SerDe, JsonSerializer
+from src.dataflow.dataflow import Dataflow
 from src.dataflow.event import Event, FunctionType, FunctionAddress, EventType
 from src.client.future import StateflowFuture, T
 from typing import Optional, Any, List

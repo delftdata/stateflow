@@ -222,13 +222,6 @@ class RemoveCall(cst.CSTTransformer):
                 return self.replace_block
 
 
-class InvokeMethodRequest:
-    def __init__(self, class_name: str, method_to_invoke: str, args: List[Any]):
-        self.class_name = class_name
-        self.method_to_invoke = method_to_invoke
-        self.args = args
-
-
 class StatementBlock:
     def __init__(
         self,
@@ -236,8 +229,8 @@ class StatementBlock:
         expression_provider,
         statements: List[cst.BaseStatement],
         original_method: cst.FunctionDef,
-        method_desc: MethodDescriptor,
-        class_invoked: Optional[ClassDescriptor] = None,
+        method_desc: "MethodDescriptor",
+        class_invoked: Optional["ClassDescriptor"] = None,
         method_invoked: Optional[str] = None,
         call_args: Optional[List[cst.Arg]] = None,
         last_block: Optional["StatementBlock"] = None,
@@ -280,7 +273,7 @@ class StatementBlock:
 
         self.new_function: cst.FunctionDef = self.build()
 
-    def _get_invoked_method_descriptor(self) -> MethodDescriptor:
+    def _get_invoked_method_descriptor(self) -> "MethodDescriptor":
         return self.class_invoked.get_method_by_name(self.method_invoked)
 
     def _build_argument_assignments(
@@ -447,6 +440,13 @@ class StatementBlock:
             return self._build_last_block()
 
 
+class InvokeMethodRequest:
+    def __init__(self, class_name: str, method_to_invoke: str, args: List[Any]):
+        self.class_name = class_name
+        self.method_to_invoke = method_to_invoke
+        self.args = args
+
+
 class Split:
     def __init__(self, descriptors: List[ClassDescriptor]):
         self.descriptors = descriptors
@@ -473,6 +473,8 @@ class Split:
 
                     parsed_stmts: List[StatementBlock] = analyzer.parsed_statements
                     updated_methods[method.method_name] = parsed_stmts
+
+                    method.split_function(parsed_stmts, self.descriptors)
 
             if len(updated_methods) > 0:
                 remove_after_class_def = RemoveAfterClassDefinition(desc.class_name)

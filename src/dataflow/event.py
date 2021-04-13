@@ -1,11 +1,10 @@
-from src.descriptors.class_descriptor import ClassDescriptor
-from src.dataflow import Arguments
 from typing import List, Optional, Dict
 from enum import Enum, EnumMeta
 import ujson
 
 
 class FunctionType:
+
     __slots__ = "namespace", "name", "stateful"
 
     def __init__(self, namespace: str, name: str, stateful: bool):
@@ -37,7 +36,7 @@ class FunctionType:
         }
 
     @staticmethod
-    def create(desc: ClassDescriptor) -> "FunctionType":
+    def create(desc) -> "FunctionType":
         name = desc.class_name
         namespace = "global"  # for now we have a global namespace
         stateful = True  # for now we only cover stateful functions
@@ -186,6 +185,8 @@ class EventFlow:
 
 
 class Event:
+    from src.dataflow import Arguments
+
     __slots__ = "event_id", "fun_address", "event_type", "payload"
 
     def __init__(

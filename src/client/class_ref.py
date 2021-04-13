@@ -1,4 +1,3 @@
-from src.dataflow import FunctionAddress
 from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.client.future import StateflowFuture
 from src.dataflow.args import Arguments
@@ -29,6 +28,8 @@ class MethodRef:
 
 
 class ClassRef(object):
+    from src.dataflow.event import FunctionAddress
+
     __slots__ = "_fun_addr", "_class_desc", "_attributes", "_methods", "_client"
 
     def __init__(

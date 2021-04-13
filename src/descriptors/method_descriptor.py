@@ -1,9 +1,9 @@
-from typing import Dict, Any, List, Set
+from typing import Dict, Any, List, Set, Optional
 
 import libcst as cst
 
-from src.dataflow import *
-from src.split.split import StatementBlock
+from src.dataflow.args import Arguments
+from src.dataflow.event import EventFlowNode, StartNode, RequestState, FunctionType
 
 
 class MethodDescriptor:
@@ -30,12 +30,12 @@ class MethodDescriptor:
 
         self.other_class_links: List = []
 
-        self.statement_blocks: List[StatementBlock] = []
+        self.statement_blocks: List["StatementBlock"] = []
 
     def is_splitted_function(self) -> bool:
         return len(self.statement_blocks) > 0
 
-    def split_function(self, blocks: List[StatementBlock], descriptors: List):
+    def split_function(self, blocks: List["StatementBlock"], descriptors: List):
         self.statement_blocks = blocks
 
         # 'build' action flow.
@@ -49,10 +49,10 @@ class MethodDescriptor:
         flow: EventFlowNode = flow_start
 
         for input, input_type in self.input_desc.get():
-            matched_type = self._match_type(input_type)
+            matched_type = self._match_type(input_type, descriptors)
 
             if matched_type:
-                flow.append(RequestState(FunctionType.create(matched_type), input))
+                flow = flow.next(RequestState(FunctionType.create(matched_type), input))
 
     def _match_type(self, input_type, descriptors) -> Optional:
         descriptors_filter = [

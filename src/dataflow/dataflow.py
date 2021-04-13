@@ -1,5 +1,5 @@
 from typing import List, Optional, Tuple
-from src.dataflow.event import *
+from src.dataflow.event import EventType, FunctionType
 from src.descriptors.class_descriptor import ClassDescriptor
 from src.serialization.serde import SerDe
 
@@ -29,6 +29,8 @@ class Edge:
 
 
 class Router:
+    from src.dataflow.event import Event
+
     def __init__(self, flow: "Dataflow", current: Edge, serializer: SerDe):
         self.flow = flow
         self.current = current
