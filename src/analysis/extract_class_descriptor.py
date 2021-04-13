@@ -12,8 +12,11 @@ import libcst.matchers as m
 class ExtractClassDescriptor(cst.CSTVisitor):
     """Visits a ClassDefinition and extracts information to create a StatefulFunction."""
 
-    def __init__(self, module_node: cst.CSTNode, expression_provider):
+    def __init__(
+        self, module_node: cst.CSTNode, decorated_class_name: str, expression_provider
+    ):
         self.module_node = module_node
+        self.decorated_class_name = decorated_class_name
 
         # This maps an AST node to it's expression context (i.e. LOAD, STORE, DEL), we will use this in downstream tasks
         # especially for splitting methods.
@@ -81,6 +84,8 @@ class ExtractClassDescriptor(cst.CSTVisitor):
 
         :param node: the class definition to analyze.
         """
+        if self.decorated_class_name != helpers.get_full_name_for_node(node):
+            return False
 
         if self.is_defined:  # We don't allow nested classes.
             raise AttributeError("Nested classes are not allowed.")
@@ -88,6 +93,8 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         self.is_defined = True
         self.class_name = helpers.get_full_name_for_node(node)
         self.class_node = node
+
+        return True
 
     def merge_self_attributes(self) -> Dict[str, any]:
         """Merges all self attributes.

@@ -1,4 +1,4 @@
-from inspect import isclass, getsource
+from inspect import isclass, getsource, getfile
 import libcst as cst
 from typing import List
 from src.dataflow import *
@@ -6,6 +6,8 @@ from src.wrappers import *
 from src.descriptors import *
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
 from src.split.split import Split
+
+parse_cache: Dict[str, cst.Module] = {}
 
 registered_classes: List[ClassWrapper] = []
 meta_classes: List["GenericMeta"] = []
@@ -16,15 +18,27 @@ def stateflow(cls):
         raise AttributeError(f"Expected a class but got an {cls}.")
 
     # Parse source.
+    class_file_name = getfile(cls)
+
+    print(cls.__name__)
     class_source = getsource(cls)
     parsed_class = cst.parse_module(class_source)
 
-    wrapper = cst.metadata.MetadataWrapper(parsed_class)
+    if class_file_name not in parse_cache:
+        with open(getfile(cls), "r") as file:
+            to_parse_file = file.read()
+
+        parsed_file = cst.parse_module(to_parse_file)
+        parse_cache[class_file_name] = parsed_file
+    else:
+        parsed_file = parse_cache[class_file_name]
+
+    wrapper = cst.metadata.MetadataWrapper(parsed_file)
     expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
 
     # Extract class description.
     extraction: ExtractClassDescriptor = ExtractClassDescriptor(
-        parsed_class, expression_provider
+        parsed_file, cls.__name__, expression_provider
     )
     wrapper.visit(extraction)
 
@@ -98,8 +112,8 @@ def init():
         desc.link_to_other_classes(class_descs)
 
     # We execute the split phase
-    # split: Split = Split(class_descs)
-    # split.split_methods()
+    split: Split = Split(class_descs)
+    split.split_methods()
 
     flow: Dataflow = _build_dataflow(registered_classes, meta_classes)
 

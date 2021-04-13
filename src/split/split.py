@@ -7,13 +7,53 @@ import libcst.matchers as m
 import importlib
 
 
-class SplitTransformer(cst.CSTTransformer):
-    def __init__(self, updated_methods: Dict[str, List["StatementBlock"]]):
-        self.updated_methods = updated_methods
+class RemoveAfterClassDefinition(cst.CSTTransformer):
+    def __init__(self, class_name: str):
+        self.class_name: str = class_name
+        self.is_defined = False
 
     def leave_ClassDef(
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> Union[cst.BaseStatement, cst.RemovalSentinel]:
+        print(f"hmm {original_node.name}")
+        print(f"{original_node.decorators}")
+
+        new_decorators = []
+        for decorator in updated_node.decorators:
+            if "stateflow" not in cst.helpers.get_full_name_for_node(decorator):
+                new_decorators.append(decorator)
+
+        if original_node.name == self.class_name:
+            self.is_defined = True
+            return updated_node.with_changes(decorators=tuple(new_decorators))
+
+        return updated_node.with_changes(decorators=tuple(new_decorators))
+
+    # def on_leave(
+    #     self, original_node: cst.CSTNodeT, updated_node: cst.CSTNodeT
+    # ) -> Union[cst.CSTNodeT, cst.RemovalSentinel]:
+    #     if self.is_defined:
+    #         return cst.RemovalSentinel()
+
+
+class SplitTransformer(cst.CSTTransformer):
+    def __init__(
+        self, class_name: str, updated_methods: Dict[str, List["StatementBlock"]]
+    ):
+        self.class_name: str = class_name
+        self.updated_methods = updated_methods
+
+    def visit_ClassDef(self, node: cst.ClassDef):
+        if node.name.value != self.class_name:
+            return False
+        return True
+
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> Union[cst.BaseStatement, cst.RemovalSentinel]:
+        if updated_node.name.value != self.class_name:
+            return updated_node
+
         class_body = updated_node.body.body
 
         for method in self.updated_methods.values():
@@ -438,9 +478,33 @@ class Split:
                     parsed_stmts: List[StatementBlock] = analyzer.parsed_statements
                     updated_methods[method.method_name] = parsed_stmts
 
-            modified_tree = desc.module_node.visit(SplitTransformer(updated_methods))
+            remove_after_class_def = RemoveAfterClassDefinition(desc.class_name)
+
+            modified_tree = desc.module_node.visit(remove_after_class_def)
+
+            print()
+
+            modified_tree = modified_tree.visit(
+                SplitTransformer(desc.class_name, updated_methods)
+            )
             # print(modified_tree)
             import dis
 
+            print(modified_tree.code)
+
             # We need to somehow retrieve the imports of the file...
-            print(exec(compile(modified_tree.code, "", mode="exec")))
+            print(
+                exec(compile(modified_tree.code, "", mode="exec"), globals(), globals())
+            )
+
+            import inspect
+            import sys
+
+            clsmembers = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+            print(globals()[desc.class_name])
+            print(dir(globals()[desc.class_name]))
+
+            if desc.class_name == "User":
+                hi = globals()[desc.class_name]("wouter")
+                print(hi.buy_item_1(10, True))
+                print(hi.balance)
