@@ -133,6 +133,58 @@ class EventType:
             return None
 
 
+class EventFlowNode:
+
+    REQUEST_STATE = "REQUEST_STATE"
+    INVOKE_SPLIT_FUN = "INVOKE_SPLIT_FUN"
+    RETURN = "RETURN"
+    START = "START"
+
+    def __init__(self, typ: str, fun_type: FunctionType):
+        self.typ = typ
+        self.fun_type = fun_type
+
+        self.next: List[EventFlowNode] = []
+
+    def set_next(self, next: List["EventFlowNode"]):
+        if isinstance(next, list):
+            self.next = next
+        else:
+            self.next = [next]
+
+        return next
+
+    def get_next(self) -> List["EventFlowNode"]:
+        return self.next
+
+
+class StartNode(EventFlowNode):
+    def __init__(self):
+        super().__init__(EventFlowNode.START, None)
+
+
+class InvokeSplitFun(EventFlowNode):
+    def __init__(self, fun_type: FunctionType, fun_name: str, params: List[str]):
+        super().__init__(EventFlowNode.INVOKE_SPLIT_FUN, fun_type)
+        self.fun_name: str = fun_name
+        self.params = params
+
+
+class RequestState(EventFlowNode):
+    def __init__(self, fun_type: FunctionType, var_name: str):
+        super().__init__(EventFlowNode.REQUEST_STATE, fun_type)
+        self.var_name: str = var_name
+
+
+class EventFlowDescriptor:
+    pass
+
+
+class EventFlow:
+    def __init__(self, descriptor: EventFlowDescriptor):
+        pass
+
+
 class Event:
     __slots__ = "event_id", "fun_address", "event_type", "payload"
 

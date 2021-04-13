@@ -15,8 +15,6 @@ class RemoveAfterClassDefinition(cst.CSTTransformer):
     def leave_ClassDef(
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> Union[cst.BaseStatement, cst.RemovalSentinel]:
-        print(f"hmm {original_node.name}")
-        print(f"{original_node.decorators}")
 
         new_decorators = []
         for decorator in updated_node.decorators:
@@ -280,8 +278,6 @@ class StatementBlock:
         self.definitions: Set[str] = set(definitions)
         self.usages: Set[str] = set(usages)
 
-        print(f"Definitions {self.definitions}")
-
         self.new_function: cst.FunctionDef = self.build()
 
     def _get_invoked_method_descriptor(self) -> MethodDescriptor:
@@ -478,33 +474,15 @@ class Split:
                     parsed_stmts: List[StatementBlock] = analyzer.parsed_statements
                     updated_methods[method.method_name] = parsed_stmts
 
-            remove_after_class_def = RemoveAfterClassDefinition(desc.class_name)
+            if len(updated_methods) > 0:
+                remove_after_class_def = RemoveAfterClassDefinition(desc.class_name)
 
-            modified_tree = desc.module_node.visit(remove_after_class_def)
+                modified_tree = desc.module_node.visit(remove_after_class_def)
 
-            print()
+                modified_tree = modified_tree.visit(
+                    SplitTransformer(desc.class_name, updated_methods)
+                )
 
-            modified_tree = modified_tree.visit(
-                SplitTransformer(desc.class_name, updated_methods)
-            )
-            # print(modified_tree)
-            import dis
-
-            print(modified_tree.code)
-
-            # We need to somehow retrieve the imports of the file...
-            print(
+                # Recompile the code.
                 exec(compile(modified_tree.code, "", mode="exec"), globals(), globals())
-            )
-
-            import inspect
-            import sys
-
-            clsmembers = inspect.getmembers(sys.modules[__name__], inspect.isclass)
-            print(globals()[desc.class_name])
-            print(dir(globals()[desc.class_name]))
-
-            if desc.class_name == "User":
-                hi = globals()[desc.class_name]("wouter")
-                print(hi.buy_item_1(10, True))
-                print(hi.balance)
+                print(globals()[desc.class_name])

@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Set
 import libcst as cst
 
 from src.dataflow import *
+from src.split.split import StatementBlock
 
 
 class MethodDescriptor:
@@ -28,6 +29,40 @@ class MethodDescriptor:
         self._typed_declarations = typed_declarations
 
         self.other_class_links: List = []
+
+        self.statement_blocks: List[StatementBlock] = []
+
+    def is_splitted_function(self) -> bool:
+        return len(self.statement_blocks) > 0
+
+    def split_function(self, blocks: List[StatementBlock], descriptors: List):
+        self.statement_blocks = blocks
+
+        # 'build' action flow.
+        # 1. Get state of statement block 0
+        # 2. Execute statement block 0
+        # 3. D
+
+        # InputDescriptor will match the input of block[0]
+        # We will check if we need to obtain state of another class.
+        flow_start: EventFlowNode = StartNode()
+        flow: EventFlowNode = flow_start
+
+        for input, input_type in self.input_desc.get():
+            matched_type = self._match_type(input_type)
+
+            if matched_type:
+                flow.append(RequestState(FunctionType.create(matched_type), input))
+
+    def _match_type(self, input_type, descriptors) -> Optional:
+        descriptors_filter = [
+            desc for desc in descriptors if desc.class_name == input_type
+        ]
+
+        if len(descriptors_filter) > 0:
+            return descriptors_filter[0]
+
+        return None
 
     def link_to_other_classes(self, descriptors: List):
         for d in descriptors:

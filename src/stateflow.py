@@ -19,11 +19,6 @@ def stateflow(cls):
 
     # Parse source.
     class_file_name = getfile(cls)
-
-    print(cls.__name__)
-    class_source = getsource(cls)
-    parsed_class = cst.parse_module(class_source)
-
     if class_file_name not in parse_cache:
         with open(getfile(cls), "r") as file:
             to_parse_file = file.read()
