@@ -146,6 +146,9 @@ class EventFlowNode:
         self.typ = typ
         self.fun_type = fun_type
 
+        self.input = {}
+        self.output = {}
+
         self.next: List[EventFlowNode] = []
 
     def set_next(self, next: List["EventFlowNode"]):
@@ -160,7 +163,18 @@ class EventFlowNode:
         return self.next
 
     def to_dict(self) -> Dict:
-        return {"type": self.typ, "fun_type": self.fun_type.to_dict()}
+        if self.fun_type:
+            fun_type_dict = self.fun_type.to_dict()
+        else:
+            fun_type_dict = None
+
+        return {
+            "type": self.typ,
+            "fun_type": fun_type_dict,
+            "input": self.input,
+            "output": self.output,
+            "next": list([n.to_dict() for n in self.next]),
+        }
 
     @staticmethod
     def from_dict(dict: Dict) -> "EventFlowNode":
@@ -170,19 +184,26 @@ class EventFlowNode:
             dict["fun_type"]["stateful"],
         )
 
-        return EventFlowNode(dict["type"], fun_type)
+        flow_type = dict["type"]
 
-    def print_all(self, indent: str = ""):
-        self.print(indent)
-        if self.next:
-            if isinstance(self.next, list):
-                for n in self.next:
-                    n.print_all(indent + "\t")
-            else:
-                self.next.print_all(indent + "\t")
+        new_node = None
+        if flow_type == StartNode:
+            new_node = StartNode.construct(fun_type, dict)
+        elif flow_type == ReturnNode:
+            new_node = ReturnNode.construct(fun_type, dict)
+        elif flow_type == InvokeSplitFun:
+            new_node = InvokeSplitFun.construct(fun_type, dict)
+        elif flow_type == RequestState:
+            new_node = RequestState.construct(fun_type, dict)
+        elif flow_type == InvokeExternal:
+            new_node = InvokeExternal.construct(fun_type, dict)
+        else:
+            raise AttributeError(f"Unknown EventFlowNode type {flow_type}.")
 
-    def print(self, indent: str = ""):
-        pass
+        new_node.input = dict["input"]
+        new_node.output = dict["output"]
+
+        return new_node
 
 
 class StartNode(EventFlowNode):
@@ -192,8 +213,9 @@ class StartNode(EventFlowNode):
     def to_dict(self):
         return super().to_dict()
 
-    def print(self, indent: str = ""):
-        print(f"{indent}START")
+    @staticmethod
+    def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
+        return StartNode()
 
 
 class ReturnNode(EventFlowNode):
@@ -203,8 +225,9 @@ class ReturnNode(EventFlowNode):
     def to_dict(self):
         return super().to_dict()
 
-    def print(self, indent: str = ""):
-        print(f"{indent}RETURN")
+    @staticmethod
+    def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
+        return ReturnNode()
 
 
 class InvokeExternal(EventFlowNode):
@@ -214,15 +237,23 @@ class InvokeExternal(EventFlowNode):
         self.method = method_name
         self.args = args
 
-    def to_dict(self):
+        for arg in args:
+            self.input[arg] = None
+
+        self.output[f"{method_name}_return"] = None
+
+    def to_dict(self) -> Dict:
         return_dict = super().to_dict()
         return_dict["ref_variable_name"] = self.ref_variable_name
         return_dict["method"] = self.method
         return_dict["args"] = self.args
 
-    def print(self, indent: str = ""):
-        print(
-            f"{indent}InvokeExternal({self.ref_variable_name}, {self.method}, {self.args})"
+        return return_dict
+
+    @staticmethod
+    def construct(fun_type: FunctionType, dict: Dict):
+        return InvokeExternal(
+            fun_type, dict["ref_variable_name"], dict["method"], dict["args"]
         )
 
 
@@ -239,9 +270,24 @@ class InvokeSplitFun(EventFlowNode):
         self.params = params
         self.definitions = definitions
 
-    def print(self, indent: str = ""):
-        print(
-            f"{indent}InvokeSplitFun({self.fun_name}, {self.params}, {self.definitions})"
+        for param in params:
+            self.input[param] = None
+
+        for definition in self.definitions:
+            self.output[definition] = None
+
+    def to_dict(self) -> Dict:
+        return_dict = super().to_dict()
+        return_dict["fun_name"] = self.fun_name
+        return_dict["params"] = self.params
+        return_dict["definitions"] = self.definitions
+
+        return return_dict
+
+    @staticmethod
+    def construct(fun_type: FunctionType, dict: Dict):
+        return InvokeSplitFun(
+            fun_type, dict["fun_name"], dict["params"], dict["definitions"]
         )
 
 
@@ -250,8 +296,14 @@ class RequestState(EventFlowNode):
         super().__init__(EventFlowNode.REQUEST_STATE, fun_type)
         self.var_name: str = var_name
 
-    def print(self, indent: str = ""):
-        print(f"{indent}RequestState({self.var_name})")
+        self.output[self.var_name] = None
+
+    def to_dict(self) -> Dict:
+        return {"var_name": self.var_name}
+
+    @staticmethod
+    def construct(fun_type: FunctionType, dict: Dict):
+        return RequestState(fun_type, dict["var_name"])
 
 
 class EventFlowDescriptor:

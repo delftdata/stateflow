@@ -188,7 +188,6 @@ class StatementBlockAnalyzer(cst.CSTTransformer):
             # We don't want to visit this node, because it will give LOAD/STORE of unused variables.
             # I.e. we will replace this node later on.
             if method == self.method_name:
-                print("I'm here!")
                 return False
 
     def visit_Name(self, node: cst.Name):

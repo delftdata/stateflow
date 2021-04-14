@@ -1,4 +1,4 @@
-from src.dataflow import Dataflow
+from src.dataflow.dataflow import Dataflow
 
 
 class Runtime:

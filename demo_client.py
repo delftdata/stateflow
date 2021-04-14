@@ -13,26 +13,28 @@ stateflow.init()
 # 5. E2E
 
 
-# client: StateflowClient = StateflowKafkaClient(
-#     stateflow.init(), brokers="localhost:9092"
-# )
-#
-# print("Creating a user: ")
-# future_user: StateflowFuture[User] = User("wouter-user")
-#
-# try:
-#     user: User = future_user.get()
-# except StateflowFailure:
-#     user: User = client.find(User, "wouter-user").get()
-#
-# print(user.balance.get())
-#
-# print("Creating an item: ")
-# future_item: StateflowFuture[Item] = Item("coke", 5)
-#
-# try:
-#     item: Item = future_item.get()
-# except StateflowFailure:
-#     item: Item = client.find(Item, "coke").get()
-#
-# print(item.price.get())
+client: StateflowClient = StateflowKafkaClient(
+    stateflow.init(), brokers="localhost:9092"
+)
+
+print("Creating a user: ")
+future_user: StateflowFuture[User] = User("wouter-user")
+
+try:
+    user: User = future_user.get()
+except StateflowFailure:
+    user: User = client.find(User, "wouter-user").get()
+
+print(user.balance.get())
+
+print("Creating an item: ")
+future_item: StateflowFuture[Item] = Item("coke", 5)
+
+try:
+    item: Item = future_item.get()
+except StateflowFailure:
+    item: Item = client.find(Item, "coke").get()
+
+print(item.price.get())
+
+user.buy_item(10, item)

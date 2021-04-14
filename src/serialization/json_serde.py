@@ -21,6 +21,7 @@ class JsonSerializer(SerDe):
             "fun_address": fun_address,
             "payload": payload,
         }
+        print(event)
         return self.serialize_dict(event)
 
     def deserialize_event(self, event: bytes) -> Event:

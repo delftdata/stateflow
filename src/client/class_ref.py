@@ -1,9 +1,10 @@
 from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.client.future import StateflowFuture
 from src.dataflow.args import Arguments
-from src.dataflow.event import Event, EventType
+from src.dataflow.event import Event, EventType, EventFlowNode
 from src.client.stateflow_client import StateflowClient
 import uuid
+from src.serialization.json_serde import JsonSerializer
 
 
 class MethodRef:
@@ -21,6 +22,7 @@ class MethodRef:
 
         if self.method_desc.is_splitted_function():
             print(f"Now calling a splitted function! {self.method_name}")
+            return self._class_ref.invoke_flow(self.method_desc.flow_start)
 
         return self._class_ref.invoke_method(
             self.method_name,
@@ -58,6 +60,15 @@ class ClassRef(object):
         )
 
         return self._client.send(invoke_method_event)
+
+    def invoke_flow(self, flow_node: EventFlowNode):
+        payload = {"flow": flow_node}
+        event_id: str = str(uuid.uuid4())
+
+        invoke_flow_event = Event(
+            event_id, self._fun_addr, EventType.Request.EventFlow, payload
+        )
+        print(JsonSerializer().serialize_event(invoke_flow_event))
 
     def get_attribute(self, attr: str) -> StateflowFuture:
         payload = {"attribute": attr}

@@ -39,6 +39,7 @@ class MethodDescriptor:
         self.other_class_links: List = []
 
         self.statement_blocks: List["StatementBlock"] = []
+        self.flow_start: EventFlowNode = None
 
     def is_splitted_function(self) -> bool:
         return len(self.statement_blocks) > 0
@@ -104,7 +105,7 @@ class MethodDescriptor:
                 flow = flow.set_next(split_node)
                 flow = flow.set_next(ReturnNode())
 
-        flow_start.print_all()
+        self.flow_start = flow_start
 
     def _match_type(self, input_type, descriptors) -> Optional:
         descriptors_filter = [

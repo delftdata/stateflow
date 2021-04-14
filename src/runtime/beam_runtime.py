@@ -5,18 +5,15 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from beam_nuggets.io import kafkaio
 
-from src.dataflow import StatefulOperator
+from src.dataflow.stateful_operator import StatefulOperator, Operator
 from typing import List, Tuple, Any, Union
 from src.serialization.json_serde import JsonSerializer, SerDe
 from src.runtime.runtime import Runtime
-from src.dataflow import Dataflow, Ingress, Arguments
-from src.dataflow import (
-    State,
+from src.dataflow.dataflow import Dataflow
+from src.dataflow.state import State
+from src.dataflow.event import (
     Event,
     EventType,
-    Operator,
-    FunctionAddress,
-    FunctionType,
 )
 from apache_beam import pvalue
 from apache_beam.testing.test_pipeline import TestPipeline
