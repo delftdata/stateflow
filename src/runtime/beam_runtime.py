@@ -11,10 +11,7 @@ from src.serialization.json_serde import JsonSerializer, SerDe
 from src.runtime.runtime import Runtime
 from src.dataflow.dataflow import Dataflow
 from src.dataflow.state import State
-from src.dataflow.event import (
-    Event,
-    EventType,
-)
+from src.dataflow.event import Event, EventType, EventFlowNode
 from apache_beam import pvalue
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.runners.interactive.display import pipeline_graph_renderer
@@ -58,6 +55,24 @@ class IngressBeamRouter(DoFn):
             )
 
         # if the key is available, then we set that as key otherwise we set the event_id.
+        elif event.event_type == EventType.Request.EventFlow:
+            flow = event.payload["flow"]
+            current_id = event.payload["current_flow"]
+
+            current_node = flow[current_id]
+
+            if current_node.type == EventFlowNode.RETURN:
+                yield (
+                    event.event_id,
+                    event.copy(
+                        event_type=EventType.Reply.SuccessfulInvocation,
+                        payload={"return_results": list(current_node.output.items())},
+                    ),
+                )
+            elif current_node.type == EventFlowNode.REQUEST_STATE:
+                key = current_node.input["key"]
+                yield pvalue.TaggedOutput(current_node.fun_type.get_full_name(), event)
+
         elif event.fun_address.key:
             yield pvalue.TaggedOutput(route_name, (event.fun_address.key, event))
         else:

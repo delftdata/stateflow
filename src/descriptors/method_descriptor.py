@@ -48,6 +48,7 @@ class MethodDescriptor:
         self, class_name: str, blocks: List["StatementBlock"], descriptors: List
     ):
         self.statement_blocks = blocks
+        self.flow_list = []
 
         # 'build' action flow.
         # 1. Get state of statement block 0
@@ -73,6 +74,7 @@ class MethodDescriptor:
                 )
                 self.flow_list.append(request_flow)
                 latest_flow.set_next(request_flow.id)
+                request_flow.set_previous(latest_flow.id)
                 latest_flow = request_flow
                 id += 1
 
@@ -87,32 +89,35 @@ class MethodDescriptor:
                 )
                 self.flow_list.append(split_node)
 
-                id += 1
-                if block.returns > 0:
-                    return_node = ReturnNode(id)
-                    self.flow_list.append(return_node)
-                    id += 1
-                    latest_flow.set_next([split_node.id, return_node.id])
-                else:
-                    latest_flow.set_next(split_node.id)
-
+                latest_flow.set_next(split_node.id)
+                split_node.set_previous(latest_flow.id)
                 latest_flow = split_node
+                id += 1
 
                 invoke_node = InvokeExternal(
                     FunctionType.create(
                         self._match_type(block.class_invoked.class_name, descriptors)
                     ),
                     id,
-                    block.class_invoked.class_name,
+                    block.class_call_ref,
                     block.method_invoked,
-                    block.get_call_arguments(),
+                    [n.value for n in block.arguments_for_call],
                 )
+                self.flow_list.append(invoke_node)
+                invoke_node.set_previous(latest_flow.id)
                 id += 1
 
-                latest_flow.set_next(invoke_node.id)
-                latest_flow = invoke_node
+                if block.returns > 0:
+                    return_node = ReturnNode(id)
+                    self.flow_list.append(return_node)
+                    id += 1
+                    return_node.set_previous(latest_flow.id)
+                    latest_flow.set_next([invoke_node.id, return_node.id])
+                else:
+                    latest_flow.set_next(invoke_node.id)
 
-                self.flow_list.append(invoke_node)
+                invoke_node.set_previous(latest_flow.id)
+                latest_flow = invoke_node
 
             elif block.last_block:
                 split_node = InvokeSplitFun(
@@ -128,10 +133,12 @@ class MethodDescriptor:
                 self.flow_list.append(split_node)
 
                 latest_flow.set_next(split_node.id)
+                split_node.set_previous(latest_flow.id)
                 latest_flow = split_node
 
                 return_node = ReturnNode(id)
                 latest_flow.set_next(return_node.id)
+                return_node.set_previous(latest_flow.id)
                 latest_flow = return_node
                 id += 1
 

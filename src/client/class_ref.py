@@ -23,7 +23,12 @@ class MethodRef:
 
         if self.method_desc.is_splitted_function():
             print(f"Now calling a splitted function! {self.method_name}")
-            return self._class_ref.invoke_flow(self.method_desc.flow_list)
+            return self._class_ref.invoke_flow(
+                self.method_desc.flow_list,
+                Arguments.from_args_and_kwargs(
+                    self.method_desc.input_desc.get(), *args, **kwargs
+                ),
+            )
 
         return self._class_ref.invoke_method(
             self.method_name,
@@ -62,19 +67,37 @@ class ClassRef(object):
 
         return self._client.send(invoke_method_event)
 
-    def invoke_flow(self, flow: List[EventFlowNode]):
+    def invoke_flow(self, flow: List[EventFlowNode], args: Arguments):
         flow_dict = {}
 
+        to_assign = list(args.get_keys())
+
         for f in flow:
+            for arg in to_assign:
+                if arg in f.input and not isinstance(args[arg], ClassRef):
+                    f.input[arg] = args[arg]
+                    to_assign.remove(arg)
+                elif (
+                    isinstance(args[arg], ClassRef)
+                    and f.typ == EventFlowNode.REQUEST_STATE
+                ):
+                    f.input["key"] = args[arg]._fun_addr.key
+                    to_assign.remove(arg)
+
             flow_dict[f.id] = {"node": f.to_dict(), "status": "PENDING"}
 
-        payload = {"flow": flow_dict, "current_flow": 0}
+        flow_dict[0]["status"] = "FINISHED"
+
+        payload = {"flow": flow_dict, "current_flow": 1}
         event_id: str = str(uuid.uuid4())
 
         invoke_flow_event = Event(
             event_id, self._fun_addr, EventType.Request.EventFlow, payload
         )
+
         print(JsonSerializer().serialize_event(invoke_flow_event))
+
+        # return self._client.send(invoke_flow_event)
 
     def get_attribute(self, attr: str) -> StateflowFuture:
         payload = {"attribute": attr}

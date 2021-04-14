@@ -185,23 +185,26 @@ class EventFlowNode:
 
     @staticmethod
     def from_dict(dict: Dict) -> "EventFlowNode":
-        fun_type = FunctionType(
-            dict["fun_type"]["namespace"],
-            dict["fun_type"]["name"],
-            dict["fun_type"]["stateful"],
-        )
+        if dict["fun_type"] is not None:
+            fun_type = FunctionType(
+                dict["fun_type"]["namespace"],
+                dict["fun_type"]["name"],
+                dict["fun_type"]["stateful"],
+            )
+        else:
+            fun_type = None
 
         flow_type = dict["type"]
         new_node = None
-        if flow_type == StartNode:
+        if flow_type == EventFlowNode.START:
             new_node = StartNode.construct(fun_type, dict)
-        elif flow_type == ReturnNode:
+        elif flow_type == EventFlowNode.RETURN:
             new_node = ReturnNode.construct(fun_type, dict)
-        elif flow_type == InvokeSplitFun:
+        elif flow_type == EventFlowNode.INVOKE_SPLIT_FUN:
             new_node = InvokeSplitFun.construct(fun_type, dict)
-        elif flow_type == RequestState:
+        elif flow_type == EventFlowNode.REQUEST_STATE:
             new_node = RequestState.construct(fun_type, dict)
-        elif flow_type == InvokeExternal:
+        elif flow_type == EventFlowNode.INVOKE_EXTERNAL:
             new_node = InvokeExternal.construct(fun_type, dict)
         else:
             raise AttributeError(f"Unknown EventFlowNode type {flow_type}.")

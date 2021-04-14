@@ -100,6 +100,8 @@ class StatefulOperator(Operator):
 
             updated_state = state
             return_event = event.copy(event_type=EventType.Reply.FoundClass)
+        elif event.event_type == EventType.Request.EventFlow:
+            pass
 
         if updated_state is not None:
             return return_event, bytes(
