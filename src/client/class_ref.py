@@ -1,6 +1,7 @@
 from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.client.future import StateflowFuture
 from src.dataflow.args import Arguments
+from typing import List
 from src.dataflow.event import Event, EventType, EventFlowNode
 from src.client.stateflow_client import StateflowClient
 import uuid
@@ -22,7 +23,7 @@ class MethodRef:
 
         if self.method_desc.is_splitted_function():
             print(f"Now calling a splitted function! {self.method_name}")
-            return self._class_ref.invoke_flow(self.method_desc.flow_start)
+            return self._class_ref.invoke_flow(self.method_desc.flow_list)
 
         return self._class_ref.invoke_method(
             self.method_name,
@@ -61,8 +62,13 @@ class ClassRef(object):
 
         return self._client.send(invoke_method_event)
 
-    def invoke_flow(self, flow_node: EventFlowNode):
-        payload = {"flow": flow_node}
+    def invoke_flow(self, flow: List[EventFlowNode]):
+        flow_dict = {}
+
+        for f in flow:
+            flow_dict[f.id] = {"node": f.to_dict(), "status": "PENDING"}
+
+        payload = {"flow": flow_dict, "current_flow": 0}
         event_id: str = str(uuid.uuid4())
 
         invoke_flow_event = Event(

@@ -39,7 +39,7 @@ class MethodDescriptor:
         self.other_class_links: List = []
 
         self.statement_blocks: List["StatementBlock"] = []
-        self.flow_start: EventFlowNode = None
+        self.flow_list: List[EventFlowNode] = []
 
     def is_splitted_function(self) -> bool:
         return len(self.statement_blocks) > 0
@@ -56,56 +56,86 @@ class MethodDescriptor:
 
         # InputDescriptor will match the input of block[0]
         # We will check if we need to obtain state of another class.
-        flow_start: EventFlowNode = StartNode()
-        flow: EventFlowNode = flow_start
+        id: int = 0
+        flow_start: EventFlowNode = StartNode(id)
+        id += 1
+
+        latest_flow: EventFlowNode = flow_start
+
+        self.flow_list.append(flow_start)
 
         for input, input_type in self.input_desc.get().items():
             matched_type = self._match_type(input_type, descriptors)
 
             if matched_type:
-                flow = flow.set_next(
-                    RequestState(FunctionType.create(matched_type), input)
+                request_flow = RequestState(
+                    FunctionType.create(matched_type), id, input
                 )
+                self.flow_list.append(request_flow)
+                latest_flow.set_next(request_flow.id)
+                latest_flow = request_flow
+                id += 1
 
         for block in blocks:
             if block.block_id == 0:
                 split_node = InvokeSplitFun(
                     FunctionType.create(self._match_type(class_name, descriptors)),
+                    id,
                     block.fun_name(),
                     list(self.input_desc.keys()),
                     list(block.definitions),
                 )
-                if block.returns > 0:
-                    return_node = ReturnNode()
-                    flow = flow.set_next([split_node, return_node])[0]
-                else:
-                    flow = flow.set_next(split_node)[0]
+                self.flow_list.append(split_node)
 
-                flow = flow.set_next(
-                    InvokeExternal(
-                        FunctionType.create(
-                            self._match_type(
-                                block.class_invoked.class_name, descriptors
-                            )
-                        ),
-                        block.class_invoked.class_name,
-                        block.method_invoked,
-                        block.get_call_arguments(),
-                    )
+                id += 1
+                if block.returns > 0:
+                    return_node = ReturnNode(id)
+                    self.flow_list.append(return_node)
+                    id += 1
+                    latest_flow.set_next([split_node.id, return_node.id])
+                else:
+                    latest_flow.set_next(split_node.id)
+
+                latest_flow = split_node
+
+                invoke_node = InvokeExternal(
+                    FunctionType.create(
+                        self._match_type(block.class_invoked.class_name, descriptors)
+                    ),
+                    id,
+                    block.class_invoked.class_name,
+                    block.method_invoked,
+                    block.get_call_arguments(),
                 )
+                id += 1
+
+                latest_flow.set_next(invoke_node.id)
+                latest_flow = invoke_node
+
+                self.flow_list.append(invoke_node)
 
             elif block.last_block:
                 split_node = InvokeSplitFun(
                     FunctionType.create(self._match_type(class_name, descriptors)),
+                    id,
                     block.fun_name(),
                     list(self.input_desc.keys()),
                     [],
                 )
 
-                flow = flow.set_next(split_node)
-                flow = flow.set_next(ReturnNode())
+                id += 1
 
-        self.flow_start = flow_start
+                self.flow_list.append(split_node)
+
+                latest_flow.set_next(split_node.id)
+                latest_flow = split_node
+
+                return_node = ReturnNode(id)
+                latest_flow.set_next(return_node.id)
+                latest_flow = return_node
+                id += 1
+
+                self.flow_list.append(return_node)
 
     def _match_type(self, input_type, descriptors) -> Optional:
         descriptors_filter = [
