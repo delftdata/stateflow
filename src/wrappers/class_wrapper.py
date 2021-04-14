@@ -111,10 +111,10 @@ class ClassWrapper:
         method_desc: Optional[MethodDescriptor] = self.find_method(method_name)
 
         # If there exists no method descriptor, we can't handle this invocation.
-        if not method_desc:
-            return FailedInvocation(
-                f'Method "{method_name}" does not exist in class {self.class_desc.class_name}. Available methods are: {list(self.methods_desc.keys())}'
-            )
+        # if not method_desc:
+        #     return FailedInvocation(
+        #         f'Method "{method_name}" does not exist in class {self.class_desc.class_name}. Available methods are: {list(self.methods_desc.keys())}'
+        #     )
 
         try:
             # Construct a new class.

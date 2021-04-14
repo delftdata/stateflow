@@ -4,6 +4,7 @@ from src.dataflow.args import Arguments
 from src.dataflow.state import State
 from src.wrappers import ClassWrapper, MetaWrapper, InvocationResult, FailedInvocation
 from typing import NewType, List, Tuple, Optional
+from split.split import InvokeMethodRequest
 from src.serialization.json_serde import SerDe, JsonSerializer
 
 NoType = NewType("NoType", None)
@@ -111,32 +112,75 @@ class StatefulOperator(Operator):
             updated_state = state
             return_event = event.copy(event_type=EventType.Reply.FoundClass)
         elif event.event_type == EventType.Request.EventFlow:
+            print(f"Now dealing with {event.payload}")
             current_flow_node_id = event.payload["current_flow"]
-            current_node = event.payload["flow"][current_flow_node_id]
+            current_node = event.payload["flow"][str(current_flow_node_id)]
+
+            print(f"And current_node {current_node}")
+            updated_state = state
+            return_event = event
 
             if current_node["node"].typ == EventFlowNode.REQUEST_STATE:
                 state_embedded = state.get()
                 state_embedded["__key"] = current_node["node"].input["key"]
                 current_node["node"].output[
-                    current_node["node"]["var_name"]
+                    current_node["node"].var_name
                 ] = state_embedded
             elif current_node["node"].typ == EventFlowNode.INVOKE_SPLIT_FUN:
-                for k, val in current_node["node"].input.items():
-                    if "__key" in val:
+                copied_input = current_node["node"].input.copy()
+                for k, val in copied_input.items():
+                    if isinstance(val, dict) and "__key" in val:
                         key = val.pop("__key")
-                        current_node["node"].input[k] = InternalClassRef(key, val)
+                        copied_input[k] = InternalClassRef(key, val)
 
+                print(current_node["node"].input)
                 invocation: InvocationResult = self.class_wrapper.invoke(
-                    event.payload["fun_name"],
+                    current_node["node"].fun_name,
                     state,
-                    Arguments(current_node["node"].input),
+                    Arguments(copied_input),
                 )
+
+                updated_state = invocation.updated_state
+
+                # For now we have a very stupid check to know which path to take.
+                # This needs to be more sophisticated.
+                print(invocation)
+                print("We got the following results:")
+                # We got the following results: (1, <src.dataflow.stateful_operator.InternalClassRef object at 0x13e235ca0>, 1, <src.split.split.InvokeMethodRequest object at 0x13e2b0550>)
+                print(invocation.return_results)
+                print("---")
+                if not isinstance(invocation.return_results, list):
+                    return_node = [
+                        event.payload["flow"][str(i)]["node"]
+                        for i in current_node["node"].next
+                        if event.payload["flow"][str(i)]["node"].typ
+                        == EventFlowNode.RETURN
+                    ][0]
+
+                    event.payload["current_flow"] = return_node.id
+                    return_node.output["0"] = invocation.return_results
+
+                # for i in current_node["node"].next:
+                #     next_node = event.payload["flow"][str(i)]["node"]
+                #     if (
+                #         next_node.typ == EventFlowNode.INVOKE_EXTERNAL
+                #         and len(
+                #             [
+                #                 res
+                #                 for res in invocation.return_results
+                #                 if isinstance(res, InvokeMethodRequest)
+                #             ]
+                #         )
+                #         > 0
+                #     ):
+                #         print("WE HAVE TO INVOKE ANOTHER METHOD!")
 
             current_node["status"] = "FINISHED"
 
-            if not isinstance(current_node["node"].next, list):
-                event.payload["current_flow"] = current_node["node"].next
-                next_node = event.payload["flow"][current_node["node"].next]["node"]
+            if len(current_node["node"].next) == 1:
+                next_node_id = current_node["node"].next[0]
+                event.payload["current_flow"] = next_node_id
+                next_node = event.payload["flow"][str(next_node_id)]["node"]
 
                 for node_output in current_node["node"].output.keys():
                     if node_output in next_node.input:
@@ -145,10 +189,8 @@ class StatefulOperator(Operator):
                         ]
             else:
                 # if it is a list..
+                # we assume it has ben declared above
                 pass
-
-            updated_state = state
-            return_event = event
 
         if updated_state is not None:
             return return_event, bytes(

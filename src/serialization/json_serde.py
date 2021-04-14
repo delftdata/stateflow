@@ -15,13 +15,17 @@ class JsonSerializer(SerDe):
             if hasattr(payload[item], "to_dict"):
                 payload[item] = payload[item].to_dict()
 
+        if "flow" in payload:
+            for id, value in payload["flow"].items():
+                payload["flow"][id]["node"] = payload["flow"][id]["node"].to_dict()
+
         event = {
             "event_id": event_id,
             "event_type": event_type,
             "fun_address": fun_address,
             "payload": payload,
         }
-        print(event)
+
         return self.serialize_dict(event)
 
     def deserialize_event(self, event: bytes) -> Event:

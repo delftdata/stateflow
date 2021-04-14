@@ -1,3 +1,5 @@
+import uuid
+
 from apache_beam import DoFn
 from apache_beam.coders import BytesCoder
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
@@ -60,22 +62,26 @@ class IngressBeamRouter(DoFn):
             flow = event.payload["flow"]
             current_id = event.payload["current_flow"]
 
-            current_node = flow[current_id]
+            current_node = flow[str(current_id)]["node"]
 
-            if current_node.type == EventFlowNode.RETURN:
+            if current_node.typ == EventFlowNode.RETURN:
                 yield (
                     event.event_id,
-                    event.copy(
-                        event_type=EventType.Reply.SuccessfulInvocation,
-                        payload={"return_results": list(current_node.output.items())},
+                    self.serializer.serialize_event(
+                        event.copy(
+                            event_type=EventType.Reply.SuccessfulInvocation,
+                            payload={
+                                "return_results": list(current_node.output.values())
+                            },
+                        )
                     ),
                 )
-            elif current_node.type == EventFlowNode.REQUEST_STATE:
+            elif current_node.typ == EventFlowNode.REQUEST_STATE:
                 key = current_node.input["key"]
                 yield pvalue.TaggedOutput(
                     current_node.fun_type.get_full_name(), (key, event)
                 )
-            elif current_node.type == EventFlowNode.INVOKE_SPLIT_FUN:
+            elif current_node.typ == EventFlowNode.INVOKE_SPLIT_FUN:
                 yield pvalue.TaggedOutput(
                     current_node.fun_type.get_full_name(),
                     (event.fun_address.key, event),
@@ -160,8 +166,8 @@ class BeamRuntime(Runtime):
             kafka_client = KafkaConsume(
                 consumer_config={
                     "bootstrap_servers": "localhost:9092",
-                    "auto_offset_reset": "earliest",
-                    "group_id": "noww",
+                    "auto_offset_reset": "latest",
+                    "group_id": str(uuid.uuid4()),
                     "topic": ["client_request", "internal"],
                 },
                 value_decoder=bytes,

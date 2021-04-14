@@ -110,7 +110,7 @@ def init():
         desc.link_to_other_classes(class_descs)
 
     # We execute the split phase
-    split: Split = Split(class_descs)
+    split: Split = Split(class_descs, registered_classes)
     split.split_methods()
 
     flow: Dataflow = _build_dataflow(registered_classes, meta_classes)

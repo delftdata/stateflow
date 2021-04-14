@@ -1,6 +1,7 @@
 import ast
 
 from src.descriptors import ClassDescriptor, MethodDescriptor
+from src.wrappers import ClassWrapper
 from typing import List, Optional, Any, Set, Tuple, Dict, Union
 import libcst as cst
 import libcst.matchers as m
@@ -469,14 +470,17 @@ class InvokeMethodRequest:
 
 
 class Split:
-    def __init__(self, descriptors: List[ClassDescriptor]):
+    def __init__(
+        self, descriptors: List[ClassDescriptor], wrappers: List[ClassWrapper]
+    ):
+        self.wrappers = wrappers
         self.descriptors = descriptors
 
     def find_descriptor_by_name(self, class_name: str):
         return [desc for desc in self.descriptors if desc.class_name == class_name][0]
 
     def split_methods(self):
-        for desc in self.descriptors:
+        for i, desc in enumerate(self.descriptors):
             updated_methods: Dict[str, List[StatementBlock]] = {}
             for method in desc.methods_dec:
                 if method.has_links():
@@ -508,6 +512,7 @@ class Split:
                     SplitTransformer(desc.class_name, updated_methods)
                 )
 
+                print(modified_tree.code)
                 # Recompile the code.
                 exec(compile(modified_tree.code, "", mode="exec"), globals(), globals())
-                print(globals()[desc.class_name])
+                self.wrappers[i].cls = globals()[desc.class_name]

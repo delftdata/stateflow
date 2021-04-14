@@ -84,7 +84,7 @@ class ClassRef(object):
                     f.input["key"] = args[arg]._fun_addr.key
                     to_assign.remove(arg)
 
-            flow_dict[f.id] = {"node": f.to_dict(), "status": "PENDING"}
+            flow_dict[f.id] = {"node": f, "status": "PENDING"}
 
         flow_dict[0]["status"] = "FINISHED"
 
@@ -95,9 +95,7 @@ class ClassRef(object):
             event_id, self._fun_addr, EventType.Request.EventFlow, payload
         )
 
-        print(JsonSerializer().serialize_event(invoke_flow_event))
-
-        # return self._client.send(invoke_flow_event)
+        return self._client.send(invoke_flow_event)
 
     def get_attribute(self, attr: str) -> StateflowFuture:
         payload = {"attribute": attr}
