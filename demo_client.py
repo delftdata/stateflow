@@ -25,7 +25,6 @@ try:
 except StateflowFailure:
     user: User = client.find(User, "wouter-user").get()
 
-user.balance = 50
 print(user.balance.get())
 
 print("Creating an item: ")
@@ -35,8 +34,14 @@ try:
     item: Item = future_item.get()
 except StateflowFailure:
     item: Item = client.find(Item, "coke").get()
+item.stock = 1
+user.balance = 10
 
+
+print(user.balance.get())
+print(item.stock.get())
 print(item.price.get())
 
 print(user.buy_item(100, item).get())
+
 print(user.buy_item(1, item).get())

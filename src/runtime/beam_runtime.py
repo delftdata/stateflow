@@ -86,6 +86,10 @@ class IngressBeamRouter(DoFn):
                     current_node.fun_type.get_full_name(),
                     (event.fun_address.key, event),
                 )
+            elif current_node.typ == EventFlowNode.INVOKE_EXTERNAL:
+                yield pvalue.TaggedOutput(
+                    current_node.fun_type.get_full_name(), (current_node.key, event)
+                )
 
         elif event.fun_address.key:
             yield pvalue.TaggedOutput(route_name, (event.fun_address.key, event))

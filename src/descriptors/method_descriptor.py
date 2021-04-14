@@ -124,7 +124,7 @@ class MethodDescriptor:
                     FunctionType.create(self._match_type(class_name, descriptors)),
                     id,
                     block.fun_name(),
-                    list(self.input_desc.keys()),
+                    list(sorted(block.usages)),
                     [],
                 )
 

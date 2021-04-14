@@ -11,8 +11,9 @@ NoType = NewType("NoType", None)
 
 
 class InternalClassRef:
-    def __init__(self, key: str, attributes):
-        self.__key = key
+    def __init__(self, key: str, fun_type, attributes):
+        self._key = key
+        self._fun_type = fun_type
         self.__attributes = attributes
 
         for n, attr in attributes.items():
@@ -126,14 +127,32 @@ class StatefulOperator(Operator):
                 current_node["node"].output[
                     current_node["node"].var_name
                 ] = state_embedded
+
+                next_node_id = current_node["node"].next[0]
+                event.payload["current_flow"] = next_node_id
+                next_node = event.payload["flow"][str(next_node_id)]["node"]
+
+                for node_output in current_node["node"].output.keys():
+                    if node_output in next_node.input:
+                        next_node.input[node_output] = current_node["node"].output[
+                            node_output
+                        ]
             elif current_node["node"].typ == EventFlowNode.INVOKE_SPLIT_FUN:
                 copied_input = current_node["node"].input.copy()
                 for k, val in copied_input.items():
                     if isinstance(val, dict) and "__key" in val:
                         key = val.pop("__key")
-                        copied_input[k] = InternalClassRef(key, val)
+                        copied_input[k] = InternalClassRef(
+                            key,
+                            event.payload["flow"][str(current_node["node"].previous)][
+                                "node"
+                            ].fun_type,
+                            val,
+                        )
 
-                print(current_node["node"].input)
+                print(
+                    f"Now calling {current_node['node'].fun_name} with state {state.get()} and args {copied_input}"
+                )
                 invocation: InvocationResult = self.class_wrapper.invoke(
                     current_node["node"].fun_name,
                     state,
@@ -148,8 +167,15 @@ class StatefulOperator(Operator):
                 print("We got the following results:")
                 # We got the following results: (1, <src.dataflow.stateful_operator.InternalClassRef object at 0x13e235ca0>, 1, <src.split.split.InvokeMethodRequest object at 0x13e2b0550>)
                 print(invocation.return_results)
+                print(type(invocation.return_results))
+                if isinstance(invocation.return_results, tuple):
+                    for res in invocation.return_results:
+                        print(res)
                 print("---")
-                if not isinstance(invocation.return_results, list):
+                if (
+                    not isinstance(invocation.return_results, tuple)
+                    or len(invocation.return_results) == 1
+                ):
                     return_node = [
                         event.payload["flow"][str(i)]["node"]
                         for i in current_node["node"].next
@@ -160,37 +186,87 @@ class StatefulOperator(Operator):
                     event.payload["current_flow"] = return_node.id
                     return_node.output["0"] = invocation.return_results
 
-                # for i in current_node["node"].next:
-                #     next_node = event.payload["flow"][str(i)]["node"]
-                #     if (
-                #         next_node.typ == EventFlowNode.INVOKE_EXTERNAL
-                #         and len(
-                #             [
-                #                 res
-                #                 for res in invocation.return_results
-                #                 if isinstance(res, InvokeMethodRequest)
-                #             ]
-                #         )
-                #         > 0
-                #     ):
-                #         print("WE HAVE TO INVOKE ANOTHER METHOD!")
+                if isinstance(invocation.return_results, tuple):
+                    next_node = [
+                        event.payload["flow"][str(i)]["node"]
+                        for i in current_node["node"].next
+                        if event.payload["flow"][str(i)]["node"].typ
+                        == EventFlowNode.INVOKE_EXTERNAL
+                    ][0]
+                    for i, decl in enumerate(
+                        sorted(list(current_node["node"].definitions))
+                    ):
+                        if isinstance(invocation.return_results[i], InternalClassRef):
+                            next_node.key = invocation.return_results[
+                                i
+                            ]._key  # hacky, find another way
 
-            current_node["status"] = "FINISHED"
+                            print(f"now setting next node key {next_node.key}")
 
-            if len(current_node["node"].next) == 1:
+                            current_node["node"].output[decl] = {
+                                "key": invocation.return_results[i]._key,
+                                "fun_type": invocation.return_results[
+                                    i
+                                ]._fun_type.to_dict(),
+                            }
+                        else:
+                            current_node["node"].output[
+                                decl
+                            ] = invocation.return_results[i]
+
+                    invoke_method_request_args = invocation.return_results[-1].args
+                    i = 0
+                    for k, _ in next_node.input.items():
+                        next_node.input[k] = invoke_method_request_args[i]
+                        i += 1
+
+                    event.payload["current_flow"] = next_node.id
+
+                    print(
+                        f"{return_event.payload['flow']['1']['node'].input} | {return_event.payload['flow']['1']['node'].output}"
+                    )
+                    print(
+                        f"{return_event.payload['flow']['2']['node'].input} | {return_event.payload['flow']['2']['node'].output}"
+                    )
+                    print(
+                        f"{return_event.payload['flow']['3']['node'].input} | {return_event.payload['flow']['3']['node'].output}"
+                    )
+            elif current_node["node"].typ == EventFlowNode.INVOKE_EXTERNAL:
+                fun_name = current_node["node"].method
+                arguments = {}
+
+                print(state.get())
+
+                for arg_key, input_val in zip(
+                    self.class_wrapper.find_method(fun_name).input_desc.keys(),
+                    current_node["node"].input.values(),
+                ):
+                    arguments[arg_key] = input_val
+
+                invocation: InvocationResult = self.class_wrapper.invoke(
+                    fun_name,
+                    state,
+                    Arguments(arguments),
+                )
+
+                updated_state = invocation.updated_state
+
+                print("NEW RESULTS")
+                print(invocation.return_results)
+                print(updated_state.get())
+
                 next_node_id = current_node["node"].next[0]
                 event.payload["current_flow"] = next_node_id
                 next_node = event.payload["flow"][str(next_node_id)]["node"]
 
+                # TODO, HIER NAAR KIJKEN
                 for node_output in current_node["node"].output.keys():
                     if node_output in next_node.input:
                         next_node.input[node_output] = current_node["node"].output[
                             node_output
                         ]
-            else:
-                # if it is a list..
-                # we assume it has ben declared above
-                pass
+
+            current_node["status"] = "FINISHED"
 
         if updated_state is not None:
             return return_event, bytes(

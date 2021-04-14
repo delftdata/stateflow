@@ -342,7 +342,7 @@ class StatementBlock:
 
     def _build_return(self, call_arguments: List[cst.Name]) -> cst.SimpleStatementLine:
         return_names: List[cst.BaseExpression] = []
-        for definition in self.definitions:
+        for definition in sorted(list(self.definitions)):
             return_names.append(cst.Name(value=definition))
 
         call_arguments_names: str = ",".join([n.value for n in call_arguments])

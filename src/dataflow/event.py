@@ -242,11 +242,14 @@ class ReturnNode(EventFlowNode):
 
 
 class InvokeExternal(EventFlowNode):
-    def __init__(self, fun_type, id, ref_variable_name, method_name, args: List[str]):
+    def __init__(
+        self, fun_type, id, ref_variable_name, method_name, args: List[str], key=None
+    ):
         super().__init__(EventFlowNode.INVOKE_EXTERNAL, fun_type, id)
         self.ref_variable_name = ref_variable_name
         self.method = method_name
         self.args = args
+        self.key = key
 
         for arg in args:
             self.input[arg] = None
@@ -258,17 +261,23 @@ class InvokeExternal(EventFlowNode):
         return_dict["ref_variable_name"] = self.ref_variable_name
         return_dict["method"] = self.method
         return_dict["args"] = self.args
+        return_dict["key"] = self.key
 
         return return_dict
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict):
+        if "key" in dict:
+            key = dict["key"]
+        else:
+            key = None
         return InvokeExternal(
             fun_type,
             dict["id"],
             dict["ref_variable_name"],
             dict["method"],
             dict["args"],
+            key,
         )
 
 

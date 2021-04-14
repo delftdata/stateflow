@@ -48,6 +48,7 @@ class JsonSerializer(SerDe):
         return Event(event_id, fun_address, event_type, payload)
 
     def serialize_dict(self, dictionary: Dict) -> bytes:
+        print(dictionary)
         return ujson.encode(dictionary)
 
     def deserialize_dict(self, dictionary: bytes) -> Dict:
