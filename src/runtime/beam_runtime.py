@@ -5,6 +5,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from beam_nuggets.io import kafkaio
 
+from src.runtime.KafkaConsumer import KafkaConsume
 from src.dataflow.stateful_operator import StatefulOperator, Operator
 from typing import List, Tuple, Any, Union
 from src.serialization.json_serde import JsonSerializer, SerDe
@@ -71,7 +72,14 @@ class IngressBeamRouter(DoFn):
                 )
             elif current_node.type == EventFlowNode.REQUEST_STATE:
                 key = current_node.input["key"]
-                yield pvalue.TaggedOutput(current_node.fun_type.get_full_name(), event)
+                yield pvalue.TaggedOutput(
+                    current_node.fun_type.get_full_name(), (key, event)
+                )
+            elif current_node.type == EventFlowNode.INVOKE_SPLIT_FUN:
+                yield pvalue.TaggedOutput(
+                    current_node.fun_type.get_full_name(),
+                    (event.fun_address.key, event),
+                )
 
         elif event.fun_address.key:
             yield pvalue.TaggedOutput(route_name, (event.fun_address.key, event))
@@ -120,7 +128,13 @@ class BeamOperator(DoFn):
         # print(
         #      f"Sending  {return_event.event_id} {self.serializer.serialize_event(return_event)}"
         #  )
-        yield (return_event.event_id, self.serializer.serialize_event(return_event))
+        if return_event.event_type == EventType.Request.EventFlow:
+            yield pvalue.TaggedOutput(
+                "internal",
+                (return_event.event_id, self.serializer.serialize_event(return_event)),
+            )
+        else:
+            yield (return_event.event_id, self.serializer.serialize_event(return_event))
 
 
 class BeamRuntime(Runtime):
@@ -143,12 +157,12 @@ class BeamRuntime(Runtime):
 
         with beam.Pipeline(options=PipelineOptions(streaming=True)) as pipeline:
 
-            kafka_client = kafkaio.KafkaConsume(
+            kafka_client = KafkaConsume(
                 consumer_config={
                     "bootstrap_servers": "localhost:9092",
                     "auto_offset_reset": "earliest",
                     "group_id": "noww",
-                    "topic": "client_request",
+                    "topic": ["client_request", "internal"],
                 },
                 value_decoder=bytes,
             )
@@ -156,6 +170,11 @@ class BeamRuntime(Runtime):
             kafka_producer = kafkaio.KafkaProduce(
                 servers="localhost:9092",
                 topic="client_reply",
+            )
+
+            kafka_producer_internal = kafkaio.KafkaProduce(
+                servers="localhost:9092",
+                topic="internal",
             )
 
             # Read from Kafka and route
@@ -177,9 +196,14 @@ class BeamRuntime(Runtime):
                 operator_pipeline = (
                     init_class
                     | f"{name}_init" >> beam.ParDo(init_operator)
-                    | f"{name}_stateful" >> beam.ParDo(operator)
-                    | f"{name}_kafka" >> kafka_producer
+                    | f"{name}_stateful"
+                    >> beam.ParDo(operator).with_outputs("internal", main="main")
                 )
+
+                operator_pipeline["main"] | f"{name}_kafka" >> kafka_producer
+                operator_pipeline[
+                    "internal"
+                ] | f"{name}_kafka_internal" >> kafka_producer_internal
 
             input_and_router[
                 "ingress_router_output"

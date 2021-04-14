@@ -1,11 +1,21 @@
 from src.dataflow.dataflow import Operator, Edge, FunctionType, EventType
-from src.dataflow.event import Event
+from src.dataflow.event import Event, EventFlowNode
+from src.dataflow.args import Arguments
 from src.dataflow.state import State
 from src.wrappers import ClassWrapper, MetaWrapper, InvocationResult, FailedInvocation
 from typing import NewType, List, Tuple, Optional
 from src.serialization.json_serde import SerDe, JsonSerializer
 
 NoType = NewType("NoType", None)
+
+
+class InternalClassRef:
+    def __init__(self, key: str, attributes):
+        self.__key = key
+        self.__attributes = attributes
+
+        for n, attr in attributes.items():
+            setattr(self, n, attr)
 
 
 class StatefulOperator(Operator):
@@ -101,7 +111,44 @@ class StatefulOperator(Operator):
             updated_state = state
             return_event = event.copy(event_type=EventType.Reply.FoundClass)
         elif event.event_type == EventType.Request.EventFlow:
-            pass
+            current_flow_node_id = event.payload["current_flow"]
+            current_node = event.payload["flow"][current_flow_node_id]
+
+            if current_node["node"].typ == EventFlowNode.REQUEST_STATE:
+                state_embedded = state.get()
+                state_embedded["__key"] = current_node["node"].input["key"]
+                current_node["node"].output[
+                    current_node["node"]["var_name"]
+                ] = state_embedded
+            elif current_node["node"].typ == EventFlowNode.INVOKE_SPLIT_FUN:
+                for k, val in current_node["node"].input.items():
+                    if "__key" in val:
+                        key = val.pop("__key")
+                        current_node["node"].input[k] = InternalClassRef(key, val)
+
+                invocation: InvocationResult = self.class_wrapper.invoke(
+                    event.payload["fun_name"],
+                    state,
+                    Arguments(current_node["node"].input),
+                )
+
+            current_node["status"] = "FINISHED"
+
+            if not isinstance(current_node["node"].next, list):
+                event.payload["current_flow"] = current_node["node"].next
+                next_node = event.payload["flow"][current_node["node"].next]["node"]
+
+                for node_output in current_node["node"].output.keys():
+                    if node_output in next_node.input:
+                        next_node.input[node_output] = current_node["node"].output[
+                            node_output
+                        ]
+            else:
+                # if it is a list..
+                pass
+
+            updated_state = state
+            return_event = event
 
         if updated_state is not None:
             return return_event, bytes(
