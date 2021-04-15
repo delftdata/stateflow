@@ -259,10 +259,15 @@ class StatefulOperator(Operator):
                 event.payload["current_flow"] = next_node_id
                 next_node = event.payload["flow"][str(next_node_id)]["node"]
 
-                for key, res in zip(
-                    current_node["node"].output.keys(), invocation.return_results
-                ):
-                    current_node["node"].output[key] = res
+                if not isinstance(invocation.return_results, list):
+                    current_node["node"].output[
+                        list(current_node["node"].output.keys())[0]
+                    ] = invocation.return_results
+                else:
+                    for key, res in zip(
+                        current_node["node"].output.keys(), invocation.return_results
+                    ):
+                        current_node["node"].output[key] = res
 
                 # TODO, HIER NAAR KIJKEN
                 for node_output in current_node["node"].output.keys():
@@ -271,6 +276,27 @@ class StatefulOperator(Operator):
                             node_output
                         ]
 
+                print(f"Current node id{current_node['node'].id}")
+                print(current_node["node"].output)
+                print(f"Next node id {next_node.id}")
+                print(next_node.input)
+
+                previous_node = current_node["node"]
+                while None in next_node.input.values():
+                    keys = [k for k, v in next_node.input.items() if v is None]
+                    if previous_node.previous == -1:
+                        print(f"Failed Next node id {next_node.id}")
+                        print(next_node.input)
+                        break
+                    previous_node = event.payload["flow"][str(previous_node.previous)][
+                        "node"
+                    ]
+
+                    for key, value in previous_node.output.items():
+                        if key in keys:
+                            next_node.input[key] = value
+
+                print(f"Done Next node id {next_node.id}")
                 print(next_node.input)
 
             current_node["status"] = "FINISHED"
