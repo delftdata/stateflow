@@ -259,12 +259,19 @@ class StatefulOperator(Operator):
                 event.payload["current_flow"] = next_node_id
                 next_node = event.payload["flow"][str(next_node_id)]["node"]
 
+                for key, res in zip(
+                    current_node["node"].output.keys(), invocation.return_results
+                ):
+                    current_node["node"].output[key] = res
+
                 # TODO, HIER NAAR KIJKEN
                 for node_output in current_node["node"].output.keys():
                     if node_output in next_node.input:
                         next_node.input[node_output] = current_node["node"].output[
                             node_output
                         ]
+
+                print(next_node.input)
 
             current_node["status"] = "FINISHED"
 

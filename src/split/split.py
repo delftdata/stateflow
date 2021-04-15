@@ -420,6 +420,9 @@ class StatementBlock:
         previous_block_call: cst.Name = self._previous_call_result()
         params.append(cst.Param(previous_block_call))
 
+        # Hacky, TODO; fix this.
+        self.usages.add(self._previous_call_result().value)
+
         param_node: cst.Parameters() = cst.Parameters(tuple(params))
         returns_signature = self.original_method.returns
 
