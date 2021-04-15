@@ -39,10 +39,10 @@ print(f"Item stock: {item.stock.get()} and price {item.price.get()}")
 
 print()
 # This is impossible.
-print(f"Can a user buy 100 coke's of 10EU?: {user.buy_item(100, item).get()}")
+print(f"Let's try to buy 100 coke's of 10EU?: {user.buy_item(100, item).get()}")
 
 # Jeej we buy one, user will end up with 0 balance and there is 4 left in stock.
-print(f"Can a user buy 1 coke's of 10EU?: {user.buy_item(1, item).get()}")
+print(f"Lets' try to buy 1 coke's of 10EU?: {user.buy_item(1, item).get()}")
 
 print()
 # user balance 0, stock 4.
