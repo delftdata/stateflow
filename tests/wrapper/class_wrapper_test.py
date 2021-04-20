@@ -29,8 +29,13 @@ class TestClassWrapper:
         code = inspect.getsource(SimpleClass)
         parsed_class = cst.parse_module(code)
 
+        wrapper = cst.metadata.MetadataWrapper(parsed_class)
+        expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
         # Extract
-        extraction: ExtractClassDescriptor = ExtractClassDescriptor(parsed_class)
+        extraction: ExtractClassDescriptor = ExtractClassDescriptor(
+            parsed_class, "SimpleClass", expression_provider
+        )
         parsed_class.visit(extraction)
 
         # Create ClassDescriptor
@@ -79,7 +84,7 @@ class TestClassWrapper:
         result = wrapper.invoke("update", state, args)
 
         assert isinstance(result, InvocationResult)
-        assert result.return_results[0] == 0
+        assert result.return_results == 0
         assert result.updated_state.get() == {"name": "wouter", "x": 0}
 
     def test_simple_invoke_argument_mismatch(self):

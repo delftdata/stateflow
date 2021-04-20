@@ -13,7 +13,10 @@ class Test:
         pass
     """
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "Test", expression_provider)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -25,7 +28,10 @@ class FancyClass:
     pass
     """
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     code_tree.visit(visitor)
 
@@ -43,7 +49,10 @@ class FancyClass:
         self.z = self.z = 2
         """
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     code_tree.visit(visitor)
 
@@ -69,7 +78,10 @@ class FancyClass:
         self.p += 3
         """
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     code_tree.visit(visitor)
 
@@ -94,7 +106,10 @@ class FancyClass:
         self.x : str
         """
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     code_tree.visit(visitor)
 
@@ -113,7 +128,10 @@ class FancyClass:
         pass
             """
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -129,7 +147,10 @@ class FancyClass:
         pass
 """
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -146,7 +167,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
     code_tree.visit(visitor)
 
     method = visitor.method_descriptors[1]
@@ -165,7 +189,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -182,7 +209,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -199,7 +229,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     code_tree.visit(visitor)
 
@@ -223,7 +256,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     code_tree.visit(visitor)
 
@@ -251,7 +287,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     code_tree.visit(visitor)
 
@@ -271,7 +310,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -292,7 +334,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -313,7 +358,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
@@ -335,7 +383,10 @@ class FancyClass:
     """
 
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
     code_tree.visit(visitor)
 
 
@@ -440,7 +491,10 @@ class FancyClass:
 
     # Get the function.
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
     code_tree.visit(visitor)
 
     assert visitor.method_descriptors[1].output_desc.output_desc == [["NoType"]]
@@ -473,7 +527,10 @@ class FancyClass:
 
     # Get the function.
     code_tree = cst.parse_module(code)
-    visitor = ExtractClassDescriptor(code_tree)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)

@@ -33,6 +33,9 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         # Keep track of all extracted methods.
         self.method_descriptors: List[MethodDescriptor] = []
 
+        # We maintain a stack to keep track 'in' which classes we are currently.
+        self.class_stack = []
+
     def visit_FunctionDef(self, node: cst.FunctionDef) -> Optional[bool]:
         """Visits a function definition and analyze it.
 
@@ -84,17 +87,23 @@ class ExtractClassDescriptor(cst.CSTVisitor):
 
         :param node: the class definition to analyze.
         """
+
+        # If original class is defined and we're nested, we throw an exception.
+        if len(self.class_stack) and self.is_defined:  # We don't allow nested classes.
+            raise AttributeError("Nested classes are not allowed.")
+
         if self.decorated_class_name != helpers.get_full_name_for_node(node):
             return False
-
-        if self.is_defined:  # We don't allow nested classes.
-            raise AttributeError("Nested classes are not allowed.")
 
         self.is_defined = True
         self.class_name = helpers.get_full_name_for_node(node)
         self.class_node = node
+        self.class_stack.append(self.class_name)
 
         return True
+
+    def leave_ClassDef(self, node: cst.ClassDef):
+        self.class_stack.pop()
 
     def merge_self_attributes(self) -> Dict[str, any]:
         """Merges all self attributes.

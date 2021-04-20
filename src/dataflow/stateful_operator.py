@@ -4,7 +4,6 @@ from src.dataflow.args import Arguments
 from src.dataflow.state import State
 from src.wrappers import ClassWrapper, MetaWrapper, InvocationResult, FailedInvocation
 from typing import NewType, List, Tuple, Optional
-from split.split import InvokeMethodRequest
 from src.serialization.json_serde import SerDe, JsonSerializer
 
 NoType = NewType("NoType", None)
