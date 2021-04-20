@@ -103,7 +103,8 @@ class ExtractClassDescriptor(cst.CSTVisitor):
         return True
 
     def leave_ClassDef(self, node: cst.ClassDef):
-        self.class_stack.pop()
+        if len(self.class_stack) > 0:
+            self.class_stack.pop()
 
     def merge_self_attributes(self) -> Dict[str, any]:
         """Merges all self attributes.

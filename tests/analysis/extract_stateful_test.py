@@ -460,6 +460,30 @@ class FancyClass:
         fun_def.visit(visitor)
 
 
+def test_method_extraction_typed_declarations():
+    code = """
+class FancyClass:
+    def __init__(self):
+        self.x : int = 4
+
+    def fun(self):
+        self.x = 3
+        y: int = self.x
+        return x
+        """
+
+    code_tree = cst.parse_module(code)
+
+    # Get the function.
+    fun_def: cst.FunctionDef = code_tree.body[0].body.body[1]
+
+    visitor = ExtractMethodDescriptor(code_tree, fun_def)
+    fun_def.visit(visitor)
+
+    assert "y" in visitor.typed_declarations
+    assert visitor.typed_declarations["y"] == "int"
+
+
 def test_method_extraction_return_argument_extraction():
     code = """
 class FancyClass:
@@ -534,3 +558,25 @@ class FancyClass:
 
     with pytest.raises(AttributeError):
         code_tree.visit(visitor)
+
+
+def test_only_analyze_decorated_class():
+    code = """
+class FancyClass:
+    def __init__(self):
+        pass
+
+class OtherClass:
+    pass
+        """
+
+    # Get the function.
+    code_tree = cst.parse_module(code)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
+    code_tree.visit(visitor)
+
+    assert visitor.is_defined
+    assert visitor.class_name == "FancyClass"

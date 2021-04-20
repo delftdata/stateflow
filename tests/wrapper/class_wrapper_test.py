@@ -104,6 +104,7 @@ class TestClassWrapper:
         result = wrapper.invoke("update", state, args)
 
         assert isinstance(result, FailedInvocation)
+        assert str(result) == result.message
 
     def test_simple_invoke_failed(self):
         wrapper = self.get_wrapper()
