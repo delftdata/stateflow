@@ -160,32 +160,32 @@ class BeamRuntime(Runtime):
             self.init_operators.append(BeamInitOperator(operator))
             self.operators.append(BeamOperator(operator, self.serializer))
 
+    def _setup_kafka_client(self) -> KafkaConsume:
+        return KafkaConsume(
+            consumer_config={
+                "bootstrap_servers": "localhost:9092",
+                "auto_offset_reset": "latest",
+                "group_id": str(uuid.uuid4()),
+                "topic": ["client_request", "internal"],
+            },
+            value_decoder=bytes,
+        )
+
+    def _setup_kafka_producer(self, topic: str) -> kafkaio.KafkaProduce:
+        return kafkaio.KafkaProduce(
+            servers="localhost:9092",
+            topic=topic,
+        )
+
     def run(self):
         print("Running Beam pipeline!")
 
-        opt = PipelineOptions(["--runner=FlinkRunner", "--environment_type=LOOPBACK"])
-
         with beam.Pipeline(options=PipelineOptions(streaming=True)) as pipeline:
 
-            kafka_client = KafkaConsume(
-                consumer_config={
-                    "bootstrap_servers": "localhost:9092",
-                    "auto_offset_reset": "latest",
-                    "group_id": str(uuid.uuid4()),
-                    "topic": ["client_request", "internal"],
-                },
-                value_decoder=bytes,
-            )
-
-            kafka_producer = kafkaio.KafkaProduce(
-                servers="localhost:9092",
-                topic="client_reply",
-            )
-
-            kafka_producer_internal = kafkaio.KafkaProduce(
-                servers="localhost:9092",
-                topic="internal",
-            )
+            # Setup KafkaIO.
+            kafka_client = self._setup_kafka_client()
+            kafka_producer = self._setup_kafka_producer("client_reply")
+            kafka_producer_internal = self._setup_kafka_producer("internal")
 
             # Read from Kafka and route
             input_and_router = (
