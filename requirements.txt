@@ -12,3 +12,4 @@ confluent-kafka==1.6.1
 beam-nuggets==0.17.1
 httplib2==0.15.0
 google-api-python-client==1.7.8
+pytest-mock==3.5.1
