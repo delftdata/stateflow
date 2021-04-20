@@ -38,15 +38,13 @@ class MethodDescriptor:
 
         self.other_class_links: List = []
 
-        self.statement_blocks: List["StatementBlock"] = []
+        self.statement_blocks = []
         self.flow_list: List[EventFlowNode] = []
 
     def is_splitted_function(self) -> bool:
         return len(self.statement_blocks) > 0
 
-    def split_function(
-        self, class_name: str, blocks: List["StatementBlock"], descriptors: List
-    ):
+    def split_function(self, class_name: str, blocks, descriptors: List):
         self.statement_blocks = blocks
         self.flow_list = []
 

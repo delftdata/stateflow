@@ -123,7 +123,7 @@ class EventType:
     Reply = _Reply
 
     @staticmethod
-    def from_str(input_str: str) -> Optional["EvenType"]:
+    def from_str(input_str: str) -> Optional["EventType"]:
         if input_str in EventType.Request:
             return EventType.Request[input_str]
         elif input_str in EventType.Reply:
