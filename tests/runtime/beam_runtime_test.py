@@ -25,7 +25,7 @@ class TestBeamRuntime:
 
         runtime.run()
 
-    def test_runtime(self):
+    def test_runtime_basic(self):
         event_id: str = str(uuid.uuid4())
         event: Event = Event(
             event_id,
@@ -40,4 +40,19 @@ class TestBeamRuntime:
             [(bytes(event_id, "utf-8"), event_serialized)]
         )
         self.setup_beam_runtime()
-        print("HERE")
+
+    def test_runtime_create_class(self):
+        event_id: str = str(uuid.uuid4())
+        event: Event = Event(
+            event_id,
+            FunctionAddress(FunctionType("global", "User", True), None),
+            EventType.Request.InitClass,
+            {"args": Arguments({"username": "wouter"})},
+        )
+
+        event_serialized = JsonSerializer().serialize_event(event)
+
+        TestBeamRuntime.INPUT.add_elements(
+            [(bytes(event_id, "utf-8"), event_serialized)]
+        )
+        self.setup_beam_runtime()
