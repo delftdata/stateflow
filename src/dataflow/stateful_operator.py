@@ -59,33 +59,55 @@ class StatefulOperator(Operator):
 
         return event
 
-    def handle(self, event: Event, state: Optional[bytes]) -> Tuple[Event, bytes]:
-        if state is not None:
-            state = State(self.serializer.deserialize_dict(state))
-
-        updated_state = None
-        return_event = None
-
-        # initialize class
-        if event.event_type == EventType.Request.InitClass:
-            new_state = event.payload["init_class_state"]
-
-            if state is not None:
-                return_event = event.copy(
+    def _handle_create_with_state(
+        self, event: Event, state: Optional[State]
+    ) -> Tuple[Event, bytes]:
+        if (
+            state
+        ):  # In this case, we already created a class before, so we will return an error.
+            return (
+                event.copy(
                     event_type=EventType.Reply.FailedInvocation,
                     payload={
                         "error_message": f"{event.fun_address.function_type.get_full_name()} class "
                         f"with key={event.fun_address.key} already exists."
                     },
-                )
-            else:
-                return_event = event.copy(
-                    event_type=EventType.Reply.SuccessfulCreateClass,
-                    payload={"key": f"{event.fun_address.key}"},
-                )
-                updated_state = State(new_state)
+                ),
+                state,
+            )
 
-        elif event.event_type == EventType.Request.InvokeStateful:
+        return_event = event.copy(
+            event_type=EventType.Reply.SuccessfulCreateClass,
+            payload={"key": f"{event.fun_address.key}"},
+        )
+        new_state = event.payload["init_class_state"]
+        updated_state = State(new_state)
+
+        return return_event, bytes(
+            self.serializer.serialize_dict(updated_state.get()), "utf-8"
+        )
+
+    def handle(self, event: Event, state: Optional[bytes]) -> Tuple[Event, bytes]:
+        if event.event_type == EventType.Request.InitClass:
+            return self._handle_create_with_state(event, state)
+
+        if state:  # If state exists, we can deserialize it.
+            state = State(self.serializer.deserialize_dict(state))
+        else:  # If state does not exists we can't execute these methods, so we return a KeyNotFound reply.
+            return (
+                event.copy(
+                    event_type=EventType.Reply.KeyNotFound,
+                    payload={
+                        "error_message": f"Stateful instance with key={event.fun_address.key} does not exist."
+                    },
+                ),
+                state,
+            )
+
+        updated_state = None
+        return_event = None
+
+        if event.event_type == EventType.Request.InvokeStateful:
             invocation: InvocationResult = self.class_wrapper.invoke(
                 event.payload["method_name"], state, event.payload["args"]
             )

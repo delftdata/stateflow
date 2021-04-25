@@ -1,3 +1,4 @@
+import os
 import uuid
 
 import pytest
@@ -37,3 +38,6 @@ class TestStatefulOperator:
         assert return_event.payload == {
             "init_class_state": {"username": "wouter", "balance": 0, "items": []}
         }
+
+    def test_handle_init_class(self):
+        pass

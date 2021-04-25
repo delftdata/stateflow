@@ -126,6 +126,7 @@ class _Reply(Enum, metaclass=MetaEnum):
     SuccessfulCreateClass = "SuccessfulCreateClass"
 
     FoundClass = "FoundClass"
+    KeyNotFound = "KeyNotFound"
 
     SuccessfulStateRequest = "SuccessfulStateRequest"
     FailedInvocation = "FailedInvocation"
