@@ -62,6 +62,23 @@ class StatefulOperator(Operator):
 
         return event
 
+    def _dispatch_event(
+        self, event_type: EventType, event: Event, state: State
+    ) -> Tuple[Event, State]:
+        """Dispatches an event to the correct method to execute/handle it.
+
+        :param event_type: the event_type to find the correct handle.
+        :param event: the incoming event.
+        :param state: the incoming state.
+        :return: a tuple of outgoing event + updated state.
+        """
+
+        if event_type == EventType.Request.InvokeStateful:
+            return self._handle_invoke_stateful(event, state)
+        else:
+            # raise AttributeError(f"Unknown event type: {event_type}.")
+            return None, None
+
     def handle(self, event: Event, state: Optional[bytes]) -> Tuple[Event, bytes]:
         if event.event_type == EventType.Request.InitClass:
             return self._handle_create_with_state(event, state)
@@ -79,28 +96,11 @@ class StatefulOperator(Operator):
                 state,
             )
 
-        updated_state = None
-        return_event = None
+        return_event, updated_state = self._dispatch_event(
+            event.event_type, event, state
+        )
 
-        if event.event_type == EventType.Request.InvokeStateful:
-            invocation: InvocationResult = self.class_wrapper.invoke(
-                event.payload["method_name"], state, event.payload["args"]
-            )
-
-            if isinstance(invocation, FailedInvocation):
-                return_event = event.copy(
-                    event_type=EventType.Reply.FailedInvocation,
-                    payload={"error_message": invocation.message},
-                )
-            else:
-                return_event = event.copy(
-                    event_type=EventType.Reply.SuccessfulInvocation,
-                    payload={"return_results": invocation.return_results},
-                )
-                updated_state = invocation.updated_state
-        elif event.event_type == EventType.Request.GetState:
-            if state == None:  # class does not exist
-                return event, state
+        if event.event_type == EventType.Request.GetState:
             return_event = event.copy(
                 event_type=EventType.Reply.SuccessfulStateRequest,
                 payload={"state": state[event.payload["attribute"]]},
@@ -354,3 +354,41 @@ class StatefulOperator(Operator):
         return return_event, bytes(
             self.serializer.serialize_dict(updated_state.get()), "utf-8"
         )
+
+    def _handle_invoke_stateful(
+        self, event: Event, state: State
+    ) -> Tuple[Event, State]:
+        """Invokes a stateful method.
+
+        The incoming event needs to have a `method_name` and `args` in its payload for the invocation.
+        We assume these keys are there and in the correct format.
+        We don't check this explicitly for performance reasons.
+
+        Returns:
+        1. Current state + failed event, in case the invocation failed for whatever reason.
+        2. Updated state + success event, in case of successful invocation.
+
+        :param event: the incoming event.
+        :param state: the current state.
+        :return: a tuple of outgoing event + updated state.
+        """
+        invocation: InvocationResult = self.class_wrapper.invoke(
+            event.payload["method_name"], state, event.payload["args"]
+        )
+
+        if isinstance(invocation, FailedInvocation):
+            return (
+                event.copy(
+                    event_type=EventType.Reply.FailedInvocation,
+                    payload={"error_message": invocation.message},
+                ),
+                state,
+            )
+        else:
+            return (
+                event.copy(
+                    event_type=EventType.Reply.SuccessfulInvocation,
+                    payload={"return_results": invocation.return_results},
+                ),
+                invocation.updated_state,
+            )
