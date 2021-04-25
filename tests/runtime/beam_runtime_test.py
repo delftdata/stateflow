@@ -87,6 +87,7 @@ class TestBeamRuntime:
     def test_runtime_create_class(self):
         event_id: str = str(uuid.uuid4())
         fun_type: FunctionType = FunctionType("global", "User", True)
+
         event: Event = Event(
             event_id,
             FunctionAddress(fun_type, None),
@@ -96,8 +97,12 @@ class TestBeamRuntime:
 
         event_serialized = JsonSerializer().serialize_event(event)
 
+        # We send it duplicate, to get an error for the second one.
         TestBeamRuntime.INPUT.add_elements(
-            [(bytes(event_id, "utf-8"), event_serialized)]
+            [
+                (bytes(event_id, "utf-8"), event_serialized),
+                (bytes(event_id, "utf-8"), event_serialized),
+            ]
         )
 
         self.setup_beam_runtime()
@@ -110,7 +115,15 @@ class TestBeamRuntime:
                         FunctionAddress(fun_type, "wouter"),
                         EventType.Reply.SuccessfulCreateClass,
                         {"key": "wouter"},
-                    )
+                    ),
+                    match_event(
+                        event_id,
+                        FunctionAddress(fun_type, "wouter"),
+                        EventType.Reply.FailedInvocation,
+                        {
+                            "error_message": "global/User class with key=wouter already exists."
+                        },
+                    ),
                 ]
             ),
             label="CheckOutput",
