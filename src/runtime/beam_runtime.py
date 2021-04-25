@@ -148,12 +148,22 @@ class BeamOperator(DoFn):
 
 
 class BeamRuntime(Runtime):
-    def __init__(self, dataflow: Dataflow, serializer: SerDe = JsonSerializer()):
+    def __init__(
+        self, dataflow: Dataflow, serializer: SerDe = JsonSerializer(), test_mode=False
+    ):
         self.init_operators: List[BeamInitOperator] = []
         self.operators: List[BeamOperator] = []
 
         self.serializer = serializer
         self.ingress_router = IngressBeamRouter(dataflow.operators, JsonSerializer())
+
+        self.pipeline: beam.Pipeline = None
+
+        # Test-related variables.
+        # If enabled, we keep track of the output collections.
+        # We can use this to verify (and test) the outputs of the pipeline.
+        self.test_mode = test_mode
+        self.test_output = {}
 
         for operator in dataflow.operators:
             operator.meta_wrapper = None  # We set this meta wrapper to None, we don't need it in the runtime.
@@ -177,46 +187,64 @@ class BeamRuntime(Runtime):
             topic=topic,
         )
 
-    def run(self):
-        print("Running Beam pipeline!")
+    def _setup_pipeline(self):
+        if self.test_mode:
+            pipeline = beam.testing.test_pipeline.TestPipeline()
+        else:
+            pipeline = beam.Pipeline(options=PipelineOptions(streaming=True))
 
-        with beam.Pipeline(options=PipelineOptions(streaming=True)) as pipeline:
+        # Setup KafkaIO.
+        kafka_client = self._setup_kafka_client()
+        kafka_producer = self._setup_kafka_producer("client_reply")
+        kafka_producer_internal = self._setup_kafka_producer("internal")
 
-            # Setup KafkaIO.
-            kafka_client = self._setup_kafka_client()
-            kafka_producer = self._setup_kafka_producer("client_reply")
-            kafka_producer_internal = self._setup_kafka_producer("internal")
+        # Read from Kafka and route
+        input_and_router = (
+            pipeline
+            | "kafka-input" >> kafka_client
+            | beam.ParDo(self.ingress_router).with_outputs(
+                *list(self.ingress_router.outputs), main="ingress_router_output"
+            )
+        )
 
-            # Read from Kafka and route
-            input_and_router = (
-                pipeline
-                | "kafka-input" >> kafka_client
-                | beam.ParDo(self.ingress_router).with_outputs(
-                    *list(self.ingress_router.outputs), main="ingress_router_output"
-                )
+        for operator, init_operator in zip(self.operators, self.init_operators):
+            name = operator.operator.function_type.get_full_name()
+
+            init_class = input_and_router[
+                f"{init_operator.operator.function_type.get_full_name()}"
+            ]
+
+            operator_pipeline = (
+                init_class
+                | f"{name}_init" >> beam.ParDo(init_operator)
+                | f"{name}_stateful"
+                >> beam.ParDo(operator).with_outputs("internal", main="main")
             )
 
-            for operator, init_operator in zip(self.operators, self.init_operators):
-                name = operator.operator.function_type.get_full_name()
-
-                init_class = input_and_router[
-                    f"{init_operator.operator.function_type.get_full_name()}"
-                ]
-
-                operator_pipeline = (
-                    init_class
-                    | f"{name}_init" >> beam.ParDo(init_operator)
-                    | f"{name}_stateful"
-                    >> beam.ParDo(operator).with_outputs("internal", main="main")
-                )
-
+            external_output = (
                 operator_pipeline["main"] | f"{name}_kafka" >> kafka_producer
-                operator_pipeline[
-                    "internal"
-                ] | f"{name}_kafka_internal" >> kafka_producer_internal
+            )
+            internal_output = (
+                operator_pipeline["internal"]
+                | f"{name}_kafka_internal" >> kafka_producer_internal
+            )
 
-            input_and_router[
-                "ingress_router_output"
-            ] | "direct_output_kafka" >> kafka_producer
+            if self.test_mode:
+                self.test_output[f"{name}_external"] = external_output
+                self.test_output[f"{name}_internal"] = internal_output
 
-            pipeline.run()
+        input_and_router[
+            "ingress_router_output"
+        ] | "direct_output_kafka" >> kafka_producer
+
+        self.pipeline = pipeline
+
+    def run(self):
+        print("Running Beam pipeline!")
+        if not self.pipeline:
+            self._setup_pipeline()
+
+        if not self.test_mode:
+            self.pipeline.run()
+        else:
+            self.pipeline.run().wait_until_finish()
