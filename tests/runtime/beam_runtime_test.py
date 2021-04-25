@@ -82,6 +82,7 @@ class TestBeamRuntime:
             [(bytes(event_id, "utf-8"), event_serialized)]
         )
         self.setup_beam_runtime()
+        self.run_and_reset()
 
     def test_runtime_create_class(self):
         event_id: str = str(uuid.uuid4())
