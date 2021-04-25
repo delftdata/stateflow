@@ -75,11 +75,21 @@ class StatefulOperator(Operator):
 
         if event_type == EventType.Request.InvokeStateful:
             return self._handle_invoke_stateful(event, state)
+        elif event_type == EventType.Request.GetState:
+            return self._handle_get_state(event, state)
         else:
             # raise AttributeError(f"Unknown event type: {event_type}.")
             return None, None
 
     def handle(self, event: Event, state: Optional[bytes]) -> Tuple[Event, bytes]:
+        """Handles incoming event and current state.
+
+        Depending on the event type, a method is executed or a instance is created, or state is updated, etc.
+
+        :param event: the incoming event.
+        :param state: the incoming state (in bytes). If this is None, we assume this 'key' does not exist.
+        :return: a tuple of outgoing event + updated state (in bytes).
+        """
         if event.event_type == EventType.Request.InitClass:
             return self._handle_create_with_state(event, state)
 
@@ -100,16 +110,7 @@ class StatefulOperator(Operator):
             event.event_type, event, state
         )
 
-        if event.event_type == EventType.Request.GetState:
-            return_event = event.copy(
-                event_type=EventType.Reply.SuccessfulStateRequest,
-                payload={"state": state[event.payload["attribute"]]},
-            )
-            updated_state = state
-
-        elif event.event_type == EventType.Request.UpdateState:
-            if state == None:  # class does not exist
-                return event, state
+        if event.event_type == EventType.Request.UpdateState:
             state[event.payload["attribute"]] = event.payload["attribute_value"]
             return_event = event.copy(
                 event_type=EventType.Reply.SuccessfulStateRequest,
@@ -117,9 +118,6 @@ class StatefulOperator(Operator):
             )
             updated_state = state
         elif event.event_type == EventType.Request.FindClass:
-            if state == None:  # class does not exist
-                return event, state
-
             updated_state = state
             return_event = event.copy(event_type=EventType.Reply.FoundClass)
         elif event.event_type == EventType.Request.EventFlow:
@@ -353,6 +351,25 @@ class StatefulOperator(Operator):
 
         return return_event, bytes(
             self.serializer.serialize_dict(updated_state.get()), "utf-8"
+        )
+
+    def _handle_get_state(self, event: Event, state: State) -> Tuple[Event, State]:
+        """Gets a field/attribute of the current state.
+
+         The incoming event needs to have an 'attribute' field in the payload.
+         We assume this attribute is available in the state and in the correct format.
+         We don't check this explicitly for performance reasons.
+
+        :param event: the incoming event.
+        :param state: the current state.
+        :return: a tuple of outgoing event + updated state.
+        """
+        return (
+            event.copy(
+                event_type=EventType.Reply.SuccessfulStateRequest,
+                payload={"state": state[event.payload["attribute"]]},
+            ),
+            state,
         )
 
     def _handle_invoke_stateful(

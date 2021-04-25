@@ -118,6 +118,22 @@ class TestStatefulOperator:
         assert return_event.event_type == EventType.Reply.FailedInvocation
         assert updated_state["balance"] == 10
 
+    def test_state_does_not_exist_no_init_class(self):
+        operator: StatefulOperator = self.user_operator
+
+        event_id = str(uuid.uuid4())
+        event = Event(
+            event_id,
+            FunctionAddress(FunctionType("global", "User", True), "wouter"),
+            EventType.Request.InvokeStateful,
+            {"args": Arguments({"x": "100"}), "method_name": "update_balance"},
+        )
+
+        return_event, updated_state = operator.handle(event, None)
+
+        assert return_event.event_type == EventType.Reply.KeyNotFound
+        assert updated_state is None
+
     @staticmethod
     def bytes_to_state(state: bytes) -> State:
         return State(JsonSerializer().deserialize_dict(state))
