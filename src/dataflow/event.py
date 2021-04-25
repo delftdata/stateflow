@@ -43,6 +43,16 @@ class FunctionType:
 
         return FunctionType(namespace, name, stateful)
 
+    def __eq__(self, other):
+        if not isinstance(other, FunctionType):
+            return False
+
+        return (
+            self.name == other.name
+            and self.namespace == other.namespace
+            and self.stateful == other.stateful
+        )
+
 
 class FunctionAddress:
     """The address of a stateful or stateless function.
@@ -76,6 +86,12 @@ class FunctionAddress:
             ),
             dictionary["key"],
         )
+
+    def __eq__(self, other):
+        if not isinstance(other, FunctionAddress):
+            return False
+
+        return self.key == other.key and self.function_type == other.function_type
 
 
 class MetaEnum(EnumMeta):

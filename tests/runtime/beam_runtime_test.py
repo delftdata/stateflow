@@ -3,11 +3,44 @@ from src.runtime.beam_runtime import BeamRuntime, Runtime
 from apache_beam.testing.test_stream import TestStream
 import apache_beam as beam
 from apache_beam.testing import util as beam_test
-
+from hamcrest import *
+from hamcrest.core.base_matcher import BaseMatcher
 from src.dataflow.event import Event, FunctionAddress, FunctionType, EventType
 from src.dataflow.args import Arguments
 import uuid
 from src.serialization.json_serde import JsonSerializer
+
+
+class EventMatcher(BaseMatcher):
+    def __init__(
+        self,
+        event_id: str,
+        fun_address: FunctionAddress,
+        event_type: EventType,
+        payload,
+    ):
+        self.event_id = event_id
+        self.fun_address = fun_address
+        self.event_type = event_type
+        self.payload = payload
+        self.serializer = JsonSerializer()
+
+    def _matches(self, item) -> bool:
+        key = item[0]
+        event = self.serializer.deserialize_event(item[1])
+
+        return (
+            key == self.event_id
+            and event.fun_address == self.fun_address
+            and event.event_type == self.event_type
+            and event.payload == self.payload
+        )
+
+
+def match_event(
+    event_id: str, fun_address: FunctionAddress, event_type: EventType, payload
+):
+    return EventMatcher(event_id, fun_address, event_type, payload)
 
 
 class TestBeamRuntime:
@@ -69,7 +102,16 @@ class TestBeamRuntime:
         self.setup_beam_runtime()
         beam_test.assert_that(
             self.runtime.test_output[f"{fun_type.get_full_name()}_external"],
-            is_in,
+            beam_test.matches_all(
+                [
+                    match_event(
+                        event_id,
+                        FunctionAddress(fun_type, "wouter"),
+                        EventType.Reply.SuccessfulCreateClass,
+                        {"key": "wouter"},
+                    )
+                ]
+            ),
             label="CheckOutput",
         )
         self.run_and_reset()

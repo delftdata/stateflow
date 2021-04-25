@@ -13,3 +13,4 @@ beam-nuggets==0.17.1
 httplib2==0.15.0
 google-api-python-client==1.7.8
 pytest-mock==3.5.1
+PyHamcrest==2.0.2
