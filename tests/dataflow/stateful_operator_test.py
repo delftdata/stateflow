@@ -39,5 +39,38 @@ class TestStatefulOperator:
             "init_class_state": {"username": "wouter", "balance": 0, "items": []}
         }
 
-    def test_handle_init_class(self):
-        pass
+    def test_handle_init_class_positive(self):
+        operator: StatefulOperator = self.user_operator
+
+        event_id = str(uuid.uuid4())
+        event = Event(
+            event_id,
+            FunctionAddress(FunctionType("global", "User", True), None),
+            EventType.Request.InitClass,
+            {"args": Arguments({"username": "wouter"})},
+        )
+
+        intermediate_event = operator.handle_create(event)
+        return_event, state = operator.handle(intermediate_event, None)
+
+        assert state is not None
+        assert return_event.event_type == EventType.Reply.SuccessfulCreateClass
+        assert return_event.payload["key"] == "wouter"
+
+    def test_handle_init_class_negative(self):
+        operator: StatefulOperator = self.user_operator
+
+        event_id = str(uuid.uuid4())
+        event = Event(
+            event_id,
+            FunctionAddress(FunctionType("global", "User", True), None),
+            EventType.Request.InitClass,
+            {"args": Arguments({"username": "wouter"})},
+        )
+
+        intermediate_event = operator.handle_create(event)
+        return_event, state = operator.handle(intermediate_event, "non_empty_state")
+
+        assert state == "non_empty_state"
+        assert return_event.event_type == EventType.Reply.FailedInvocation
+        assert return_event.payload["error_message"]

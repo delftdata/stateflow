@@ -42,6 +42,9 @@ class StatefulOperator(Operator):
         We return a event with the state encoded in the payload["init_class_state"].
         Moreover, we set the key of the function address.
 
+        This event will eventually be propagated to the 'actual' stateful operator,
+        where it will call `handle(event, state)` and subsequently `_handle_create_with_state(event, state)`
+
         :param event: the Request.InitClass event.
         :return: the created instance, embedded in an Event.
         """
@@ -58,34 +61,6 @@ class StatefulOperator(Operator):
         del event.payload["args"]
 
         return event
-
-    def _handle_create_with_state(
-        self, event: Event, state: Optional[State]
-    ) -> Tuple[Event, bytes]:
-        if (
-            state
-        ):  # In this case, we already created a class before, so we will return an error.
-            return (
-                event.copy(
-                    event_type=EventType.Reply.FailedInvocation,
-                    payload={
-                        "error_message": f"{event.fun_address.function_type.get_full_name()} class "
-                        f"with key={event.fun_address.key} already exists."
-                    },
-                ),
-                state,
-            )
-
-        return_event = event.copy(
-            event_type=EventType.Reply.SuccessfulCreateClass,
-            payload={"key": f"{event.fun_address.key}"},
-        )
-        new_state = event.payload["init_class_state"]
-        updated_state = State(new_state)
-
-        return return_event, bytes(
-            self.serializer.serialize_dict(updated_state.get()), "utf-8"
-        )
 
     def handle(self, event: Event, state: Optional[bytes]) -> Tuple[Event, bytes]:
         if event.event_type == EventType.Request.InitClass:
@@ -341,3 +316,41 @@ class StatefulOperator(Operator):
                 self.serializer.serialize_dict(updated_state.get()), "utf-8"
             )
         return return_event, updated_state
+
+    def _handle_create_with_state(
+        self, event: Event, state: Optional[State]
+    ) -> Tuple[Event, bytes]:
+        """Will 'create' this instance, by verifying if the state exists already.
+
+        1. If state exists, we return an FailedInvocation because we can't construct the same key twice.
+        2. Otherwise, we unpack the created state from the payload and return it.
+            In the outgoing event, we put the key in the payload.
+
+        :param event: the incoming InitClass event.
+        :param state: the current state (in bytes), might be None.
+        :return: the outgoing event and (updated) state.
+        """
+        if (
+            state
+        ):  # In this case, we already created a class before, so we will return an error.
+            return (
+                event.copy(
+                    event_type=EventType.Reply.FailedInvocation,
+                    payload={
+                        "error_message": f"{event.fun_address.function_type.get_full_name()} class "
+                        f"with key={event.fun_address.key} already exists."
+                    },
+                ),
+                state,
+            )
+
+        return_event = event.copy(
+            event_type=EventType.Reply.SuccessfulCreateClass,
+            payload={"key": f"{event.fun_address.key}"},
+        )
+        new_state = event.payload["init_class_state"]
+        updated_state = State(new_state)
+
+        return return_event, bytes(
+            self.serializer.serialize_dict(updated_state.get()), "utf-8"
+        )
