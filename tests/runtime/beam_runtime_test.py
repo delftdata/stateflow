@@ -25,6 +25,10 @@ class TestBeamRuntime:
 
         runtime.run()
 
+        # Reset environment.
+        TestBeamRuntime.INPUT = TestStream()
+        TestBeamRuntime.OUTPUT = beam.Map(lambda x: x)
+
     def test_runtime_basic(self):
         event_id: str = str(uuid.uuid4())
         event: Event = Event(
