@@ -52,6 +52,8 @@ class ClassWrapper:
         """
         init_method: MethodDescriptor = self.methods_desc["__init__"]
 
+        # TODO: Consider removing this, we should check this maybe client side or not at all..
+        # Especially if we want performance..
         if not init_method.input_desc.match(arguments):
             return FailedInvocation(
                 "Invocation arguments do not match input description of the method.\n"

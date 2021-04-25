@@ -518,7 +518,6 @@ class Split:
                     SplitTransformer(desc.class_name, updated_methods)
                 )
 
-                print(modified_tree.code)
-                # Recompile the code.
+                # Recompile the code and set the code in the wrapper.
                 exec(compile(modified_tree.code, "", mode="exec"), globals(), globals())
                 self.wrappers[i].cls = globals()[desc.class_name]

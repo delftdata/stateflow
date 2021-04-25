@@ -35,13 +35,27 @@ class StatefulOperator(Operator):
         self.serializer = serializer
 
     def handle_create(self, event: Event) -> Event:
+        """Handles a request to create a new class.
+        We assume that State does not yet exist for this requested class instance.
+
+        We initialize the class with the 'args' key from the event payload.
+        We return a event with the state encoded in the payload["init_class_state"].
+        Moreover, we set the key of the function address.
+
+        :param event: the Request.InitClass event.
+        :return: the created instance, embedded in an Event.
+        """
         res: InvocationResult = self.class_wrapper.init_class(event.payload["args"])
 
         key: str = res.return_results[0]
         created_state: State = res.updated_state
 
+        # Set the key and the state of this class.
         event.fun_address.key = key
         event.payload["init_class_state"] = created_state.get()
+
+        # We can get rid of the arguments.
+        del event.payload["args"]
 
         return event
 
