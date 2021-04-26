@@ -77,6 +77,10 @@ class StatefulOperator(Operator):
             return self._handle_invoke_stateful(event, state)
         elif event_type == EventType.Request.GetState:
             return self._handle_get_state(event, state)
+        elif event_type == EventType.Request.UpdateState:
+            return self._handle_update_state(event, state)
+        elif event_type == EventType.Request.FindClass:
+            return self._handle_find_class(event, state)
         else:
             # raise AttributeError(f"Unknown event type: {event_type}.")
             return None, None
@@ -111,17 +115,7 @@ class StatefulOperator(Operator):
             event.event_type, event, state
         )
 
-        if event.event_type == EventType.Request.UpdateState:
-            state[event.payload["attribute"]] = event.payload["attribute_value"]
-            return_event = event.copy(
-                event_type=EventType.Reply.SuccessfulStateRequest,
-                payload={},
-            )
-            updated_state = state
-        elif event.event_type == EventType.Request.FindClass:
-            updated_state = state
-            return_event = event.copy(event_type=EventType.Reply.FoundClass)
-        elif event.event_type == EventType.Request.EventFlow:
+        if event.event_type == EventType.Request.EventFlow:
             print(f"Now dealing with {event.payload}")
             current_flow_node_id = event.payload["current_flow"]
             current_node = event.payload["flow"][str(current_flow_node_id)]
@@ -372,6 +366,39 @@ class StatefulOperator(Operator):
             ),
             state,
         )
+
+    def _handle_find_class(self, event: Event, state: State) -> Tuple[Event, State]:
+        """Check if the instance of a class exists.
+
+        If this is the case, we simply return with an empty payload and `EventType.Reply.FoundClass`.
+        We assume the instance _exists_ if we get in this method. If it did not exist,
+        state would have been None and we would have returned a KeyNotFound event.
+        # TODO Consider renaming to FindInstance, which makes more sense from a semantic perspective.
+
+        :param event: event: the incoming event.
+        :param state: the current state.
+        :return: a tuple of outgoing event + current state.
+        """
+        return event.copy(event_type=EventType.Reply.FoundClass, payload={}), state
+
+    def _handle_update_state(self, event: Event, state: State) -> Tuple[Event, State]:
+        """Update one attribute of the state.
+
+        The incoming event needs to have an 'attribute' field in the payload aswell as 'attribute_value'.
+        The 'attribute' field is the key of the state, whereas 'attribute_value' is the value.
+        We assume this attribute is available in the state and in the correct format.
+        We don't check this explicitly for performance reasons.
+
+        :param event: the incoming event.
+        :param state: the current state.
+        :return: a tuple of outgoing event + updated state.
+        """
+        state[event.payload["attribute"]] = event.payload["attribute_value"]
+        return_event = event.copy(
+            event_type=EventType.Reply.SuccessfulStateRequest,
+            payload={},
+        )
+        return return_event, state
 
     def _handle_invoke_stateful(
         self, event: Event, state: State
