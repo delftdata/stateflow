@@ -136,7 +136,7 @@ class TestStatefulOperator:
         updated_state = TestStatefulOperator.bytes_to_state(updated_state_bytes)
 
         assert return_event.event_type == EventType.Reply.SuccessfulStateRequest
-        assert return_event.payload["state"] is 11
+        assert return_event.payload["state"] == 11
         assert state.get() == updated_state.get()  # State is not updated.
 
     def test_state_does_not_exist_no_init_class(self):
