@@ -118,6 +118,27 @@ class TestStatefulOperator:
         assert return_event.event_type == EventType.Reply.FailedInvocation
         assert updated_state["balance"] == 10
 
+    def test_get_state_positive(self):
+        operator: StatefulOperator = self.user_operator
+
+        event_id = str(uuid.uuid4())
+        event = Event(
+            event_id,
+            FunctionAddress(FunctionType("global", "User", True), "wouter"),
+            EventType.Request.GetState,
+            {"attribute": "balance"},
+        )
+
+        state = State({"username": "wouter", "balance": 11, "items": []})
+        return_event, updated_state_bytes = operator.handle(
+            event, TestStatefulOperator.state_to_bytes(state)
+        )
+        updated_state = TestStatefulOperator.bytes_to_state(updated_state_bytes)
+
+        assert return_event.event_type == EventType.Reply.SuccessfulStateRequest
+        assert return_event.payload["state"] is 11
+        assert state.get() == updated_state.get()  # State is not updated.
+
     def test_state_does_not_exist_no_init_class(self):
         operator: StatefulOperator = self.user_operator
 

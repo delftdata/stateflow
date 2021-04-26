@@ -106,6 +106,7 @@ class StatefulOperator(Operator):
                 state,
             )
 
+        # We dispatch the event to find the correct execution method.
         return_event, updated_state = self._dispatch_event(
             event.event_type, event, state
         )
