@@ -22,7 +22,6 @@ class MethodRef:
         # )
 
         if self.method_desc.is_splitted_function():
-            # print(f"Now calling a splitted function! {self.method_name}")
             return self._class_ref.invoke_flow(
                 self.method_desc.flow_list,
                 Arguments.from_args_and_kwargs(
