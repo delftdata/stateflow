@@ -9,6 +9,9 @@ from src.serialization.json_serde import JsonSerializer
 
 
 class MethodRef:
+
+    __slots__ = "method_name", "_class_ref", "method_desc"
+
     def __init__(
         self, method_name: str, class_ref: "ClassRef", method_desc: MethodDescriptor
     ):
@@ -17,10 +20,6 @@ class MethodRef:
         self.method_desc = method_desc
 
     def __call__(self, *args, **kwargs) -> StateflowFuture:
-        # print(
-        #     f"Now invoking method: {self.method_name}, with arguments: {args} and {kwargs}."
-        # )
-
         if self.method_desc.is_splitted_function():
             return self._class_ref.invoke_flow(
                 self.method_desc.flow_list,
