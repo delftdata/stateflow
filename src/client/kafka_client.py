@@ -17,18 +17,12 @@ class StateflowKafkaClient(StateflowClient):
         super().__init__(flow, serializer)
         self.brokers = brokers
 
-        # We should a client id later.
+        # We should set a client id later.
         # self.client_id: str = uuid.uuid4()
 
         # Producer and consumer.
-        self.producer = Producer({"bootstrap.servers": brokers})
-        self.consumer = Consumer(
-            {
-                "bootstrap.servers": brokers,
-                "group.id": "mygroup",
-                "auto.offset.reset": "earliest",
-            }
-        )
+        self.producer = self._set_producer(brokers)
+        self.consumer = self._set_consumer(brokers)
 
         # Topics are hardcoded now.
         self.req_topic = "client_request"
@@ -43,6 +37,18 @@ class StateflowKafkaClient(StateflowClient):
         # Start consumer thread.
         self.consumer_thread = threading.Thread(target=self.start_consuming)
         self.consumer_thread.start()
+
+    def _set_producer(self, brokers: str) -> Producer:
+        return Producer({"bootstrap.servers": brokers})
+
+    def _set_consumer(self, brokers: str) -> Consumer:
+        return Consumer(
+            {
+                "bootstrap.servers": brokers,
+                "group.id": "mygroup",
+                "auto.offset.reset": "earliest",
+            }
+        )
 
     def start_consuming(self):
         self.consumer.subscribe([self.reply_topic])
