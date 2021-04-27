@@ -26,7 +26,7 @@ class TestClassRef:
 
         method_ref(x=1)
 
-        class_ref_mock.invoke_method.assert_called_once()
+        class_ref_mock._invoke_method.assert_called_once()
         name, args = class_ref_mock.invoke_method.call_args[0]
 
         assert name == "update_balance"
@@ -40,7 +40,7 @@ class TestClassRef:
 
         method_ref(amount=1, item=None)
 
-        class_ref_mock.invoke_flow.assert_called_once()
+        class_ref_mock._invoke_flow.assert_called_once()
         flow, args = class_ref_mock.invoke_flow.call_args[0]
 
         assert isinstance(flow, list)
