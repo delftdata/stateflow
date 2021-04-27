@@ -55,7 +55,7 @@ class TestClassRef:
             client_mock,
         )
 
-        class_ref.invoke_method("update_balance", Arguments({"x": 1}))
+        class_ref._invoke_method("update_balance", Arguments({"x": 1}))
 
         client_mock.send.assert_called_once()
         event = client_mock.send.call_args[0][0]
@@ -75,7 +75,7 @@ class TestClassRef:
             client_mock,
         )
 
-        class_ref.invoke_flow(
+        class_ref._invoke_flow(
             self.user_desc.get_method_by_name("buy_item").flow_list,
             Arguments({"amount": 1, "item": class_ref}),
         )
@@ -164,3 +164,14 @@ class TestClassRef:
         client_ref = class_ref._client
 
         assert client_ref == client_mock
+
+    def test_class_ref_get_self_attr_non_existing(self):
+        client_mock = mock.MagicMock(StateflowClient)
+        class_ref = ClassRef(
+            FunctionAddress(FunctionType("global", "User", True), "test-user"),
+            self.user_desc,
+            client_mock,
+        )
+
+        with pytest.raises(AttributeError):
+            class_ref._doesnt_exist
