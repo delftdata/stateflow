@@ -2,7 +2,7 @@ from src.client.stateflow_client import StateflowClient, SerDe, JsonSerializer
 from src.dataflow.dataflow import Dataflow
 from src.dataflow.event import Event, FunctionType, FunctionAddress, EventType
 from src.client.future import StateflowFuture, T
-from typing import Optional, Any, List
+from typing import Optional, Any, Dict
 import threading
 
 import uuid
@@ -24,17 +24,18 @@ class StateflowKafkaClient(StateflowClient):
         self.producer = self._set_producer(brokers)
         self.consumer = self._set_consumer(brokers)
 
-        # Topics are hardcoded now.
+        # Topics are hardcoded now, should be configurable later on.
         self.req_topic = "client_request"
         self.reply_topic = "client_reply"
 
         # The futures still to complete.
-        self.futures: dict[str, StateflowFuture] = {}
+        self.futures: Dict[str, StateflowFuture] = {}
 
         # Set the wrapper.
         [op.meta_wrapper.set_client(self) for op in flow.operators]
 
         # Start consumer thread.
+        self.running = True
         self.consumer_thread = threading.Thread(target=self.start_consuming)
         self.consumer_thread.start()
 
@@ -53,7 +54,7 @@ class StateflowKafkaClient(StateflowClient):
     def start_consuming(self):
         self.consumer.subscribe([self.reply_topic])
 
-        while True:
+        while self.running:
             msg = self.consumer.poll(0.01)
             if msg is None:
                 continue
