@@ -13,13 +13,12 @@ from src.serialization.json_serde import JsonSerializer
 
 class TestStatefulOperator:
     def setup(self):
-        print("I'm here")
         flow = stateflow.init()
         self.item_operator = flow.operators[0]
         self.user_operator = flow.operators[1]
 
     def test_init_class_negative(self):
-        # TODO create this
+        # TODO create this, where the class creation throws an error
         pass
 
     def test_init_class_positive(self):

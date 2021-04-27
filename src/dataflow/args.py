@@ -35,7 +35,7 @@ class Arguments:
         for arg, name in zip(list(args), desc.keys()):
             args_dict[name] = arg
 
-        for key, value in kwargs:
+        for key, value in kwargs.items():
             args_dict[key] = value
 
         arguments = Arguments(args_dict)
