@@ -13,7 +13,7 @@ from src.split.split import Split
 parse_cache: Dict[str, cst.Module] = {}
 
 registered_classes: List[ClassWrapper] = []
-meta_classes: List["GenericMeta"] = []
+meta_classes: List = []
 
 
 def stateflow(cls):
