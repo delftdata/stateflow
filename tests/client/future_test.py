@@ -84,7 +84,7 @@ def test_future_complete_found_class_event():
     assert res._fun_addr.key == "test-user"
 
 
-def test_future_complete_found_class_event():
+def test_future_complete_successful_create_class_event():
     stateflow.init()
     flow_future = StateflowFuture(
         "123",
@@ -186,3 +186,10 @@ def test_future_complete_state_request():
     res = flow_future.get()
 
     assert res == (1, 3, 4)
+
+
+def test_failure_object():
+    failure = StateflowFailure("an error")
+
+    assert str(failure) == "StateflowFailure: an error"
+    assert repr(failure) == "StateflowFailure: an error"
