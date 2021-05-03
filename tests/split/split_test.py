@@ -103,12 +103,13 @@ def test_dependencies_user_class():
     stateflow.clear()
     from tests.common.common_classes import User, Item
 
+    stateflow.stateflow(Item, parse_file=False)
+    stateflow.stateflow(User, parse_file=False)
+
     wrapper = stateflow.registered_classes[1]
     method_desc = stateflow.registered_classes[1].class_desc.get_method_by_name(
         "buy_item"
     )
-
-    print(wrapper)
 
     split = Split(
         [cls.class_desc for cls in stateflow.registered_classes],

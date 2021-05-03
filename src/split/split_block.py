@@ -118,8 +118,6 @@ class StatementAnalyzer(cst.CSTVisitor):
                 else:
                     # We add definitions only _after_ we left the assignment. Therefore we track it in a separate list.
                     self.assign_names.append(Def(node.value))
-
-                self.definitions.append(node.value)
             elif (
                 expression_context == cst.metadata.ExpressionContext.LOAD
                 and node.value != "self"
@@ -127,7 +125,6 @@ class StatementAnalyzer(cst.CSTVisitor):
                 and node.value != "False"
             ):
                 self.def_use.append(Use(node.value))
-                self.usages.append(node.value)
 
     def visit_Return(self, node: cst.Return):
         self.returns += 1
