@@ -247,4 +247,4 @@ class BeamRuntime(Runtime):
         if not self.test_mode:
             self.pipeline.run()
         else:
-            self.pipeline.run().wait_until_finish()
+            self.pipeline.run()
