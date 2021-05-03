@@ -66,9 +66,6 @@ class _ConsumeKafkaTopic(DoFn):
         consumer_config = consumer_args.pop("consumer_config")
         topic = consumer_config.pop("topic")
         value_decoder = consumer_args.pop("value_decoder") or bytes.decode
-        print(topic)
-
-        print(consumer_config)
 
         consumer = KafkaConsumer(*topic, **consumer_config)
 
@@ -76,8 +73,7 @@ class _ConsumeKafkaTopic(DoFn):
             try:
                 yield msg.key, value_decoder(msg.value)
             except Exception as e:
-                print(e)
-                continue
+                raise e
 
 
 class KafkaProduce(PTransform):
@@ -145,4 +141,4 @@ class _ProduceKafkaMessage(DoFn):
             )
             yield element
         except Exception as e:
-            raise
+            raise e

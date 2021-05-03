@@ -5,6 +5,9 @@ from src.runtime.beam_runtime import BeamRuntime
 import time
 from multiprocessing import Process
 from tests.kafka.KafkaImage import KafkaImage
+import threading
+import uuid
+import os
 
 
 @pytest.fixture(scope="session")
@@ -15,30 +18,37 @@ def kafka():
 
 
 def start_runtime(flow):
-    BeamRuntime(flow, test_mode=True).run()
+    run_time = BeamRuntime(flow, test_mode=True)
+    run_time._setup_pipeline()
+    run_time.run()
 
 
-@pytest.mark.timeout(40)
 def test_full_e2e(kafka):
     flow = stateflow.init()
 
-    p = Process(target=start_runtime, args=(flow,))
+    p = Process(target=start_runtime, args=(flow,), daemon=False)
     p.start()
     time.sleep(5)
     print("Started the runtime!")
     client = StateflowKafkaClient(flow, brokers="localhost:9092")
 
-    user: User = User("wouter").get()
-    item: Item = Item("coke", 5).get()
+    user: User = User(str(uuid.uuid4())).get()
+    item: Item = Item(str(uuid.uuid4()), 5).get()
 
     user.update_balance(20).get()
-    item.update_stock(3).get()
+    item.update_stock(4).get()
 
     buy = user.buy_item(3, item).get()
 
-    assert buy is True
-    assert user.balance.get() == 5
-    assert item.stock.get() == 0
+    final_balance = user.balance.get()
+    final_stock = item.stock.get()
 
-    p.join(1)
-    p.terminate()
+    # Killing streaming system.
+    os.kill(p.pid, 9)
+
+    # Kill client.
+    client.running = False
+
+    assert buy is True
+    assert final_balance == 5
+    assert final_stock == 1

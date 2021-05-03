@@ -27,9 +27,11 @@ class KafkaImage:
         client = AdminClient({"bootstrap.servers": "localhost:9092"})
         try:
             client.list_topics(timeout=10)
+            del client
             return True
         except Exception as excep:
             print(excep)
+            del client
             return False
 
     # This is based on the 'pytest_docker_fixtures' library
@@ -89,6 +91,7 @@ class KafkaImage:
         if self.container_obj is not None:
             try:
                 self.container_obj.kill()
+                print(f"{self.name} stopped")
             except docker.errors.APIError:
                 pass
             try:

@@ -189,9 +189,9 @@ class BeamRuntime(Runtime):
 
     def _setup_pipeline(self):
         if self.test_mode:
-            pipeline = beam.testing.test_pipeline.TestPipeline()
+            pipeline = beam.testing.test_pipeline.TestPipeline(blocking=False)
         else:
-            pipeline = beam.Pipeline(options=PipelineOptions(streaming=True))
+            pipeline = beam.Pipeline(options=PipelineOptions())
 
         # Setup KafkaIO.
         kafka_client = self._setup_kafka_client()
@@ -247,4 +247,8 @@ class BeamRuntime(Runtime):
         if not self.test_mode:
             self.pipeline.run()
         else:
-            self.pipeline.run()
+            result = self.pipeline.run()
+            result.wait_until_finish()
+            result.cancel()
+
+        print("I should be here!")
