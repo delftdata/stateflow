@@ -9,6 +9,7 @@ from src.dataflow.event import FunctionType, EventType
 from src.descriptors import *
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
 from src.split.split import Split
+import textwrap
 
 parse_cache: Dict[str, cst.Module] = {}
 
@@ -16,27 +17,31 @@ registered_classes: List[ClassWrapper] = []
 meta_classes: List = []
 
 
-def stateflow(cls):
+def stateflow(cls, parse_file=True):
     if not isclass(cls):
         raise AttributeError(f"Expected a class but got an {cls}.")
 
     # Parse source.
-    class_file_name = getfile(cls)
-    if class_file_name not in parse_cache:
-        with open(getfile(cls), "r") as file:
-            to_parse_file = file.read()
+    if parse_file:
+        class_file_name = getfile(cls)
+        if class_file_name not in parse_cache:
+            with open(getfile(cls), "r") as file:
+                to_parse_file = file.read()
 
-        parsed_file = cst.parse_module(to_parse_file)
-        parse_cache[class_file_name] = parsed_file
+            parsed_cls = cst.parse_module(to_parse_file)
+            parse_cache[class_file_name] = parsed_cls
+        else:
+            parsed_cls = parse_cache[class_file_name]
     else:
-        parsed_file = parse_cache[class_file_name]
+        class_source = getsource(cls)
+        parsed_cls = cst.parse_module(textwrap.dedent(class_source))
 
-    wrapper = cst.metadata.MetadataWrapper(parsed_file)
+    wrapper = cst.metadata.MetadataWrapper(parsed_cls)
     expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
 
     # Extract class description.
     extraction: ExtractClassDescriptor = ExtractClassDescriptor(
-        parsed_file, cls.__name__, expression_provider
+        parsed_cls, cls.__name__, expression_provider
     )
     wrapper.visit(extraction)
 
@@ -124,3 +129,10 @@ def init():
     )
     ###
     return flow
+
+
+def clear():
+    global parse_cache, registered_classes, meta_classes
+    parse_cache = {}
+    registered_classes = []
+    meta_classes = []

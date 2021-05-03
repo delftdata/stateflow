@@ -144,7 +144,6 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.method_desc.input_desc[callee]
             )
 
-            print(f"{callee}.{method}")
             self._process_stmt_block(desc, callee, method, node.args)
 
     def _process_stmt_block(

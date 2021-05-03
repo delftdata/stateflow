@@ -1,14 +1,29 @@
 import libcst as cst
-from typing import List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple, Union
 from src.descriptors.method_descriptor import MethodDescriptor
 from src.descriptors.class_descriptor import ClassDescriptor
 import libcst.matchers as m
+from dataclasses import dataclass
 
 
-class StatementBlockAnalyzer(cst.CSTTransformer):
+@dataclass
+class Def:
+    name: str
+
+
+@dataclass
+class Use:
+    name: str
+
+
+class StatementAnalyzer(cst.CSTVisitor):
     def __init__(self, expression_provider, method_name: Optional[str] = None):
         self.expression_provider = expression_provider
         self.method_name = method_name
+
+        self.in_assign: bool = False
+        self.assign_names: List[Def] = []
+        self.def_use: List[Union[Def, Use]] = []
 
         self.definitions: List[str] = []
         self.usages: List[str] = []
@@ -25,13 +40,47 @@ class StatementBlockAnalyzer(cst.CSTTransformer):
             if method == self.method_name:
                 return False
 
-    def visit_Name(self, node: cst.Name):
+    def _visit_assignment(self):
+        if self.in_assign:
+            raise AttributeError("A nested assignment?! Should not be possible.")
+        self.in_assign = True
+
+    def _leave_assignment(self):
+        self.in_assign = False
+        self.def_use.extend(self.assign_names)
+
+        self.assign_names = []
+
+    def visit_Assign(self, node: cst.Assign):
+        self._visit_assignment()
+
+    def visit_AugAssign(self, node: cst.AugAssign):
+        self._visit_assignment()
+
+    def visit_AnnAssign(self, node: cst.AugAssign):
+        self._visit_assignment()
+
+    def leave_Assign(self, node: cst.Assign):
+        self._leave_assignment()
+
+    def leave_AugAssign(self, node: cst.AugAssign):
+        self._leave_assignment()
+
+    def leave_AnnAssign(self, node: cst.AnnAssign):
+        self._leave_assignment()
+
+    def leave_Name(self, node: cst.Name):
         if node in self.expression_provider:
             expression_context = self.expression_provider[node]
             if (
                 expression_context == cst.metadata.ExpressionContext.STORE
                 and node.value != "self"
             ):
+                if not self.in_assign:
+                    self.def_use.append(Def(node.value))
+                else:
+                    self.assign_names.append(Def(node.value))
+
                 self.definitions.append(node.value)
             elif (
                 expression_context == cst.metadata.ExpressionContext.LOAD
@@ -39,6 +88,7 @@ class StatementBlockAnalyzer(cst.CSTTransformer):
                 and node.value != "True"
                 and node.value != "False"
             ):
+                self.def_use.append(Use(node.value))
                 self.usages.append(node.value)
 
     def visit_Return(self, node: cst.Return):
@@ -92,6 +142,7 @@ class StatementBlock:
 
         definitions: List[str] = []
         usages: List[str] = []
+        def_use: List[List[Union[Def, Use]]] = []
 
         if m.matches(self.statements[0], m.TrailingWhitespace()):
             self.statements.pop(0)
@@ -102,19 +153,55 @@ class StatementBlock:
             else:
                 method_invoked = None
 
-            stmt_analyzer = StatementBlockAnalyzer(expression_provider, method_invoked)
+            stmt_analyzer = StatementAnalyzer(expression_provider, method_invoked)
             statement.visit(stmt_analyzer)
 
             # Merge usages and definitions
             definitions.extend(stmt_analyzer.definitions)
             usages.extend(stmt_analyzer.usages)
 
+            def_use.append(stmt_analyzer.def_use)
+
             self.returns += stmt_analyzer.returns
 
         self.definitions: Set[str] = set(definitions)
         self.usages: Set[str] = set(usages)
 
+        self.dependencies: List[str] = self._compute_dependencies(def_use)
+
         self.new_function: cst.FunctionDef = self.build()
+
+    def _compute_dependencies(
+        self, def_use_list: List[List[Union[Def, Use]]]
+    ) -> List[str]:
+        """This method computes the dependencies of this statement block.
+
+        It iterates through all declarations and usages of variables.
+        When we see a usage of a variable that has _not_ been declared before, we consider it a dependency.
+
+        For example:
+        a = 3
+        b = c + 1 + a + b
+
+        returns [c, b]
+
+        :param def_use_list: a list of definitions and usages per statement (we assume it is in the correct order).
+        :return: the dependencies of this statement block.
+        """
+        declarations_so_far = set()
+        dependencies = []
+        for def_use in def_use_list:
+            print(def_use_list)
+            for el in def_use:
+                if isinstance(el, Def):
+                    declarations_so_far.add(el.name)
+                elif (
+                    isinstance(el, Use)
+                    and el.name not in declarations_so_far
+                    and el.name not in dependencies
+                ):
+                    dependencies.append(el.name)
+        return dependencies
 
     def _get_invoked_method_descriptor(self) -> "MethodDescriptor":
         return self.class_invoked.get_method_by_name(self.method_invoked)
