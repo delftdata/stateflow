@@ -46,9 +46,6 @@ def test_split_dependencies():
     )
     stmts = analyzer.parsed_statements
 
-    print(stmts[0].usages)
-    print(stmts[1].dependencies)
-
     assert len(stmts) == 2
     assert stmts[0].dependencies == ["c", "d"]
     assert stmts[1].dependencies == ["d"]
@@ -97,9 +94,6 @@ def test_split_dependencies_more():
     )
     stmts = analyzer.parsed_statements
 
-    print(stmts[0].usages)
-    print(stmts[1].dependencies)
-
     assert len(stmts) == 2
     assert stmts[0].dependencies == ["c", "d", "e"]
     assert stmts[1].dependencies == ["e", "g", "d"]
@@ -129,9 +123,6 @@ def test_dependencies_user_class():
         wrapper.class_desc.expression_provider,
     )
     stmts = analyzer.parsed_statements
-
-    print(stmts[0].usages)
-    print(stmts[1].dependencies)
 
     assert stmts[0].dependencies == ["amount", "item"]
     assert stmts[1].dependencies == ["total_price", "update_stock_return"]
