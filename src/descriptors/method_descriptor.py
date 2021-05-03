@@ -122,7 +122,7 @@ class MethodDescriptor:
                     FunctionType.create(self._match_type(class_name, descriptors)),
                     id,
                     block.fun_name(),
-                    list(sorted(block.usages)),
+                    block.dependencies,
                     [],
                 )
 
@@ -137,6 +137,7 @@ class MethodDescriptor:
                 return_node = ReturnNode(id)
                 latest_flow.set_next(return_node.id)
                 return_node.set_previous(latest_flow.id)
+                latest_flow = return_node
                 latest_flow = return_node
                 id += 1
 

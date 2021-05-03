@@ -103,3 +103,35 @@ def test_split_dependencies_more():
     assert len(stmts) == 2
     assert stmts[0].dependencies == ["c", "d", "e"]
     assert stmts[1].dependencies == ["e", "g", "d"]
+
+
+def test_dependencies_user_class():
+    stateflow.clear()
+    from tests.common.common_classes import User, Item
+
+    wrapper = stateflow.registered_classes[1]
+    method_desc = stateflow.registered_classes[1].class_desc.get_method_by_name(
+        "buy_item"
+    )
+
+    print(wrapper)
+
+    split = Split(
+        [cls.class_desc for cls in stateflow.registered_classes],
+        stateflow.registered_classes,
+    )
+
+    analyzer = SplitAnalyzer(
+        split,
+        wrapper.class_desc.class_node,
+        method_desc.method_node,
+        method_desc,
+        wrapper.class_desc.expression_provider,
+    )
+    stmts = analyzer.parsed_statements
+
+    print(stmts[0].usages)
+    print(stmts[1].dependencies)
+
+    assert stmts[0].dependencies == ["amount", "item"]
+    assert stmts[1].dependencies == ["total_price", "update_stock_return"]

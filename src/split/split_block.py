@@ -164,12 +164,23 @@ class StatementBlock:
 
             self.returns += stmt_analyzer.returns
 
-        self.definitions: Set[str] = set(definitions)
-        self.usages: Set[str] = set(usages)
-
         self.dependencies: List[str] = self._compute_dependencies(def_use)
+        self.definitions: List[str] = self._compute_definitions(def_use)
+
+        print(self.definitions)
 
         self.new_function: cst.FunctionDef = self.build()
+
+    def _compute_definitions(
+        self, def_use_list: List[List[Union[Def, Use]]]
+    ) -> List[str]:
+        definitions = []
+        for def_use in def_use_list:
+            for el in def_use:
+                if isinstance(el, Def) and el.name not in definitions:
+                    definitions.append(el.name)
+
+        return definitions
 
     def _compute_dependencies(
         self, def_use_list: List[List[Union[Def, Use]]]
@@ -191,7 +202,6 @@ class StatementBlock:
         declarations_so_far = set()
         dependencies = []
         for def_use in def_use_list:
-            print(def_use_list)
             for el in def_use:
                 if isinstance(el, Def):
                     declarations_so_far.add(el.name)
@@ -263,7 +273,7 @@ class StatementBlock:
 
     def _build_return(self, call_arguments: List[cst.Name]) -> cst.SimpleStatementLine:
         return_names: List[cst.BaseExpression] = []
-        for definition in sorted(list(self.definitions)):
+        for definition in sorted(self.definitions):
             return_names.append(cst.Name(value=definition))
 
         call_arguments_names: str = ",".join([n.value for n in call_arguments])
@@ -283,13 +293,7 @@ class StatementBlock:
             )
 
     def _build_first_block(self) -> cst.FunctionDef:
-        self.definitions = self.definitions.union(self.method_desc.input_desc.keys())
-
-        diff_usages_def = self.usages.difference(self.definitions)
-        if (
-            len(diff_usages_def) > 0
-        ):  # We have usages which are never defined, we should probably throw an error?
-            pass
+        self.definitions.extend(list(self.method_desc.input_desc.keys()))
 
         # Function signature
         fun_name: cst.Name = cst.Name(
@@ -332,20 +336,15 @@ class StatementBlock:
             f"{self.original_method.name.value}_{self.block_id}"
         )
 
-        diff_usages_def = self.usages.difference(self.definitions)
-
         params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
-        for usage in diff_usages_def:
+        for usage in self.dependencies:
             params.append(cst.Param(cst.Name(value=usage)))
 
         previous_block_call: cst.Name = self._previous_call_result()
         params.append(cst.Param(previous_block_call))
 
-        # Hacky, fix it.
-        self.usages = diff_usages_def
-
-        # Hacky, TODO; fix this.
-        self.usages.add(self._previous_call_result().value)
+        # TODO Hacky, fix it.
+        self.dependencies.append(self._previous_call_result().value)
 
         param_node: cst.Parameters() = cst.Parameters(tuple(params))
         returns_signature = self.original_method.returns
