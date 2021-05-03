@@ -31,7 +31,6 @@ class KafkaImage:
             return True
         except Exception as excep:
             print(excep)
-            del client
             return False
 
     # This is based on the 'pytest_docker_fixtures' library
