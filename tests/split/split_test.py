@@ -48,7 +48,7 @@ def test_split_dependencies():
 
     assert len(stmts) == 2
     assert stmts[0].dependencies == ["c", "d"]
-    assert stmts[1].dependencies == ["d"]
+    assert stmts[1].dependencies == ["d", "get_a_return"]
 
 
 def test_split_dependencies_more():
@@ -96,7 +96,7 @@ def test_split_dependencies_more():
 
     assert len(stmts) == 2
     assert stmts[0].dependencies == ["c", "d", "e"]
-    assert stmts[1].dependencies == ["e", "g", "d"]
+    assert stmts[1].dependencies == ["e", "g", "d", "get_a_return"]
 
 
 def test_dependencies_user_class():

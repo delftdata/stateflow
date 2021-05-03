@@ -41,6 +41,10 @@ class StatementAnalyzer(cst.CSTVisitor):
                 return False
 
     def _visit_assignment(self):
+        """We keep track
+
+        :return:
+        """
         if self.in_assign:
             raise AttributeError("A nested assignment?! Should not be possible.")
         self.in_assign = True
