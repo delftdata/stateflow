@@ -25,9 +25,6 @@ class StatementAnalyzer(cst.CSTVisitor):
         self.assign_names: List[Def] = []
         self.def_use: List[Union[Def, Use]] = []
 
-        self.definitions: List[str] = []
-        self.usages: List[str] = []
-
         self.returns = 0
 
     def visit_Call(self, node: cst.Call):
@@ -41,39 +38,75 @@ class StatementAnalyzer(cst.CSTVisitor):
                 return False
 
     def _visit_assignment(self):
-        """We keep track
+        """We keep track of which assignments we visit, so that we can put definitions and usages in the correct order.
+        I.e.
+        a = x + b, needs to be analyzed as [Use(x), Use(b), Def(a)]. However, LibCST evaluates in the order of
+        the declared syntax. As a workaround, we set a flag whenever we visit an assignment. This prevents declarations
+        to be added to the list _until_ we leave the assignment node.
 
-        :return:
         """
         if self.in_assign:
             raise AttributeError("A nested assignment?! Should not be possible.")
         self.in_assign = True
 
     def _leave_assignment(self):
+        """Add names of definitions to the list of use/def variables. Disable the flag and reset the state.
+        Also see self._visit__visit_assignment()
+        """
         self.in_assign = False
         self.def_use.extend(self.assign_names)
 
         self.assign_names = []
 
     def visit_Assign(self, node: cst.Assign):
+        """Visits an assignment.
+
+        :param node: the assignment node.
+        """
         self._visit_assignment()
 
     def visit_AugAssign(self, node: cst.AugAssign):
+        """Visits an assignment.
+
+        :param node: the assignment node.
+        """
         self._visit_assignment()
 
     def visit_AnnAssign(self, node: cst.AugAssign):
+        """Visits an assignment.
+
+        :param node: the assignment node.
+        """
         self._visit_assignment()
 
     def leave_Assign(self, node: cst.Assign):
+        """Leaves an assignment.
+
+        :param node: the assignment node.
+        """
         self._leave_assignment()
 
     def leave_AugAssign(self, node: cst.AugAssign):
+        """Leaves an assignment.
+
+        :param node: the assignment node.
+        """
         self._leave_assignment()
 
     def leave_AnnAssign(self, node: cst.AnnAssign):
+        """Leaves an assignment.
+
+        :param node: the assignment node.
+        """
         self._leave_assignment()
 
-    def leave_Name(self, node: cst.Name):
+    def visit_Name(self, node: cst.Name):
+        """Visits a name node.
+        Examines if it is a definitions (STORE) or usage (LOAD).
+        `self` attributes are ignored.
+
+        :param node: the name node.
+        """
         if node in self.expression_provider:
             expression_context = self.expression_provider[node]
             if (
@@ -83,6 +116,7 @@ class StatementAnalyzer(cst.CSTVisitor):
                 if not self.in_assign:
                     self.def_use.append(Def(node.value))
                 else:
+                    # We add definitions only _after_ we left the assignment. Therefore we track it in a separate list.
                     self.assign_names.append(Def(node.value))
 
                 self.definitions.append(node.value)
@@ -144,8 +178,6 @@ class StatementBlock:
 
         self.arguments_for_call = []
 
-        definitions: List[str] = []
-        usages: List[str] = []
         def_use: List[List[Union[Def, Use]]] = []
 
         if m.matches(self.statements[0], m.TrailingWhitespace()):
@@ -159,10 +191,6 @@ class StatementBlock:
 
             stmt_analyzer = StatementAnalyzer(expression_provider, method_invoked)
             statement.visit(stmt_analyzer)
-
-            # Merge usages and definitions
-            definitions.extend(stmt_analyzer.definitions)
-            usages.extend(stmt_analyzer.usages)
 
             def_use.append(stmt_analyzer.def_use)
 
@@ -178,6 +206,12 @@ class StatementBlock:
     def _compute_definitions(
         self, def_use_list: List[List[Union[Def, Use]]]
     ) -> List[str]:
+        """Computes the (unique) list of definitions in this block.
+        This list is sorted in the order of declaration. In case, there are multiple
+
+        :param def_use_list: the list of definitions/usages per statement in the block.
+        :return:
+        """
         definitions = []
         for def_use in def_use_list:
             for el in def_use:
