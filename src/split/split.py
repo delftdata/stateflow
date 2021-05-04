@@ -38,7 +38,7 @@ class RemoveAfterClassDefinition(cst.CSTTransformer):
 
 class SplitTransformer(cst.CSTTransformer):
     def __init__(
-        self, class_name: str, updated_methods: Dict[str, List["StatementBlock"]]
+        self, class_name: str, updated_methods: Dict[str, List[StatementBlock]]
     ):
         self.class_name: str = class_name
         self.updated_methods = updated_methods
@@ -116,7 +116,8 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.statements,
                 self.method_node,
                 self.method_desc,
-                last_block=last_block,
+                previous_block=last_block,
+                last_block=True,
             )
         )
 
@@ -153,6 +154,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         method: str,
         args: List[cst.Arg],
     ):
+        print("Now processing statement block!")
         split_block = StatementBlock(
             self.current_block_id,
             self.expression_provider,
@@ -163,6 +165,9 @@ class SplitAnalyzer(cst.CSTVisitor):
             class_call_ref=class_call_ref,
             method_invoked=method,
             call_args=args,
+            previous_block=self.parsed_statements[-1]
+            if self.current_block_id > 0
+            else None,
         )
         self.parsed_statements.append(split_block)
 

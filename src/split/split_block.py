@@ -186,10 +186,12 @@ class StatementBlock:
         class_call_ref: Optional[str] = None,
         method_invoked: Optional[str] = None,
         call_args: Optional[List[cst.Arg]] = None,
-        last_block: Optional["StatementBlock"] = None,
+        previous_block: Optional["StatementBlock"] = None,
+        last_block: bool = False,
     ):
         self.block_id = block_id
         self.last_block = last_block
+        self.previous_block = previous_block
         self.returns = 0
         self.original_method = original_method
         self.method_desc = method_desc
@@ -205,15 +207,14 @@ class StatementBlock:
 
         def_use: List[List[Union[Def, Use]]] = []
 
+        # Remove whitespace if it's there.
         if m.matches(self.statements[0], m.TrailingWhitespace()):
             self.statements.pop(0)
 
-        for statement in self.statements:
-            if self.last_block:
-                method_invoked = self.last_block.method_invoked
-            else:
-                method_invoked = None
+        if self.previous_block:
+            method_invoked = self.previous_block.method_invoked
 
+        for statement in self.statements:
             stmt_analyzer = StatementAnalyzer(expression_provider, method_invoked)
             statement.visit(stmt_analyzer)
 
@@ -223,8 +224,6 @@ class StatementBlock:
 
         self.dependencies: List[str] = self._compute_dependencies(def_use)
         self.definitions: List[str] = self._compute_definitions(def_use)
-
-        print(self.definitions)
 
         self.new_function: cst.FunctionDef = self.build()
 
@@ -356,9 +355,10 @@ class StatementBlock:
             )
 
     def _build_first_block(self) -> cst.FunctionDef:
+        # The definitions of this block, include the given parameters.
         self.definitions.extend(list(self.method_desc.input_desc.keys()))
 
-        # Function signature
+        # We re-use part of the original function signature.
         fun_name: cst.Name = cst.Name(
             f"{self.original_method.name.value}_{self.block_id}"
         )
@@ -369,11 +369,11 @@ class StatementBlock:
 
         self.arguments_for_call = [name for name, _ in argument_assignments]
 
-        # Return statement
+        # Build the return statement.
         return_stmt: cst.Return = self._build_return(self.arguments_for_call)
 
         if m.matches(self.original_method.body, m.IndentedBlock()):
-            final_body = (
+            final_body = (  # We build this first block as statements + assignments + return statement.
                 self.statements
                 + [assign for _, assign in argument_assignments]
                 + [return_stmt]
@@ -391,7 +391,58 @@ class StatementBlock:
         )
 
     def _previous_call_result(self) -> cst.Name:
-        return cst.Name(f"{self.last_block.method_invoked}_return")
+        return cst.Name(f"{self.previous_block.method_invoked}_return")
+
+    def _build_intermediate_block(self) -> cst.FunctionDef:
+        print(f"Building intermediate block {self.block_id}")
+        # Function signature
+        fun_name: cst.Name = cst.Name(
+            f"{self.original_method.name.value}_{self.block_id}"
+        )
+
+        params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
+        for usage in self.dependencies:
+            params.append(cst.Param(cst.Name(value=usage)))
+
+        # Get the result of the previous call as parameter of this block.
+        previous_block_call: cst.Name = self._previous_call_result()
+        params.append(cst.Param(previous_block_call))
+        self.dependencies.append(self._previous_call_result().value)
+
+        param_node: cst.Parameters() = cst.Parameters(tuple(params))
+
+        # Assignments for the call.
+        argument_assignments = self._build_argument_assignments()
+        self.arguments_for_call = [name for name, _ in argument_assignments]
+
+        # Build the return statement.
+        return_stmt: cst.Return = self._build_return(self.arguments_for_call)
+
+        self.statements[0] = self.statements[0].visit(
+            RemoveCall(self.previous_block.method_invoked, self._previous_call_result())
+        )
+
+        if m.matches(self.original_method.body, m.IndentedBlock()):
+            final_body = (
+                self.statements
+                + [assign for _, assign in argument_assignments]
+                + [return_stmt]
+            )
+
+            function_body = self.original_method.body.with_changes(
+                body=final_body,
+            )
+
+        else:
+            raise AttributeError(
+                f"Expected the body of a function to be in an indented block, but got an {self.original_method.body}."
+            )
+
+        return self.original_method.with_changes(
+            name=fun_name,
+            params=param_node,
+            body=function_body,
+        )
 
     def _build_last_block(self) -> cst.FunctionDef:
         # Function signature
@@ -413,7 +464,7 @@ class StatementBlock:
         returns_signature = self.original_method.returns
 
         self.statements[0] = self.statements[0].visit(
-            RemoveCall(self.last_block.method_invoked, self._previous_call_result())
+            RemoveCall(self.previous_block.method_invoked, self._previous_call_result())
         )
 
         if m.matches(self.original_method.body, m.IndentedBlock()):
@@ -442,3 +493,5 @@ class StatementBlock:
             return self._build_first_block()
         elif self.last_block:
             return self._build_last_block()
+        else:
+            return self._build_intermediate_block()

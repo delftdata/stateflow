@@ -133,6 +133,6 @@ def init():
 
 def clear():
     global parse_cache, registered_classes, meta_classes
-    parse_cache = {}
-    registered_classes = []
-    meta_classes = []
+    parse_cache.clear()
+    registered_classes.clear()
+    meta_classes.clear()

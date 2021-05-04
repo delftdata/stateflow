@@ -1,5 +1,10 @@
 import pytest
-from src.split.split import SplitAnalyzer, Split
+from src.split.split import (
+    SplitAnalyzer,
+    Split,
+    RemoveAfterClassDefinition,
+    SplitTransformer,
+)
 import src.stateflow as stateflow
 
 
@@ -132,7 +137,7 @@ def test_dependencies_user_class():
 def test_multiple_splits():
     stateflow.clear()
 
-    class C:
+    class CC(object):
         def __init__(self):
             self.x = 0
 
@@ -140,19 +145,19 @@ def test_multiple_splits():
             self.x = x
             return self.a
 
-    class B:
+    class BB(object):
         def __init__(self):
             self.a = 0
 
         def get(self, a: int):
             return self.a + a
 
-    class A:
+    class AA(object):
         def __init__(self):
             self.a = 0
             self.b = 0
 
-        def get_a(self, b: B, c: C):
+        def cool_method(self, b: BB, c: CC):
             a = self.a + self.b
 
             b_result = b.get(a * 9)
@@ -160,14 +165,24 @@ def test_multiple_splits():
 
             c_result = c.set(new_a)
 
-            return self.a + c_result + b_result
+            return c_result + b_result + a
 
-    stateflow.stateflow(A, parse_file=False)
-    stateflow.stateflow(B, parse_file=False)
-    stateflow.stateflow(C, parse_file=False)
+    stateflow.stateflow(AA, parse_file=False)
+    stateflow.stateflow(BB, parse_file=False)
+    stateflow.stateflow(CC, parse_file=False)
 
     wrapper = stateflow.registered_classes[0]
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name("get_a")
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "cool_method"
+    )
+
+    print(
+        [
+            method.method_name
+            for m in stateflow.registered_classes
+            for method in m.class_desc.methods_dec
+        ]
+    )
 
     split = Split(
         [cls.class_desc for cls in stateflow.registered_classes],
@@ -183,4 +198,35 @@ def test_multiple_splits():
     )
     stmts = analyzer.parsed_statements
 
-    assert len(stmts) == 4
+    # We have 3 statement blocks.
+    assert len(stmts) == 3
+
+    # We check the dependencies and definitions of the blocks.
+    assert stmts[0].dependencies == []
+    assert stmts[0].definitions == ["a", "b", "c"]
+
+    remove_after_class_def = RemoveAfterClassDefinition(wrapper.class_desc.class_name)
+
+    modified_tree = wrapper.class_desc.module_node.visit(remove_after_class_def)
+
+    methods = {"cool_method": stmts}
+
+    modified_tree = modified_tree.visit(
+        SplitTransformer(wrapper.class_desc.class_name, methods)
+    )
+
+    print(modified_tree.code)
+
+    print("--")
+    print(stmts[0].dependencies)
+    print(stmts[1].dependencies)
+    print(stmts[2].dependencies)
+    print("---")
+    print(stmts[0].definitions)
+    print(stmts[1].definitions)
+    print(stmts[2].definitions)
+    assert stmts[1].dependencies == ["a", "get_return"]
+    assert stmts[1].definitions == ["b_result", "new_a"]
+
+    assert stmts[2].dependencies == ["b_result", "a", "set_return"]
+    assert stmts[2].definitions == ["c_result"]

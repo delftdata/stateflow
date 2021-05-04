@@ -138,7 +138,6 @@ class MethodDescriptor:
                 latest_flow.set_next(return_node.id)
                 return_node.set_previous(latest_flow.id)
                 latest_flow = return_node
-                latest_flow = return_node
                 id += 1
 
                 self.flow_list.append(return_node)
