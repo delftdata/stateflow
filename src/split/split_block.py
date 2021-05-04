@@ -17,7 +17,25 @@ class Use:
 
 
 class StatementAnalyzer(cst.CSTVisitor):
+    """Analyzes a statement identifying:
+    1. all definitions and usages
+    2. the amount of returns.
+
+    """
+
     def __init__(self, expression_provider, method_name: Optional[str] = None):
+        """Initializes a statement analyzer.
+
+        You can pass a method_name to the constructor. The `Call` with this method name will be ignored.
+        We need to ignore this method, because it will be removed from the code at some point (if it is a
+        spitting point). For example:
+
+        a = item.buy(x), should return [Def(a)]
+            but without ignoring this method it will return [Use(item), Use(x), Def(a)].
+
+        :param expression_provider: the expression provider of this node, to provide LOAD and STORE context.
+        :param method_name: a method that is called in this statement. We want to ignore that statement.
+        """
         self.expression_provider = expression_provider
         self.method_name = method_name
 
@@ -28,6 +46,13 @@ class StatementAnalyzer(cst.CSTVisitor):
         self.returns = 0
 
     def visit_Call(self, node: cst.Call):
+        """Visits a Call node and ignore if it has the name == self.method_name.
+
+        This will be the 'split' call and therefore definitions/usages in this call need to be ignored.
+
+        :param node: the call node.
+        :return: False if it is the split call (children won't be visited then).
+        """
         if m.matches(node.func, m.Attribute(m.Name(), m.Name())):
             attr: cst.Attribute = node.func
             method: str = attr.attr.value
@@ -127,6 +152,9 @@ class StatementAnalyzer(cst.CSTVisitor):
                 self.def_use.append(Use(node.value))
 
     def visit_Return(self, node: cst.Return):
+        """
+        Keep track of all returns.
+        """
         self.returns += 1
 
 
