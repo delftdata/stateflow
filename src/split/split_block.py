@@ -158,7 +158,9 @@ class StatementAnalyzer(cst.CSTVisitor):
         self.returns += 1
 
 
-class RemoveCall(cst.CSTTransformer):
+class ReplaceCall(cst.CSTTransformer):
+    """Replaces a call with the return result of that call."""
+
     def __init__(self, method_name: str, replace_block: cst.CSTNode):
         self.method_name: str = method_name
         self.replace_block: cst.CSTNode = replace_block
@@ -205,12 +207,14 @@ class StatementBlock:
 
         self.arguments_for_call = []
 
+        # A list of Def/Use variables per statement line, in the order that they are declared/used.
         def_use: List[List[Union[Def, Use]]] = []
 
         # Remove whitespace if it's there.
         if m.matches(self.statements[0], m.TrailingWhitespace()):
             self.statements.pop(0)
 
+        # If there is a previous block, to which this block is subsequent, we assume this is because of a method call.
         if self.previous_block:
             method_invoked = self.previous_block.method_invoked
 
@@ -419,7 +423,9 @@ class StatementBlock:
         return_stmt: cst.Return = self._build_return(self.arguments_for_call)
 
         self.statements[0] = self.statements[0].visit(
-            RemoveCall(self.previous_block.method_invoked, self._previous_call_result())
+            ReplaceCall(
+                self.previous_block.method_invoked, self._previous_call_result()
+            )
         )
 
         if m.matches(self.original_method.body, m.IndentedBlock()):
@@ -464,7 +470,9 @@ class StatementBlock:
         returns_signature = self.original_method.returns
 
         self.statements[0] = self.statements[0].visit(
-            RemoveCall(self.previous_block.method_invoked, self._previous_call_result())
+            ReplaceCall(
+                self.previous_block.method_invoked, self._previous_call_result()
+            )
         )
 
         if m.matches(self.original_method.body, m.IndentedBlock()):
