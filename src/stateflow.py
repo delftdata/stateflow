@@ -8,7 +8,7 @@ from src.dataflow.stateful_operator import StatefulOperator, Edge, Operator
 from src.dataflow.event import FunctionType, EventType
 from src.descriptors import *
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from src.split.split import Split
+from src.split.split_analyze import Split
 import textwrap
 
 parse_cache: Dict[str, cst.Module] = {}

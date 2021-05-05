@@ -1,5 +1,5 @@
 import pytest
-from src.split.split import (
+from src.split.split_analyze import (
     SplitAnalyzer,
     Split,
     RemoveAfterClassDefinition,

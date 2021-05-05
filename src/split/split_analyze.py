@@ -14,76 +14,8 @@ from src.split.split_block import (
     IntermediateBlockContext,
     InvocationContext,
 )
+from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
 from dataclasses import dataclass
-
-
-class RemoveAfterClassDefinition(cst.CSTTransformer):
-    def __init__(self, class_name: str):
-        self.class_name: str = class_name
-        self.is_defined = False
-
-    def leave_ClassDef(
-        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
-    ) -> Union[cst.BaseStatement, cst.RemovalSentinel]:
-
-        new_decorators = []
-        for decorator in updated_node.decorators:
-            if "stateflow" not in cst.helpers.get_full_name_for_node(decorator):
-                new_decorators.append(decorator)
-
-        if original_node.name == self.class_name:
-            self.is_defined = True
-            return updated_node.with_changes(decorators=tuple(new_decorators))
-
-        return updated_node.with_changes(decorators=tuple(new_decorators))
-
-    # def on_leave(
-    #     self, original_node: cst.CSTNodeT, updated_node: cst.CSTNodeT
-    # ) -> Union[cst.CSTNodeT, cst.RemovalSentinel]:
-    #     if self.is_defined:
-    #         return cst.RemovalSentinel()
-
-
-class SplitTransformer(cst.CSTTransformer):
-    def __init__(
-        self, class_name: str, updated_methods: Dict[str, List[StatementBlock]]
-    ):
-        self.class_name: str = class_name
-        self.updated_methods = updated_methods
-
-    def visit_ClassDef(self, node: cst.ClassDef):
-        if node.name.value != self.class_name:
-            return False
-        return True
-
-    def leave_ClassDef(
-        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
-    ) -> Union[cst.BaseStatement, cst.RemovalSentinel]:
-        if updated_node.name.value != self.class_name:
-            return updated_node
-
-        class_body = updated_node.body.body
-
-        for method in self.updated_methods.values():
-            for split in method:
-                class_body = (*class_body, split.new_function)
-
-        return updated_node.with_changes(
-            body=updated_node.body.with_changes(body=class_body)
-        )
-
-    def leave_FunctionDef(
-        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
-    ) -> cst.CSTNode:
-        if (
-            m.matches(original_node.body, m.IndentedBlock())
-            and updated_node.name.value in self.updated_methods
-        ):
-            pass_node = cst.SimpleStatementLine(body=[cst.Pass()])
-            new_block = original_node.body.with_changes(body=[pass_node])
-            return updated_node.with_changes(body=new_block)
-
-        return updated_node
 
 
 class SplitAnalyzer(cst.CSTVisitor):
@@ -101,6 +33,10 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.method_desc: MethodDescriptor = method_desc
         self.expression_provider = expression_provider
 
+        self.split_context = SplitContext(
+            self.expression_provider, self.method_node, self.method_desc
+        )
+
         # Unparsed blocks
         self.statements: List[cst.BaseStatement] = []
 
@@ -117,11 +53,8 @@ class SplitAnalyzer(cst.CSTVisitor):
             StatementBlock(
                 self.current_block_id,
                 self.statements,
-                LastBlockContext(
-                    expression_provider=self.expression_provider,
-                    original_method_node=self.method_node,
-                    original_method_desc=self.method_desc,
-                    previous_block=previous_block,
+                LastBlockContext.from_instance(
+                    self.split_context,
                     previous_invocation=previous_block.split_context.current_invocation,
                 ),
             )
@@ -168,10 +101,8 @@ class SplitAnalyzer(cst.CSTVisitor):
         )
 
         if self.current_block_id == 0:
-            split_context = FirstBlockContext(
-                expression_provider=self.expression_provider,
-                original_method_node=self.method_node,
-                original_method_desc=self.method_desc,
+            split_context = FirstBlockContext.from_instance(
+                self.split_context,
                 current_invocation=invocation_context,
             )
         else:
@@ -179,16 +110,17 @@ class SplitAnalyzer(cst.CSTVisitor):
                 FirstBlockContext, IntermediateBlockContext
             ] = self.parsed_statements[-1].split_context
             previous_invocation = previous_block.current_invocation
-            split_context = IntermediateBlockContext(
-                expression_provider=self.expression_provider,
-                original_method_node=self.method_node,
-                original_method_desc=self.method_desc,
+            split_context = IntermediateBlockContext.from_instance(
+                self.split_context,
                 previous_invocation=previous_invocation,
                 current_invocation=invocation_context,
             )
 
         split_block = StatementBlock(
-            self.current_block_id, self.statements, split_context
+            self.current_block_id,
+            self.statements,
+            split_context,
+            self.parsed_statements[-1] if self.current_block_id > 0 else None,
         )
         self.parsed_statements.append(split_block)
 

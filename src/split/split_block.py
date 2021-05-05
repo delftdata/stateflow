@@ -3,7 +3,7 @@ from typing import List, Optional, Set, Tuple, Union
 from src.descriptors.method_descriptor import MethodDescriptor
 from src.descriptors.class_descriptor import ClassDescriptor
 import libcst.matchers as m
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 
 @dataclass
@@ -199,18 +199,14 @@ class SplitContext:
     original_method_node: cst.FunctionDef
     original_method_desc: MethodDescriptor
 
-    # Keep track of the previous and next statement block.
-    # TODO: Consider moving this to StatementBlock class itself, it might be more appropriate.
-    previous_block: Optional["StatementBlock"] = None
-    next_block: Optional["StatementBlock"] = None
+    @classmethod
+    def from_instance(cls, instance: "SplitContext", **kwargs):
+        arguments = {}
+        for field in fields(instance):
+            arguments[field.name] = getattr(instance, field.name)
 
-    def set_next_block(self, block: "StatementBlock"):
-        """Sets the next StatementBlock.
-        This needs to be set _after_ creating this SplitContext, since we don't know the next block until it is created.
-
-        :param block: the next statement block.
-        """
-        self.next_block = block
+        arguments.update(kwargs)
+        return cls(**arguments)
 
 
 @dataclass
@@ -277,19 +273,26 @@ class StatementBlock:
         split_context: Union[
             FirstBlockContext, IntermediateBlockContext, LastBlockContext
         ],
+        previous_block: Optional["StatementBlock"] = None,
     ):
         self.block_id = block_id
-        self.returns = 0
         self.statements = statements
         self.split_context = split_context
+
         self.arguments_for_call = []
+        self.returns = 0
+
+        # Keep track of the previous and next statement block.
+        self.previous_block: Optional["StatementBlock"] = previous_block
+        self.next_block: Optional["StatementBlock"] = None
 
         # A list of Def/Use variables per statement line, in the order that they are declared/used.
         def_use: List[List[Union[Def, Use]]] = []
 
-        # Remove whitespace if it's there.
-        if m.matches(self.statements[0], m.TrailingWhitespace()):
-            self.statements.pop(0)
+        if self.previous_block:
+            self.previous_block.set_next_block(self)
+
+        self._remove_whitespace()
 
         for statement in self.statements:
             stmt_analyzer = StatementAnalyzer(
@@ -308,6 +311,19 @@ class StatementBlock:
         self.definitions: List[str] = self._compute_definitions(def_use)
 
         self.new_function: cst.FunctionDef = self.build()
+
+    def _remove_whitespace(self):
+        # Remove whitespace if it's there.
+        if m.matches(self.statements[0], m.TrailingWhitespace()):
+            self.statements.pop(0)
+
+    def set_next_block(self, block: "StatementBlock"):
+        """Sets the next StatementBlock.
+        This needs to be set _after_ creating this SplitContext, since we don't know the next block until it is created.
+
+        :param block: the next statement block.
+        """
+        self.next_block = block
 
     def _compute_definitions(
         self, def_use_list: List[List[Union[Def, Use]]]
@@ -481,8 +497,6 @@ class StatementBlock:
         )
 
     def _previous_call_result(self) -> cst.Name:
-        print(f"Current SplitContext {type(self.split_context)}")
-        print(f"PreviousBlock invocation {self.split_context.previous_invocation}")
         return cst.Name(
             f"{self.split_context.previous_invocation.method_invoked}_return"
         )
