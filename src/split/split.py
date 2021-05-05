@@ -6,7 +6,7 @@ from typing import List, Optional, Any, Set, Tuple, Dict, Union
 import libcst as cst
 import libcst.matchers as m
 import importlib
-from src.split.split_block import StatementBlock
+from src.split.split_block import StatementBlock, SplitContext
 from dataclasses import dataclass
 
 
@@ -113,11 +113,13 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.parsed_statements.append(
             StatementBlock(
                 self.current_block_id,
-                self.expression_provider,
                 self.statements,
-                self.method_node,
-                self.method_desc,
-                previous_block=last_block,
+                SplitContext(
+                    self.expression_provider,
+                    self.method_node,
+                    self.method_desc,
+                    previous_block=last_block,
+                ),
                 last_block=True,
             )
         )
@@ -158,17 +160,19 @@ class SplitAnalyzer(cst.CSTVisitor):
         print("Now processing statement block!")
         split_block = StatementBlock(
             self.current_block_id,
-            self.expression_provider,
             self.statements,
-            self.method_node,
-            self.method_desc,
+            SplitContext(
+                self.expression_provider,
+                self.method_node,
+                self.method_desc,
+                previous_block=self.parsed_statements[-1]
+                if self.current_block_id > 0
+                else None,
+            ),
             class_invoked=class_invoked,
             class_call_ref=class_call_ref,
             method_invoked=method,
             call_args=args,
-            previous_block=self.parsed_statements[-1]
-            if self.current_block_id > 0
-            else None,
         )
         self.parsed_statements.append(split_block)
 

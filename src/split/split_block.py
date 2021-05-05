@@ -188,33 +188,37 @@ class ReplaceCall(cst.CSTTransformer):
                 return self.replace_node
 
 
+@dataclass
 class SplitContext:
-    pass
+    expression_provider: cst.metadata.ExpressionContextProvider
+
+    original_method_node: cst.FunctionDef
+    original_method_desc: MethodDescriptor
+
+    previous_block: Optional["StatementBlock"] = None
+    next_block: Optional["StatementBlock"] = None
+
+    def set_next_block(self, block: "StatementBlock"):
+        self.next_block = block
 
 
 class StatementBlock:
     def __init__(
         self,
         block_id: int,
-        expression_provider,
         statements: List[cst.BaseStatement],
-        original_method: cst.FunctionDef,
-        method_desc: "MethodDescriptor",
+        split_context: SplitContext,
         class_invoked: Optional["ClassDescriptor"] = None,
         class_call_ref: Optional[str] = None,
         method_invoked: Optional[str] = None,
         call_args: Optional[List[cst.Arg]] = None,
-        previous_block: Optional["StatementBlock"] = None,
         last_block: bool = False,
     ):
         self.block_id = block_id
         self.last_block = last_block
-        self.previous_block = previous_block
         self.returns = 0
-        self.original_method = original_method
-        self.method_desc = method_desc
-
         self.statements = statements
+        self.split_context = split_context
 
         self.class_invoked = class_invoked
         self.method_invoked = method_invoked
@@ -231,11 +235,13 @@ class StatementBlock:
             self.statements.pop(0)
 
         # If there is a previous block, to which this block is subsequent, we assume this is because of a method call.
-        if self.previous_block:
-            method_invoked = self.previous_block.method_invoked
+        if self.split_context.previous_block:
+            method_invoked = self.split_context.previous_block.method_invoked
 
         for statement in self.statements:
-            stmt_analyzer = StatementAnalyzer(expression_provider, method_invoked)
+            stmt_analyzer = StatementAnalyzer(
+                split_context.expression_provider, method_invoked
+            )
             statement.visit(stmt_analyzer)
 
             def_use.append(stmt_analyzer.def_use)
@@ -295,11 +301,11 @@ class StatementBlock:
                     dependencies.append(el.name)
         return dependencies
 
-    def _get_invoked_method_descriptor(self) -> "MethodDescriptor":
+    def _get_invoked_method_descriptor(self) -> MethodDescriptor:
         return self.class_invoked.get_method_by_name(self.method_invoked)
 
     def fun_name(self) -> str:
-        return f"{self.original_method.name.value}_{self.block_id}"
+        return f"{self.split_context.original_method_node.name.value}_{self.block_id}"
 
     def _build_argument_assignments(
         self,
@@ -376,13 +382,13 @@ class StatementBlock:
 
     def _build_first_block(self) -> cst.FunctionDef:
         # The definitions of this block, include the given parameters.
-        self.definitions.extend(list(self.method_desc.input_desc.keys()))
+        self.definitions.extend(
+            list(self.split_context.original_method_desc.input_desc.keys())
+        )
 
         # We re-use part of the original function signature.
-        fun_name: cst.Name = cst.Name(
-            f"{self.original_method.name.value}_{self.block_id}"
-        )
-        params: cst.Parameters = self.original_method.params
+        fun_name: cst.Name = cst.Name(self.fun_name())
+        params: cst.Parameters = self.split_context.original_method_node.params
 
         # Assignments for the call.
         argument_assignments = self._build_argument_assignments()
@@ -392,33 +398,33 @@ class StatementBlock:
         # Build the return statement.
         return_stmt: cst.Return = self._build_return(self.arguments_for_call)
 
-        if m.matches(self.original_method.body, m.IndentedBlock()):
+        if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
             final_body = (  # We build this first block as statements + assignments + return statement.
                 self.statements
                 + [assign for _, assign in argument_assignments]
                 + [return_stmt]
             )
 
-            function_body = self.original_method.body.with_changes(body=final_body)
+            function_body = self.split_context.original_method_node.body.with_changes(
+                body=final_body
+            )
 
         else:
             raise AttributeError(
-                f"Expected the body of a function to be in an indented block, but got an {self.original_method.body}."
+                f"Expected the body of a function to be in an indented block, but got an {self.split_context.original_method_node.body}."
             )
 
-        return self.original_method.with_changes(
+        return self.split_context.original_method_node.with_changes(
             name=fun_name, params=params, body=function_body, returns=None
         )
 
     def _previous_call_result(self) -> cst.Name:
-        return cst.Name(f"{self.previous_block.method_invoked}_return")
+        return cst.Name(f"{self.split_context.previous_block.method_invoked}_return")
 
     def _build_intermediate_block(self) -> cst.FunctionDef:
         print(f"Building intermediate block {self.block_id}")
         # Function signature
-        fun_name: cst.Name = cst.Name(
-            f"{self.original_method.name.value}_{self.block_id}"
-        )
+        fun_name: cst.Name = cst.Name(self.fun_name())
 
         params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
         for usage in self.dependencies:
@@ -440,27 +446,28 @@ class StatementBlock:
 
         self.statements[0] = self.statements[0].visit(
             ReplaceCall(
-                self.previous_block.method_invoked, self._previous_call_result()
+                self.split_context.previous_block.method_invoked,
+                self._previous_call_result(),
             )
         )
 
-        if m.matches(self.original_method.body, m.IndentedBlock()):
+        if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
             final_body = (
                 self.statements
                 + [assign for _, assign in argument_assignments]
                 + [return_stmt]
             )
 
-            function_body = self.original_method.body.with_changes(
+            function_body = self.split_context.original_method_node.body.with_changes(
                 body=final_body,
             )
 
         else:
             raise AttributeError(
-                f"Expected the body of a function to be in an indented block, but got an {self.original_method.body}."
+                f"Expected the body of a function to be in an indented block, but got an {self.split_context.original_method_node.body}."
             )
 
-        return self.original_method.with_changes(
+        return self.split_context.original_method_node.with_changes(
             name=fun_name,
             params=param_node,
             body=function_body,
@@ -468,9 +475,7 @@ class StatementBlock:
 
     def _build_last_block(self) -> cst.FunctionDef:
         # Function signature
-        fun_name: cst.Name = cst.Name(
-            f"{self.original_method.name.value}_{self.block_id}"
-        )
+        fun_name: cst.Name = cst.Name(self.fun_name())
 
         params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
         for usage in self.dependencies:
@@ -483,27 +488,28 @@ class StatementBlock:
         self.dependencies.append(self._previous_call_result().value)
 
         param_node: cst.Parameters() = cst.Parameters(tuple(params))
-        returns_signature = self.original_method.returns
+        returns_signature = self.split_context.original_method_node.returns
 
         self.statements[0] = self.statements[0].visit(
             ReplaceCall(
-                self.previous_block.method_invoked, self._previous_call_result()
+                self.split_context.previous_block.method_invoked,
+                self._previous_call_result(),
             )
         )
 
-        if m.matches(self.original_method.body, m.IndentedBlock()):
+        if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
             final_body = self.statements
 
-            function_body = self.original_method.body.with_changes(
+            function_body = self.split_context.original_method_node.body.with_changes(
                 body=final_body,
             )
 
         else:
             raise AttributeError(
-                f"Expected the body of a function to be in an indented block, but got an {self.original_method.body}."
+                f"Expected the body of a function to be in an indented block, but got an {self.split_context.original_method_node.body}."
             )
 
-        return self.original_method.with_changes(
+        return self.split_context.original_method_node.with_changes(
             name=fun_name,
             params=param_node,
             body=function_body,
