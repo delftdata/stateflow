@@ -94,11 +94,14 @@ class MethodDescriptor:
 
                 invoke_node = InvokeExternal(
                     FunctionType.create(
-                        self._match_type(block.class_invoked.class_name, descriptors)
+                        self._match_type(
+                            block.split_context.current_invocation.class_desc.class_name,
+                            descriptors,
+                        )
                     ),
                     id,
-                    block.class_call_ref,
-                    block.method_invoked,
+                    block.split_context.current_invocation.call_instance_var,
+                    block.split_context.current_invocation.method_invoked,
                     [n.value for n in block.arguments_for_call],
                 )
                 self.flow_list.append(invoke_node)
@@ -117,7 +120,7 @@ class MethodDescriptor:
                 invoke_node.set_previous(latest_flow.id)
                 latest_flow = invoke_node
 
-            elif block.last_block:
+            elif block.is_last():
                 split_node = InvokeSplitFun(
                     FunctionType.create(self._match_type(class_name, descriptors)),
                     id,

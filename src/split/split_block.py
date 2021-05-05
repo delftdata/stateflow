@@ -190,16 +190,83 @@ class ReplaceCall(cst.CSTTransformer):
 
 @dataclass
 class SplitContext:
+    """ We keep a SplitContext as context for parsing a set of statements into a StatementBlock."""
+
+    # This SplitContext has a top-level ExpressionContextProvider to identify LOAD and STORE Name nodes.
     expression_provider: cst.metadata.ExpressionContextProvider
 
+    # Original method node and descriptor.
     original_method_node: cst.FunctionDef
     original_method_desc: MethodDescriptor
 
+    # Keep track of the previous and next statement block.
+    # TODO: Consider moving this to StatementBlock class itself, it might be more appropriate.
     previous_block: Optional["StatementBlock"] = None
     next_block: Optional["StatementBlock"] = None
 
     def set_next_block(self, block: "StatementBlock"):
+        """Sets the next StatementBlock.
+        This needs to be set _after_ creating this SplitContext, since we don't know the next block until it is created.
+
+        :param block: the next statement block.
+        """
         self.next_block = block
+
+
+@dataclass
+class InvocationContext:
+    """Whenever a method is invoked, we keep track of its context so that StatementBlocks can be properly parsed.
+
+    Attributes:
+        :param class_desc: The ClassDescriptor of the (external) class of which a method is invoked.
+        :param call_instance_var: The instance variable of the class of which a method is invoked.
+        :param method_invoked: The name of the invoked method.
+        :param method_desc: The descriptor of the invoked method.
+        :param call_arguments: The actual parameters/arguments of this invocation.
+    """
+
+    class_desc: ClassDescriptor
+    call_instance_var: str
+    method_invoked: str
+    method_desc: MethodDescriptor
+    call_arguments: List[cst.Arg]
+
+
+@dataclass
+class FirstBlockContext(SplitContext):
+    """This is the context for the first block.
+
+    A first block only has a current invocation.
+        I.e. it does not have to deal with the result of a 'previous'
+        invocation.
+    """
+
+    current_invocation: Optional[InvocationContext] = None
+
+
+@dataclass
+class IntermediateBlockContext(SplitContext):
+    """This is the context for an intermediate block.
+
+    An intermediate block has both a 'previous' and a 'current invocation'.
+    1. For the previous invocation, it has to add the result as a parameter and replace the call with this result param.
+    2. For the current invocation, it has to evaluate the arguments and return a MethodInvocationRequest.
+    """
+
+    previous_invocation: Optional[InvocationContext] = None
+    current_invocation: Optional[InvocationContext] = None
+
+
+@dataclass
+class LastBlockContext(SplitContext):
+    """This is the context for the last block.
+
+    A last block only has a previous invocation.
+       I.e. it does not have to deal with the result of a 'current'
+       invocation
+    """
+
+    previous_invocation: Optional[InvocationContext] = None
 
 
 class StatementBlock:
@@ -207,24 +274,14 @@ class StatementBlock:
         self,
         block_id: int,
         statements: List[cst.BaseStatement],
-        split_context: SplitContext,
-        class_invoked: Optional["ClassDescriptor"] = None,
-        class_call_ref: Optional[str] = None,
-        method_invoked: Optional[str] = None,
-        call_args: Optional[List[cst.Arg]] = None,
-        last_block: bool = False,
+        split_context: Union[
+            FirstBlockContext, IntermediateBlockContext, LastBlockContext
+        ],
     ):
         self.block_id = block_id
-        self.last_block = last_block
         self.returns = 0
         self.statements = statements
         self.split_context = split_context
-
-        self.class_invoked = class_invoked
-        self.method_invoked = method_invoked
-        self.class_call_ref = class_call_ref
-        self.call_args = call_args
-
         self.arguments_for_call = []
 
         # A list of Def/Use variables per statement line, in the order that they are declared/used.
@@ -234,13 +291,12 @@ class StatementBlock:
         if m.matches(self.statements[0], m.TrailingWhitespace()):
             self.statements.pop(0)
 
-        # If there is a previous block, to which this block is subsequent, we assume this is because of a method call.
-        if self.split_context.previous_block:
-            method_invoked = self.split_context.previous_block.method_invoked
-
         for statement in self.statements:
             stmt_analyzer = StatementAnalyzer(
-                split_context.expression_provider, method_invoked
+                split_context.expression_provider,
+                split_context.previous_invocation.method_invoked
+                if not isinstance(split_context, FirstBlockContext)
+                else None,
             )
             statement.visit(stmt_analyzer)
 
@@ -301,9 +357,6 @@ class StatementBlock:
                     dependencies.append(el.name)
         return dependencies
 
-    def _get_invoked_method_descriptor(self) -> MethodDescriptor:
-        return self.class_invoked.get_method_by_name(self.method_invoked)
-
     def fun_name(self) -> str:
         return f"{self.split_context.original_method_node.name.value}_{self.block_id}"
 
@@ -311,18 +364,24 @@ class StatementBlock:
         self,
     ) -> List[Tuple[cst.Name, cst.SimpleStatementLine]]:
         assign_list: List[Tuple[cst.Name, cst.SimpleStatementLine]] = []
-        for i, arg in enumerate(self.call_args):
+        for i, arg in enumerate(self.split_context.current_invocation.call_arguments):
             assign_value: cst.BaseExpression = arg.value
 
             # We name it based on the InputDescriptor of the invoked method.
             if m.matches(arg.keyword, m.Name()):
-                assign_name: str = self.method_invoked + "_" + arg.keyword.value
+                assign_name: str = (
+                    self.split_context.current_invocation.method_invoked
+                    + "_"
+                    + arg.keyword.value
+                )
             else:
                 assign_name: str = (
                     "invoke_"
-                    + self.method_invoked
+                    + self.split_context.current_invocation.method_invoked
                     + "_arg_"
-                    + self._get_invoked_method_descriptor().input_desc.keys()[i]
+                    + self.split_context.current_invocation.method_desc.input_desc.keys()[
+                        i
+                    ]
                 )
 
             target_name: cst.Name = cst.Name(value=assign_name)
@@ -338,7 +397,8 @@ class StatementBlock:
                                 cst.EmptyLine(),
                                 cst.EmptyLine(
                                     comment=cst.Comment(
-                                        f"# Autogenerated assignments for the method call to: {self.method_invoked}."
+                                        f"# Autogenerated assignments for the method call to: "
+                                        f"{self.split_context.current_invocation.method_invoked}."
                                     )
                                 ),
                             ],
@@ -366,7 +426,9 @@ class StatementBlock:
 
         call_arguments_names: str = ",".join([n.value for n in call_arguments])
         call_expression: cst.BaseExpression = cst.parse_expression(
-            f"InvokeMethodRequest('{self.class_invoked.class_name}', {self.class_call_ref}, '{self.method_invoked}', [{call_arguments_names}])"
+            f"InvokeMethodRequest('{self.split_context.current_invocation.class_desc.class_name}', "
+            f"{self.split_context.current_invocation.call_instance_var}, "
+            f"'{self.split_context.current_invocation.method_invoked}', [{call_arguments_names}])"
         )
 
         return_names.append(call_expression)
@@ -419,7 +481,11 @@ class StatementBlock:
         )
 
     def _previous_call_result(self) -> cst.Name:
-        return cst.Name(f"{self.split_context.previous_block.method_invoked}_return")
+        print(f"Current SplitContext {type(self.split_context)}")
+        print(f"PreviousBlock invocation {self.split_context.previous_invocation}")
+        return cst.Name(
+            f"{self.split_context.previous_invocation.method_invoked}_return"
+        )
 
     def _build_intermediate_block(self) -> cst.FunctionDef:
         print(f"Building intermediate block {self.block_id}")
@@ -446,7 +512,7 @@ class StatementBlock:
 
         self.statements[0] = self.statements[0].visit(
             ReplaceCall(
-                self.split_context.previous_block.method_invoked,
+                self.split_context.previous_invocation.method_invoked,
                 self._previous_call_result(),
             )
         )
@@ -492,7 +558,7 @@ class StatementBlock:
 
         self.statements[0] = self.statements[0].visit(
             ReplaceCall(
-                self.split_context.previous_block.method_invoked,
+                self.split_context.previous_invocation.method_invoked,
                 self._previous_call_result(),
             )
         )
@@ -516,12 +582,15 @@ class StatementBlock:
             returns=returns_signature,
         )
 
+    def is_last(self) -> bool:
+        return isinstance(self.split_context, LastBlockContext)
+
     def build(self) -> cst.FunctionDef:
         # We know this is the 'first' block in the flow.
         # We can simple use the same signature as the original function.
-        if self.block_id == 0 and not self.last_block:
+        if isinstance(self.split_context, FirstBlockContext):
             return self._build_first_block()
-        elif self.last_block:
+        elif isinstance(self.split_context, LastBlockContext):
             return self._build_last_block()
         else:
             return self._build_intermediate_block()

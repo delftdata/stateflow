@@ -6,7 +6,14 @@ from typing import List, Optional, Any, Set, Tuple, Dict, Union
 import libcst as cst
 import libcst.matchers as m
 import importlib
-from src.split.split_block import StatementBlock, SplitContext
+from src.split.split_block import (
+    StatementBlock,
+    SplitContext,
+    FirstBlockContext,
+    LastBlockContext,
+    IntermediateBlockContext,
+    InvocationContext,
+)
 from dataclasses import dataclass
 
 
@@ -104,23 +111,19 @@ class SplitAnalyzer(cst.CSTVisitor):
         # Analyze this method.
         self._analyze()
 
-        if len(self.parsed_statements) > 0:
-            last_block = self.parsed_statements[-1]
-        else:
-            last_block = None
-
         # Parse the 'last' statement.
+        previous_block = self.parsed_statements[-1]
         self.parsed_statements.append(
             StatementBlock(
                 self.current_block_id,
                 self.statements,
-                SplitContext(
-                    self.expression_provider,
-                    self.method_node,
-                    self.method_desc,
-                    previous_block=last_block,
+                LastBlockContext(
+                    expression_provider=self.expression_provider,
+                    original_method_node=self.method_node,
+                    original_method_desc=self.method_desc,
+                    previous_block=previous_block,
+                    previous_invocation=previous_block.split_context.current_invocation,
                 ),
-                last_block=True,
             )
         )
 
@@ -158,21 +161,34 @@ class SplitAnalyzer(cst.CSTVisitor):
         args: List[cst.Arg],
     ):
         print("Now processing statement block!")
+        # TODO MOVE UPWARDS A METHOD
+        invoked_method_desc = class_invoked.get_method_by_name(method)
+        invocation_context = InvocationContext(
+            class_invoked, class_call_ref, method, invoked_method_desc, args
+        )
+
+        if self.current_block_id == 0:
+            split_context = FirstBlockContext(
+                expression_provider=self.expression_provider,
+                original_method_node=self.method_node,
+                original_method_desc=self.method_desc,
+                current_invocation=invocation_context,
+            )
+        else:
+            previous_block: Union[
+                FirstBlockContext, IntermediateBlockContext
+            ] = self.parsed_statements[-1].split_context
+            previous_invocation = previous_block.current_invocation
+            split_context = IntermediateBlockContext(
+                expression_provider=self.expression_provider,
+                original_method_node=self.method_node,
+                original_method_desc=self.method_desc,
+                previous_invocation=previous_invocation,
+                current_invocation=invocation_context,
+            )
+
         split_block = StatementBlock(
-            self.current_block_id,
-            self.statements,
-            SplitContext(
-                self.expression_provider,
-                self.method_node,
-                self.method_desc,
-                previous_block=self.parsed_statements[-1]
-                if self.current_block_id > 0
-                else None,
-            ),
-            class_invoked=class_invoked,
-            class_call_ref=class_call_ref,
-            method_invoked=method,
-            call_args=args,
+            self.current_block_id, self.statements, split_context
         )
         self.parsed_statements.append(split_block)
 
