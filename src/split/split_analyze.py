@@ -20,36 +20,25 @@ from dataclasses import dataclass
 
 class SplitAnalyzer(cst.CSTVisitor):
     def __init__(
-        self,
-        split: "Split",
-        class_node: cst.ClassDef,
-        method_node: cst.FunctionDef,
-        method_desc: MethodDescriptor,
-        expression_provider,
+        self, split: "Split", class_node: cst.ClassDef, split_context: SplitContext
     ):
         self.split = split
         self.class_node: cst.ClassDef = class_node
-        self.method_node: cst.FunctionDef = method_node
-        self.method_desc: MethodDescriptor = method_desc
-        self.expression_provider = expression_provider
-
-        self.split_context = SplitContext(
-            self.expression_provider, self.method_node, self.method_desc
-        )
+        self.split_context = split_context
 
         # Unparsed blocks
         self.statements: List[cst.BaseStatement] = []
 
         # Parsed blocks
         self.current_block_id: int = 0
-        self.parsed_statements: List["StatementBlock"] = []
+        self.blocks: List["StatementBlock"] = []
 
         # Analyze this method.
         self._analyze()
 
         # Parse the 'last' statement.
-        previous_block = self.parsed_statements[-1]
-        self.parsed_statements.append(
+        previous_block = self.blocks[-1]
+        self.blocks.append(
             StatementBlock(
                 self.current_block_id,
                 self.statements,
@@ -61,12 +50,12 @@ class SplitAnalyzer(cst.CSTVisitor):
         )
 
     def _analyze(self):
-        if not m.matches(self.method_node, m.FunctionDef()):
+        if not m.matches(self.split_context.original_method_node, m.FunctionDef()):
             raise AttributeError(
-                f"Expected a function definition but got an {self.method_node}."
+                f"Expected a function definition but got an {self.split_context.original_method_node}."
             )
 
-        for stmt in self.method_node.body.children:
+        for stmt in self.split_context.original_method_node.body.children:
             stmt.visit(self)
             self.statements.append(stmt)
 
@@ -81,7 +70,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             # Find callee class in the complete 'context'.
             desc: ClassDescriptor = self.split.find_descriptor_by_name(
-                self.method_desc.input_desc[callee]
+                self.split_context.original_method_desc.input_desc[callee]
             )
 
             invocation_context = InvocationContext(
@@ -91,7 +80,6 @@ class SplitAnalyzer(cst.CSTVisitor):
             self._process_stmt_block(invocation_context)
 
     def _process_stmt_block(self, invocation_context: InvocationContext):
-        print("Now processing statement block!")
         if self.current_block_id == 0:
             split_context = FirstBlockContext.from_instance(
                 self.split_context,
@@ -100,7 +88,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         else:
             previous_block: Union[
                 FirstBlockContext, IntermediateBlockContext
-            ] = self.parsed_statements[-1].split_context
+            ] = self.blocks[-1].split_context
             previous_invocation = previous_block.current_invocation
             split_context = IntermediateBlockContext.from_instance(
                 self.split_context,
@@ -112,9 +100,9 @@ class SplitAnalyzer(cst.CSTVisitor):
             self.current_block_id,
             self.statements,
             split_context,
-            self.parsed_statements[-1] if self.current_block_id > 0 else None,
+            self.blocks[-1] if self.current_block_id > 0 else None,
         )
-        self.parsed_statements.append(split_block)
+        self.blocks.append(split_block)
 
         # Update local state.
         self.statements = []
@@ -155,12 +143,12 @@ class Split:
                     analyzer: SplitAnalyzer = SplitAnalyzer(
                         self,
                         desc.class_node,
-                        method.method_node,
-                        method,
-                        desc.expression_provider,
+                        SplitContext(
+                            desc.expression_provider, method.method_node, method
+                        ),
                     )
 
-                    parsed_stmts: List[StatementBlock] = analyzer.parsed_statements
+                    parsed_stmts: List[StatementBlock] = analyzer.blocks
                     updated_methods[method.method_name] = parsed_stmts
 
                     method.split_function(

@@ -287,7 +287,7 @@ class StatementBlock:
         self.next_block: Optional["StatementBlock"] = None
 
         # A list of Def/Use variables per statement line, in the order that they are declared/used.
-        self.def_use: List[List[Union[Def, Use]]] = []
+        self.def_use_list: List[List[Union[Def, Use]]] = []
 
         # Set the current block as next block for the previous one.
         if self.previous_block:
@@ -298,8 +298,8 @@ class StatementBlock:
         self._analyze_statements()
 
         # Compute dependencies and definitions based on Def/Use list.
-        self.dependencies: List[str] = self._compute_dependencies(self.def_use)
-        self.definitions: List[str] = self._compute_definitions(self.def_use)
+        self.dependencies: List[str] = self._compute_dependencies()
+        self.definitions: List[str] = self._compute_definitions()
 
         # Build the _new_ FunctionDefinition.
         self.new_function: cst.FunctionDef = self.build()
@@ -314,7 +314,7 @@ class StatementBlock:
             )
             statement.visit(stmt_analyzer)
 
-            self.def_use.append(stmt_analyzer.def_use)
+            self.def_use_list.append(stmt_analyzer.def_use)
 
             self.returns += stmt_analyzer.returns
 

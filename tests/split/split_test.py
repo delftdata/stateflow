@@ -4,6 +4,7 @@ from src.split.split_analyze import (
     Split,
     RemoveAfterClassDefinition,
     SplitTransformer,
+    SplitContext,
 )
 import src.stateflow as stateflow
 
@@ -45,11 +46,13 @@ def test_split_dependencies():
     analyzer = SplitAnalyzer(
         split,
         a_wrapper.class_desc.class_node,
-        a_method_desc.method_node,
-        a_method_desc,
-        a_wrapper.class_desc.expression_provider,
+        SplitContext(
+            a_wrapper.class_desc.expression_provider,
+            a_method_desc.method_node,
+            a_method_desc,
+        ),
     )
-    stmts = analyzer.parsed_statements
+    stmts = analyzer.blocks
 
     assert len(stmts) == 2
     assert stmts[0].dependencies == ["c", "d"]
@@ -93,11 +96,13 @@ def test_split_dependencies_more():
     analyzer = SplitAnalyzer(
         split,
         a_wrapper.class_desc.class_node,
-        a_method_desc.method_node,
-        a_method_desc,
-        a_wrapper.class_desc.expression_provider,
+        SplitContext(
+            a_wrapper.class_desc.expression_provider,
+            a_method_desc.method_node,
+            a_method_desc,
+        ),
     )
-    stmts = analyzer.parsed_statements
+    stmts = analyzer.blocks
 
     assert len(stmts) == 2
     assert stmts[0].dependencies == ["c", "d", "e"]
@@ -124,11 +129,11 @@ def test_dependencies_user_class():
     analyzer = SplitAnalyzer(
         split,
         wrapper.class_desc.class_node,
-        method_desc.method_node,
-        method_desc,
-        wrapper.class_desc.expression_provider,
+        SplitContext(
+            wrapper.class_desc.expression_provider, method_desc.method_node, method_desc
+        ),
     )
-    stmts = analyzer.parsed_statements
+    stmts = analyzer.blocks
 
     assert stmts[0].dependencies == ["amount", "item"]
     assert stmts[1].dependencies == ["total_price", "update_stock_return"]
@@ -192,11 +197,11 @@ def test_multiple_splits():
     analyzer = SplitAnalyzer(
         split,
         wrapper.class_desc.class_node,
-        method_desc.method_node,
-        method_desc,
-        wrapper.class_desc.expression_provider,
+        SplitContext(
+            wrapper.class_desc.expression_provider, method_desc.method_node, method_desc
+        ),
     )
-    stmts = analyzer.parsed_statements
+    stmts = analyzer.blocks
 
     # We have 3 statement blocks.
     assert len(stmts) == 3
