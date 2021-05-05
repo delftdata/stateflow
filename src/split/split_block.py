@@ -161,19 +161,35 @@ class StatementAnalyzer(cst.CSTVisitor):
 class ReplaceCall(cst.CSTTransformer):
     """Replaces a call with the return result of that call."""
 
-    def __init__(self, method_name: str, replace_block: cst.CSTNode):
+    def __init__(self, method_name: str, replace_node: cst.CSTNode):
+        """Initializes a ReplaceCall transformer.
+
+        :param method_name: the method name to replace.
+        :param replace_node: the replacement node.
+        """
         self.method_name: str = method_name
-        self.replace_block: cst.CSTNode = replace_block
+        self.replace_node: cst.CSTNode = replace_node
 
     def leave_Call(
         self, original_node: cst.Call, updated_node: cst.Call
     ) -> cst.BaseExpression:
+        """We replace a return Call with the return result of that call.
+
+        :param original_node: the original node call.
+        :param updated_node: the return result node.
+        :return: an updated node if neccessary.
+        """
+
         if m.matches(original_node.func, m.Attribute(m.Name(), m.Name())):
             attr: cst.Attribute = original_node.func
             method: str = attr.attr.value
 
             if method == self.method_name:
-                return self.replace_block
+                return self.replace_node
+
+
+class SplitContext:
+    pass
 
 
 class StatementBlock:

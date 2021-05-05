@@ -7,6 +7,7 @@ import libcst as cst
 import libcst.matchers as m
 import importlib
 from src.split.split_block import StatementBlock
+from dataclasses import dataclass
 
 
 class RemoveAfterClassDefinition(cst.CSTTransformer):
@@ -176,18 +177,16 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.current_block_id += 1
 
 
+@dataclass
 class InvokeMethodRequest:
-    def __init__(
-        self,
-        class_name: str,
-        instance_ref_var: str,
-        method_to_invoke: str,
-        args: List[Any],
-    ):
-        self.class_name = class_name
-        self.instance_ref_var = instance_ref_var
-        self.method_to_invoke = method_to_invoke
-        self.args = args
+    """Wrapper class to indicate that we need to invoke an (external) method. This is returned by a method
+    which is split. It holds all the information necessary for an invocation.
+    """
+
+    class_name: str
+    instance_ref_var: str
+    method_to_invoke: str
+    args: List[Any]
 
 
 class Split:
