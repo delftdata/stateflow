@@ -8,11 +8,15 @@ from dataclasses import dataclass, fields
 
 @dataclass
 class Def:
+    """A wrapper for the 'definition' of a variable within a piece of code."""
+
     name: str
 
 
 @dataclass
 class Use:
+    """A wrapper for the 'usage' of a variable within a piece of code."""
+
     name: str
 
 
@@ -20,7 +24,6 @@ class StatementAnalyzer(cst.CSTVisitor):
     """Analyzes a statement identifying:
     1. all definitions and usages
     2. the amount of returns.
-
     """
 
     def __init__(self, expression_provider, method_name: Optional[str] = None):
@@ -158,36 +161,6 @@ class StatementAnalyzer(cst.CSTVisitor):
         self.returns += 1
 
 
-class ReplaceCall(cst.CSTTransformer):
-    """Replaces a call with the return result of that call."""
-
-    def __init__(self, method_name: str, replace_node: cst.CSTNode):
-        """Initializes a ReplaceCall transformer.
-
-        :param method_name: the method name to replace.
-        :param replace_node: the replacement node.
-        """
-        self.method_name: str = method_name
-        self.replace_node: cst.CSTNode = replace_node
-
-    def leave_Call(
-        self, original_node: cst.Call, updated_node: cst.Call
-    ) -> cst.BaseExpression:
-        """We replace a return Call with the return result of that call.
-
-        :param original_node: the original node call.
-        :param updated_node: the return result node.
-        :return: an updated node if neccessary.
-        """
-
-        if m.matches(original_node.func, m.Attribute(m.Name(), m.Name())):
-            attr: cst.Attribute = original_node.func
-            method: str = attr.attr.value
-
-            if method == self.method_name:
-                return self.replace_node
-
-
 @dataclass
 class SplitContext:
     """ We keep a SplitContext as context for parsing a set of statements into a StatementBlock."""
@@ -319,7 +292,7 @@ class StatementBlock:
             self.returns += stmt_analyzer.returns
 
     def _remove_whitespace(self):
-        # Remove whitespace if it's there.
+        """ Removes whitespace from statements if it is there. """
         if m.matches(self.statements[0], m.TrailingWhitespace()):
             self.statements.pop(0)
 
@@ -376,6 +349,9 @@ class StatementBlock:
         return dependencies
 
     def fun_name(self) -> str:
+        """Get the name of this function given the block id.
+        :return: the (unique) name of this block.
+        """
         return f"{self.split_context.original_method_node.name.value}_{self.block_id}"
 
     def _build_argument_assignments(
@@ -460,22 +436,53 @@ class StatementBlock:
                 ]
             )
 
+    def _previous_call_result(self) -> cst.Name:
+        """Returns the Name node of the call result of the previously invoked function.
+        It will be passed as a parameter for this block.
+        """
+        return cst.Name(
+            f"{self.split_context.previous_invocation.method_invoked}_return"
+        )
+
+    def _build_params(self) -> cst.Parameters:
+        params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
+        for usage in self.dependencies:
+            params.append(cst.Param(cst.Name(value=usage)))
+
+        # Get the result of the previous call as parameter of this block.
+        previous_block_call: cst.Name = self._previous_call_result()
+        params.append(cst.Param(previous_block_call))
+        self.dependencies.append(self._previous_call_result().value)
+
+        param_node: cst.Parameters = cst.Parameters(tuple(params))
+
+        return param_node
+
     def _build_first_block(self) -> cst.FunctionDef:
+        """Build the first block of this function.
+
+        1. We copy the original function signature + parameters. This assumes that the code by the developer
+            is 'correct'.
+        2. We create a set of assignments for the arguments of the call
+            (which is done after the execution of this first block).
+        3. We return 'internal' definitions and a InvokeMethodRequest wrapper.
+
+        :return: a new FunctionDefinition.
+        """
         # The definitions of this block, include the given parameters.
         self.definitions.extend(
             list(self.split_context.original_method_desc.input_desc.keys())
         )
 
-        # We re-use part of the original function signature.
+        # Step 1, copy original parameters.
         fun_name: cst.Name = cst.Name(self.fun_name())
         params: cst.Parameters = self.split_context.original_method_node.params
 
-        # Assignments for the call.
+        # Step 2, assignments for the _next_ call.
         argument_assignments = self._build_argument_assignments()
-
         self.arguments_for_call = [name for name, _ in argument_assignments]
 
-        # Build the return statement.
+        # Step 3, build the return statement.
         return_stmt: cst.Return = self._build_return(self.arguments_for_call)
 
         if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
@@ -491,47 +498,47 @@ class StatementBlock:
 
         else:
             raise AttributeError(
-                f"Expected the body of a function to be in an indented block, but got an {self.split_context.original_method_node.body}."
+                f"Expected the body of a function to be in an indented block, "
+                f"but got an {self.split_context.original_method_node.body}."
             )
 
         return self.split_context.original_method_node.with_changes(
             name=fun_name, params=params, body=function_body, returns=None
         )
 
-    def _previous_call_result(self) -> cst.Name:
-        return cst.Name(
-            f"{self.split_context.previous_invocation.method_invoked}_return"
-        )
-
     def _build_intermediate_block(self) -> cst.FunctionDef:
-        print(f"Building intermediate block {self.block_id}")
+        """Builds an intermediate block.
+
+        1. We build a new parameter list for this block, this includes _all_ dependencies of this block
+            + the return result of the call.
+        2. We replace the Call node of the invocation which is executed _before_ this intermediate block, with an
+            return variable from this call.
+        3. We create a set of assignments for the arguments of the next call
+            (which is done after the execution of this intermediate block).
+        4. We return the 'internal' definitions and a InvokeMethodRequest wrapper.
+
+        :return: a new FunctionDefinition.
+        """
         # Function signature
         fun_name: cst.Name = cst.Name(self.fun_name())
 
-        params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
-        for usage in self.dependencies:
-            params.append(cst.Param(cst.Name(value=usage)))
+        # Step 1, parameter node.
+        param_node: cst.Parameters() = self._build_params()
 
-        # Get the result of the previous call as parameter of this block.
-        previous_block_call: cst.Name = self._previous_call_result()
-        params.append(cst.Param(previous_block_call))
-        self.dependencies.append(self._previous_call_result().value)
-
-        param_node: cst.Parameters() = cst.Parameters(tuple(params))
-
-        # Assignments for the call.
-        argument_assignments = self._build_argument_assignments()
-        self.arguments_for_call = [name for name, _ in argument_assignments]
-
-        # Build the return statement.
-        return_stmt: cst.Return = self._build_return(self.arguments_for_call)
-
+        # Step 2, replace the _previous_ call.
         self.statements[0] = self.statements[0].visit(
             ReplaceCall(
                 self.split_context.previous_invocation.method_invoked,
                 self._previous_call_result(),
             )
         )
+
+        # Step 3, assignments for the _next_ call.
+        argument_assignments = self._build_argument_assignments()
+        self.arguments_for_call = [name for name, _ in argument_assignments]
+
+        # Step 4, build the return statement.
+        return_stmt: cst.Return = self._build_return(self.arguments_for_call)
 
         if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
             final_body = (
@@ -556,28 +563,31 @@ class StatementBlock:
         )
 
     def _build_last_block(self) -> cst.FunctionDef:
-        # Function signature
+        """Builds the last block.
+
+        1. We build a new parameter list for this block, this includes _all_ dependencies of this block
+            + the return result of the call.
+        2. We replace the Call node of the invocation which is executed _before_ this last block, with an
+            return variable from this call.
+        3. We keep the original return signature + return nodes.
+        :return: a new FunctionDefinition.
+        """
+
         fun_name: cst.Name = cst.Name(self.fun_name())
 
-        params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
-        for usage in self.dependencies:
-            params.append(cst.Param(cst.Name(value=usage)))
+        # Step 1, parameter node.
+        param_node: cst.Parameters() = self._build_params()
 
-        previous_block_call: cst.Name = self._previous_call_result()
-        params.append(cst.Param(previous_block_call))
-
-        # TODO Hacky, fix it.
-        self.dependencies.append(self._previous_call_result().value)
-
-        param_node: cst.Parameters() = cst.Parameters(tuple(params))
-        returns_signature = self.split_context.original_method_node.returns
-
+        # Step 2, replace the _previous_ call.
         self.statements[0] = self.statements[0].visit(
             ReplaceCall(
                 self.split_context.previous_invocation.method_invoked,
                 self._previous_call_result(),
             )
         )
+
+        # Step 3, keep the original return signature.
+        returns_signature = self.split_context.original_method_node.returns
 
         if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
             final_body = self.statements
@@ -599,14 +609,50 @@ class StatementBlock:
         )
 
     def is_last(self) -> bool:
+        """Returns if this StatementBlock is the last block.
+        :return: True or False.
+        """
         return isinstance(self.split_context, LastBlockContext)
 
     def build(self) -> cst.FunctionDef:
-        # We know this is the 'first' block in the flow.
-        # We can simple use the same signature as the original function.
+        """Builds a new FunctionDefinition based on this StatementBlock.
+
+        Has a different treatment for either First, Last or Intermediate Blocks.
+        :return: a FunctionDefinition.
+        """
         if isinstance(self.split_context, FirstBlockContext):
             return self._build_first_block()
         elif isinstance(self.split_context, LastBlockContext):
             return self._build_last_block()
         else:
             return self._build_intermediate_block()
+
+
+class ReplaceCall(cst.CSTTransformer):
+    """Replaces a call with the return result of that call."""
+
+    def __init__(self, method_name: str, replace_node: cst.CSTNode):
+        """Initializes a ReplaceCall transformer.
+
+        :param method_name: the method name to replace.
+        :param replace_node: the replacement node.
+        """
+        self.method_name: str = method_name
+        self.replace_node: cst.CSTNode = replace_node
+
+    def leave_Call(
+        self, original_node: cst.Call, updated_node: cst.Call
+    ) -> cst.BaseExpression:
+        """We replace a return Call with the return result of that call.
+
+        :param original_node: the original node call.
+        :param updated_node: the return result node.
+        :return: an updated node if neccessary.
+        """
+
+        if m.matches(original_node.func, m.Attribute(m.Name(), m.Name())):
+            attr: cst.Attribute = original_node.func
+            method: str = attr.attr.value
+
+            if method == self.method_name:
+                return self.replace_node
