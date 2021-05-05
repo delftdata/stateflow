@@ -287,30 +287,36 @@ class StatementBlock:
         self.next_block: Optional["StatementBlock"] = None
 
         # A list of Def/Use variables per statement line, in the order that they are declared/used.
-        def_use: List[List[Union[Def, Use]]] = []
+        self.def_use: List[List[Union[Def, Use]]] = []
 
+        # Set the current block as next block for the previous one.
         if self.previous_block:
             self.previous_block.set_next_block(self)
 
+        # Remove whitespace and analyze statements.
         self._remove_whitespace()
+        self._analyze_statements()
 
+        # Compute dependencies and definitions based on Def/Use list.
+        self.dependencies: List[str] = self._compute_dependencies(self.def_use)
+        self.definitions: List[str] = self._compute_definitions(self.def_use)
+
+        # Build the _new_ FunctionDefinition.
+        self.new_function: cst.FunctionDef = self.build()
+
+    def _analyze_statements(self):
         for statement in self.statements:
             stmt_analyzer = StatementAnalyzer(
-                split_context.expression_provider,
-                split_context.previous_invocation.method_invoked
-                if not isinstance(split_context, FirstBlockContext)
+                self.split_context.expression_provider,
+                self.split_context.previous_invocation.method_invoked
+                if not isinstance(self.split_context, FirstBlockContext)
                 else None,
             )
             statement.visit(stmt_analyzer)
 
-            def_use.append(stmt_analyzer.def_use)
+            self.def_use.append(stmt_analyzer.def_use)
 
             self.returns += stmt_analyzer.returns
-
-        self.dependencies: List[str] = self._compute_dependencies(def_use)
-        self.definitions: List[str] = self._compute_definitions(def_use)
-
-        self.new_function: cst.FunctionDef = self.build()
 
     def _remove_whitespace(self):
         # Remove whitespace if it's there.
@@ -325,9 +331,7 @@ class StatementBlock:
         """
         self.next_block = block
 
-    def _compute_definitions(
-        self, def_use_list: List[List[Union[Def, Use]]]
-    ) -> List[str]:
+    def _compute_definitions(self) -> List[str]:
         """Computes the (unique) list of definitions in this block.
         This list is sorted in the order of declaration. In case, there are multiple
 
@@ -335,16 +339,14 @@ class StatementBlock:
         :return:
         """
         definitions = []
-        for def_use in def_use_list:
+        for def_use in self.def_use_list:
             for el in def_use:
                 if isinstance(el, Def) and el.name not in definitions:
                     definitions.append(el.name)
 
         return definitions
 
-    def _compute_dependencies(
-        self, def_use_list: List[List[Union[Def, Use]]]
-    ) -> List[str]:
+    def _compute_dependencies(self) -> List[str]:
         """This method computes the dependencies of this statement block.
 
         It iterates through all declarations and usages of variables.
@@ -361,7 +363,7 @@ class StatementBlock:
         """
         declarations_so_far = set()
         dependencies = []
-        for def_use in def_use_list:
+        for def_use in self.def_use_list:
             for el in def_use:
                 if isinstance(el, Def):
                     declarations_so_far.add(el.name)

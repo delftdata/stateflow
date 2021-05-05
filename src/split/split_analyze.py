@@ -84,22 +84,14 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.method_desc.input_desc[callee]
             )
 
-            self._process_stmt_block(desc, callee, method, node.args)
+            invocation_context = InvocationContext(
+                desc, callee, method, desc.get_method_by_name(method), node.args
+            )
 
-    def _process_stmt_block(
-        self,
-        class_invoked: ClassDescriptor,
-        class_call_ref: str,
-        method: str,
-        args: List[cst.Arg],
-    ):
+            self._process_stmt_block(invocation_context)
+
+    def _process_stmt_block(self, invocation_context: InvocationContext):
         print("Now processing statement block!")
-        # TODO MOVE UPWARDS A METHOD
-        invoked_method_desc = class_invoked.get_method_by_name(method)
-        invocation_context = InvocationContext(
-            class_invoked, class_call_ref, method, invoked_method_desc, args
-        )
-
         if self.current_block_id == 0:
             split_context = FirstBlockContext.from_instance(
                 self.split_context,
