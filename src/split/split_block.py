@@ -1,7 +1,15 @@
 import libcst as cst
-from typing import List, Optional, Set, Tuple, Union
+from typing import List, Optional, Set, Tuple, Union, Dict
 from src.descriptors.method_descriptor import MethodDescriptor
 from src.descriptors.class_descriptor import ClassDescriptor
+from src.dataflow.event import (
+    EventFlowNode,
+    ReturnNode,
+    RequestState,
+    InvokeExternal,
+    InvokeSplitFun,
+    FunctionType,
+)
 import libcst.matchers as m
 from dataclasses import dataclass, fields
 
@@ -165,6 +173,9 @@ class StatementAnalyzer(cst.CSTVisitor):
 class SplitContext:
     """ We keep a SplitContext as context for parsing a set of statements into a StatementBlock."""
 
+    # Mapping from class name to its descriptor, this is useful for some lookups.
+    class_descriptors: Dict[str, ClassDescriptor]
+
     # This SplitContext has a top-level ExpressionContextProvider to identify LOAD and STORE Name nodes.
     expression_provider: cst.metadata.ExpressionContextProvider
 
@@ -275,7 +286,7 @@ class StatementBlock:
         self.definitions: List[str] = self._compute_definitions()
 
         # Build the _new_ FunctionDefinition.
-        self.new_function: cst.FunctionDef = self.build()
+        self.new_function: cst.FunctionDef = self.build_definition()
 
     def _analyze_statements(self):
         for statement in self.statements:
@@ -562,6 +573,27 @@ class StatementBlock:
             body=function_body,
         )
 
+    def _build_event_flow_nodes(self) -> List[EventFlowNode]:
+        flow_nodes: List[EventFlowNode] = []
+
+        # TODO, for the FirstBlock we now assume we always need to get state, we can omit this if we don't access state.
+        if self.is_first():
+            # Build the RequestState nodes, we match the input parameters to the correct
+            for input, input_type in self.input_desc.get().items():
+                matched_type = self._match_type(input_type, descriptors)
+
+                if matched_type:
+                    request_flow = RequestState(
+                        FunctionType.create(matched_type), id, input
+                    )
+                    self.flow_list.append(request_flow)
+                    latest_flow.set_next(request_flow.id)
+                    request_flow.set_previous(latest_flow.id)
+                    latest_flow = request_flow
+                    id += 1
+
+        return None
+
     def _build_last_block(self) -> cst.FunctionDef:
         """Builds the last block.
 
@@ -608,21 +640,27 @@ class StatementBlock:
             returns=returns_signature,
         )
 
+    def is_first(self) -> bool:
+        """Returns if this StatementBlock is the first block.
+        :return: True or False.
+        """
+        return isinstance(self.split_context, FirstBlockContext)
+
     def is_last(self) -> bool:
         """Returns if this StatementBlock is the last block.
         :return: True or False.
         """
         return isinstance(self.split_context, LastBlockContext)
 
-    def build(self) -> cst.FunctionDef:
+    def build_definition(self) -> cst.FunctionDef:
         """Builds a new FunctionDefinition based on this StatementBlock.
 
         Has a different treatment for either First, Last or Intermediate Blocks.
         :return: a FunctionDefinition.
         """
-        if isinstance(self.split_context, FirstBlockContext):
+        if self.is_first():
             return self._build_first_block()
-        elif isinstance(self.split_context, LastBlockContext):
+        elif self.is_last():
             return self._build_last_block()
         else:
             return self._build_intermediate_block()

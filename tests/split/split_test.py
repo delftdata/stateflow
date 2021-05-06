@@ -44,9 +44,9 @@ def test_split_dependencies():
     )
 
     analyzer = SplitAnalyzer(
-        split,
         a_wrapper.class_desc.class_node,
         SplitContext(
+            split.name_to_descriptor,
             a_wrapper.class_desc.expression_provider,
             a_method_desc.method_node,
             a_method_desc,
@@ -94,9 +94,9 @@ def test_split_dependencies_more():
     )
 
     analyzer = SplitAnalyzer(
-        split,
         a_wrapper.class_desc.class_node,
         SplitContext(
+            split.name_to_descriptor,
             a_wrapper.class_desc.expression_provider,
             a_method_desc.method_node,
             a_method_desc,
@@ -127,10 +127,12 @@ def test_dependencies_user_class():
     )
 
     analyzer = SplitAnalyzer(
-        split,
         wrapper.class_desc.class_node,
         SplitContext(
-            wrapper.class_desc.expression_provider, method_desc.method_node, method_desc
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
         ),
     )
     stmts = analyzer.blocks
@@ -195,10 +197,12 @@ def test_multiple_splits():
     )
 
     analyzer = SplitAnalyzer(
-        split,
         wrapper.class_desc.class_node,
         SplitContext(
-            wrapper.class_desc.expression_provider, method_desc.method_node, method_desc
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
         ),
     )
     stmts = analyzer.blocks

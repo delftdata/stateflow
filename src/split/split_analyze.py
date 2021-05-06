@@ -19,10 +19,7 @@ from dataclasses import dataclass
 
 
 class SplitAnalyzer(cst.CSTVisitor):
-    def __init__(
-        self, split: "Split", class_node: cst.ClassDef, split_context: SplitContext
-    ):
-        self.split = split
+    def __init__(self, class_node: cst.ClassDef, split_context: SplitContext):
         self.class_node: cst.ClassDef = class_node
         self.split_context = split_context
 
@@ -69,9 +66,9 @@ class SplitAnalyzer(cst.CSTVisitor):
             method: str = attr.attr.value
 
             # Find callee class in the complete 'context'.
-            desc: ClassDescriptor = self.split.find_descriptor_by_name(
+            desc: ClassDescriptor = self.split_context.class_descriptors[
                 self.split_context.original_method_desc.input_desc[callee]
-            )
+            ]
 
             invocation_context = InvocationContext(
                 desc, callee, method, desc.get_method_by_name(method), node.args
@@ -127,9 +124,7 @@ class Split:
     ):
         self.wrappers = wrappers
         self.descriptors = descriptors
-
-    def find_descriptor_by_name(self, class_name: str):
-        return [desc for desc in self.descriptors if desc.class_name == class_name][0]
+        self.name_to_descriptor = {desc.class_name: desc for desc in self.descriptors}
 
     def split_methods(self):
         for i, desc in enumerate(self.descriptors):
@@ -141,10 +136,12 @@ class Split:
                     )
 
                     analyzer: SplitAnalyzer = SplitAnalyzer(
-                        self,
                         desc.class_node,
                         SplitContext(
-                            desc.expression_provider, method.method_node, method
+                            self.name_to_descriptor,
+                            desc.expression_provider,
+                            method.method_node,
+                            method,
                         ),
                     )
 
