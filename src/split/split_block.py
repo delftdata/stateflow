@@ -183,6 +183,9 @@ class SplitContext:
     original_method_node: cst.FunctionDef
     original_method_desc: MethodDescriptor
 
+    # Class descriptor of the class this method split belongs to.
+    class_desc: ClassDescriptor
+
     @classmethod
     def from_instance(cls, instance: "SplitContext", **kwargs):
         arguments = {}
@@ -573,26 +576,89 @@ class StatementBlock:
             body=function_body,
         )
 
-    def _build_event_flow_nodes(self) -> List[EventFlowNode]:
+    def build_event_flow_nodes(self, start_node: EventFlowNode) -> List[EventFlowNode]:
+        # Initialize id and latest flow node.
+        flow_node_id = start_node.id + 1  # Offset the id with start_node.
+        latest_node: EventFlowNode = start_node
+
+        # Initialize list of flow nodes for this StatementBlock.
         flow_nodes: List[EventFlowNode] = []
+
+        # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
+        class_type = self.split_context.class_desc.to_function_type()
+
+        def update_flow_graph(new_node: EventFlowNode):
+            nonlocal flow_nodes, latest_node, flow_node_id
+            flow_nodes.append(new_node)
+
+            # Set next and previous.
+            latest_node.set_next(new_node.id)
+            new_node.set_previous(latest_node.id)
+
+            # Set latest.
+            latest_node = new_node
+
+            # Increment id.
+            flow_node_id += 1
 
         # TODO, for the FirstBlock we now assume we always need to get state, we can omit this if we don't access state.
         if self.is_first():
-            # Build the RequestState nodes, we match the input parameters to the correct
-            for input, input_type in self.input_desc.get().items():
-                matched_type = self._match_type(input_type, descriptors)
+            """For a first node, we assume the following scenario:
+            1. We get the state of all stateful function parameters. (!!Improve this in an optimized version!!).
+            2. We invoke the first part of the function (i.e. InvokeSplitFun node).
+                2a. If this first part, has a return. We also add a return node.
+            3. We invoke an external function (i.e. InvokeExternal node).
+            """
 
-                if matched_type:
-                    request_flow = RequestState(
-                        FunctionType.create(matched_type), id, input
+            # Step 1, build the RequestState nodes; We match the input parameters to the correct.
+            for (
+                input_name,
+                input_type,
+            ) in self.split_context.original_method_desc.input_desc.get().items():
+                matched_class = self.split_context.class_descriptors.get(input_type)
+
+                if matched_class:
+                    request_node = RequestState(
+                        FunctionType.create(matched_class), flow_node_id, input_name
                     )
-                    self.flow_list.append(request_flow)
-                    latest_flow.set_next(request_flow.id)
-                    request_flow.set_previous(latest_flow.id)
-                    latest_flow = request_flow
-                    id += 1
 
-        return None
+                    # Update the flow graph.
+                    update_flow_graph(request_node)
+
+            # Step 2, invoke the first part of the splitted function.
+            split_node = InvokeSplitFun(
+                class_type,
+                flow_node_id,
+                self.fun_name(),
+                list(self.split_context.original_method_desc.input_desc.keys()),
+                list(self.definitions),
+            )
+            update_flow_graph(split_node)
+
+            # Step 2a, we add an (extra) return node.
+            if self.returns > 0:
+                return_node = ReturnNode(flow_node_id)
+                update_flow_graph(return_node)
+
+                # Since the last node should be InvokeSplitFun (not ReturnNode), we update the latest node again.
+                latest_node = split_node
+
+            # Step 3, we add an InvokeExternal node.
+            invoke_node = InvokeExternal(
+                FunctionType.create(
+                    self.split_context.class_descriptors[
+                        self.split_context.current_invocation.class_desc.class_name
+                    ]
+                ),
+                flow_node_id,
+                self.split_context.current_invocation.call_instance_var,
+                self.split_context.current_invocation.method_invoked,
+                [n.value for n in self.arguments_for_call],
+            )
+
+            update_flow_graph(invoke_node)
+
+        return flow_nodes
 
     def _build_last_block(self) -> cst.FunctionDef:
         """Builds the last block.

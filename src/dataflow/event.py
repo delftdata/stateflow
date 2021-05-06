@@ -176,10 +176,15 @@ class EventFlowNode:
         self.previous = previous
 
     def set_next(self, next: List[int]):
+        """Set the next EventFlowNode.
+        If there already exist a self.next, the input is extended.
+
+        :param next: the next node(s).
+        """
         if isinstance(next, list):
-            self.next = next
+            self.next.extend(next)
         else:
-            self.next = [next]
+            self.next.extend([next])
 
     def get_next(self) -> List[int]:
         return self.next

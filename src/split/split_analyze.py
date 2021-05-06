@@ -142,6 +142,7 @@ class Split:
                             desc.expression_provider,
                             method.method_node,
                             method,
+                            desc,
                         ),
                     )
 

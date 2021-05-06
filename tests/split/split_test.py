@@ -6,6 +6,13 @@ from src.split.split_analyze import (
     SplitTransformer,
     SplitContext,
 )
+from src.dataflow.event import (
+    StartNode,
+    InvokeExternal,
+    InvokeSplitFun,
+    ReturnNode,
+    RequestState,
+)
 import src.stateflow as stateflow
 
 
@@ -50,6 +57,7 @@ def test_split_dependencies():
             a_wrapper.class_desc.expression_provider,
             a_method_desc.method_node,
             a_method_desc,
+            stateflow.registered_classes[0].class_desc,
         ),
     )
     stmts = analyzer.blocks
@@ -100,6 +108,7 @@ def test_split_dependencies_more():
             a_wrapper.class_desc.expression_provider,
             a_method_desc.method_node,
             a_method_desc,
+            stateflow.registered_classes[0].class_desc,
         ),
     )
     stmts = analyzer.blocks
@@ -133,6 +142,7 @@ def test_dependencies_user_class():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
+            stateflow.registered_classes[0].class_desc,
         ),
     )
     stmts = analyzer.blocks
@@ -203,6 +213,7 @@ def test_multiple_splits():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
+            stateflow.registered_classes[0].class_desc,
         ),
     )
     stmts = analyzer.blocks
@@ -225,17 +236,34 @@ def test_multiple_splits():
     )
 
     print(modified_tree.code)
-
-    print("--")
-    print(stmts[0].dependencies)
-    print(stmts[1].dependencies)
-    print(stmts[2].dependencies)
-    print("---")
-    print(stmts[0].definitions)
-    print(stmts[1].definitions)
-    print(stmts[2].definitions)
     assert stmts[1].dependencies == ["a", "get_return"]
     assert stmts[1].definitions == ["b_result", "new_a"]
 
     assert stmts[2].dependencies == ["b_result", "a", "set_return"]
     assert stmts[2].definitions == ["c_result"]
+
+    # GET STATE -> GET STATE -> INVOKE SPLIT FUN -> INVOKE EXTERNAL
+    node_one = stmts[0].build_event_flow_nodes(StartNode(0))
+
+    assert len(node_one) == 4
+
+    assert node_one[0].id == 1 and isinstance(node_one[0], RequestState)
+    assert node_one[0].next == [node_one[1].id]
+    assert node_one[0].var_name == "b"
+    assert node_one[0].fun_type.name == "BB"
+
+    assert node_one[1].id == 2 and isinstance(node_one[1], RequestState)
+    assert node_one[1].previous == node_one[0].id
+    assert node_one[1].next == [node_one[2].id]
+    assert node_one[1].var_name == "c"
+    assert node_one[1].fun_type.name == "CC"
+
+    assert node_one[2].id == 3 and isinstance(node_one[2], InvokeSplitFun)
+    assert node_one[2].previous == node_one[1].id
+    assert node_one[2].next == [node_one[3].id]
+    assert node_one[2].fun_type.name == "AA"
+
+    assert node_one[3].id == 4 and isinstance(node_one[3], InvokeExternal)
+    assert node_one[3].previous == node_one[2].id
+    assert node_one[3].next == []
+    assert node_one[3].fun_type.name == "BB"
