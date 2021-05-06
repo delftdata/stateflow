@@ -657,6 +657,28 @@ class StatementBlock:
             )
 
             update_flow_graph(invoke_node)
+        elif self.is_last():
+            """For a last node, we assume the following scenario:
+            1. We invoke the last part of the function (i.e. InvokeSplitFun).
+            2. We add a ReturnNode.
+            """
+
+            # Step 1, build the last part of the splitted function.
+            split_node = InvokeSplitFun(
+                class_type,
+                flow_node_id,
+                self.fun_name(),
+                self.dependencies,
+                [],  # We don't care about the definitions for the last block!
+            )
+
+            update_flow_graph(split_node)
+
+            # Step 2, build the return node.
+            return_node = ReturnNode(flow_node_id)
+            update_flow_graph(return_node)
+        else:
+            pass
 
         return flow_nodes
 
