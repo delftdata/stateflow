@@ -678,7 +678,43 @@ class StatementBlock:
             return_node = ReturnNode(flow_node_id)
             update_flow_graph(return_node)
         else:
-            pass
+            """For an intermediate node, we assume the following scenario:
+            1. We invoke an intermediate part of the function (i.e. InvokeSplitFun).
+                1a. If this first part, has a return. We also add a return node.
+            2. We invoke an external function (i.e. InvokeExternal node).
+            """
+            # Step 1, invoke the first part of the splitted function.
+            split_node = InvokeSplitFun(
+                class_type,
+                flow_node_id,
+                self.fun_name(),
+                list(self.split_context.original_method_desc.input_desc.keys()),
+                list(self.definitions),
+            )
+            update_flow_graph(split_node)
+
+            # Step 2a, we add an (extra) return node.
+            if self.returns > 0:
+                return_node = ReturnNode(flow_node_id)
+                update_flow_graph(return_node)
+
+                # Since the last node should be InvokeSplitFun (not ReturnNode), we update the latest node again.
+                latest_node = split_node
+
+            # Step 3, we add an InvokeExternal node.
+            invoke_node = InvokeExternal(
+                FunctionType.create(
+                    self.split_context.class_descriptors[
+                        self.split_context.current_invocation.class_desc.class_name
+                    ]
+                ),
+                flow_node_id,
+                self.split_context.current_invocation.call_instance_var,
+                self.split_context.current_invocation.method_invoked,
+                [n.value for n in self.arguments_for_call],
+            )
+
+            update_flow_graph(invoke_node)
 
         return flow_nodes
 

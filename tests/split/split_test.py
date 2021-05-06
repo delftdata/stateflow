@@ -269,8 +269,16 @@ def test_multiple_splits():
     assert node_one[3].fun_type.name == "BB"
 
     node_last = stmts[-1].build_event_flow_nodes(StartNode(0))
+    assert len(node_last) == 2
     assert node_last[0].id == 1 and isinstance(node_last[0], InvokeSplitFun)
     assert node_last[0].fun_type.name == "AA"
 
     assert node_last[1].id == 2 and isinstance(node_last[1], ReturnNode)
     assert node_last[1].previous == node_last[0].id
+
+    node_inter = stmts[1].build_event_flow_nodes(StartNode(0))
+    assert len(node_inter) == 2
+    assert node_inter[0].id == 1 and isinstance(node_inter[0], InvokeSplitFun)
+    assert node_inter[0].fun_type.name == "AA"
+    assert node_inter[1].id == 2 and isinstance(node_inter[1], InvokeExternal)
+    assert node_inter[1].fun_type.name == "CC"

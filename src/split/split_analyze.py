@@ -149,9 +149,7 @@ class Split:
                     parsed_stmts: List[StatementBlock] = analyzer.blocks
                     updated_methods[method.method_name] = parsed_stmts
 
-                    method.split_function(
-                        desc.class_name, parsed_stmts, self.descriptors
-                    )
+                    method.split_function(parsed_stmts)
 
             if len(updated_methods) > 0:
                 remove_after_class_def = RemoveAfterClassDefinition(desc.class_name)
