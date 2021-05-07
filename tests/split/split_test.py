@@ -282,3 +282,125 @@ def test_multiple_splits():
     assert node_inter[0].fun_type.name == "AA"
     assert node_inter[1].id == 2 and isinstance(node_inter[1], InvokeExternal)
     assert node_inter[1].fun_type.name == "CC"
+
+
+def test_multiple_splits_with_returns():
+    stateflow.clear()
+
+    class CCC(object):
+        def __init__(self):
+            self.x = 0
+
+        def set(self, x: int):
+            self.x = x
+            return self.a
+
+    class BBB(object):
+        def __init__(self):
+            self.a = 0
+
+        def get(self, a: int):
+            return self.a + a
+
+    class AAA(object):
+        def __init__(self):
+            self.a = 0
+            self.b = 0
+
+        def cool_method(self, b: BBB, c: CCC):
+            a = self.a + self.b
+
+            if a > 10:
+                return a
+
+            b_result = b.get(a * 9)
+            new_a = b_result * a
+
+            if new_a > 10:
+                return self.a
+
+            c_result = c.set(new_a)
+
+            return c_result + b_result + a
+
+    stateflow.stateflow(AAA, parse_file=False)
+    stateflow.stateflow(BBB, parse_file=False)
+    stateflow.stateflow(CCC, parse_file=False)
+
+    wrapper = stateflow.registered_classes[0]
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "cool_method"
+    )
+
+    print(
+        [
+            method.method_name
+            for m in stateflow.registered_classes
+            for method in m.class_desc.methods_dec
+        ]
+    )
+
+    split = Split(
+        [cls.class_desc for cls in stateflow.registered_classes],
+        stateflow.registered_classes,
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+    )
+    stmts = analyzer.blocks
+
+    # GET STATE -> GET STATE -> INVOKE SPLIT FUN -> INVOKE EXTERNAL
+    node_one = stmts[0].build_event_flow_nodes(StartNode(0))
+
+    assert len(node_one) == 5
+
+    assert node_one[0].id == 1 and isinstance(node_one[0], RequestState)
+    assert node_one[0].next == [node_one[1].id]
+    assert node_one[0].var_name == "b"
+    assert node_one[0].fun_type.name == "BBB"
+
+    assert node_one[1].id == 2 and isinstance(node_one[1], RequestState)
+    assert node_one[1].previous == node_one[0].id
+    assert node_one[1].next == [node_one[2].id]
+    assert node_one[1].var_name == "c"
+    assert node_one[1].fun_type.name == "CCC"
+
+    assert node_one[2].id == 3 and isinstance(node_one[2], InvokeSplitFun)
+    assert node_one[2].previous == node_one[1].id
+    assert node_one[2].next == [node_one[3].id, node_one[4].id]
+    assert node_one[2].fun_type.name == "AAA"
+
+    assert node_one[3].id == 4 and isinstance(node_one[3], ReturnNode)
+    assert node_one[3].previous == node_one[2].id
+    assert node_one[3].next == []
+
+    assert node_one[4].id == 5 and isinstance(node_one[4], InvokeExternal)
+    assert node_one[4].previous == node_one[2].id
+    assert node_one[4].next == []
+    assert node_one[4].fun_type.name == "BBB"
+
+    node_last = stmts[-1].build_event_flow_nodes(StartNode(0))
+    assert len(node_last) == 2
+    assert node_last[0].id == 1 and isinstance(node_last[0], InvokeSplitFun)
+    assert node_last[0].fun_type.name == "AAA"
+
+    assert node_last[1].id == 2 and isinstance(node_last[1], ReturnNode)
+    assert node_last[1].previous == node_last[0].id
+
+    node_inter = stmts[1].build_event_flow_nodes(StartNode(0))
+    assert len(node_inter) == 3
+    assert node_inter[0].id == 1 and isinstance(node_inter[0], InvokeSplitFun)
+    assert node_inter[0].fun_type.name == "AAA"
+    assert node_inter[0].next == [node_inter[1].id, node_inter[2].id]
+    assert node_inter[1].id == 2 and isinstance(node_inter[1], ReturnNode)
+    assert node_inter[2].id == 3 and isinstance(node_inter[2], InvokeExternal)
+    assert node_inter[2].previous == node_inter[0].id
+    assert node_inter[2].fun_type.name == "CCC"

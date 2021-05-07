@@ -1,19 +1,29 @@
 from src.dataflow.dataflow import Operator, Edge, FunctionType, EventType
-from src.dataflow.event import Event, EventFlowNode
+from src.dataflow.event import Event, EventFlowNode, FunctionType
 from src.dataflow.args import Arguments
 from src.dataflow.state import State
 from src.wrappers import ClassWrapper, MetaWrapper, InvocationResult, FailedInvocation
-from typing import NewType, List, Tuple, Optional
+from typing import NewType, List, Tuple, Optional, Dict, Any
 from src.serialization.json_serde import SerDe, JsonSerializer
 
 NoType = NewType("NoType", None)
 
 
 class InternalClassRef:
-    def __init__(self, key: str, fun_type, attributes):
-        self._key = key
-        self._fun_type = fun_type
-        self.__attributes = attributes
+    """Internal representation of another class."""
+
+    def __init__(self, key: str, fun_type: FunctionType, attributes: Dict[str, Any]):
+        """Initializes an internal class reference.
+
+        This is passed as parameter to a stateful function.
+
+        :param key: the key of the instance.
+        :param fun_type: the type of the function.
+        :param attributes: all attributes of this function.
+        """
+        self._key: str = key
+        self._fun_type: FunctionType = fun_type
+        self.__attributes: Dict[str, Any] = attributes
 
         for n, attr in attributes.items():
             setattr(self, n, attr)
