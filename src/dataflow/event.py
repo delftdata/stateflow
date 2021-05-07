@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict
 from enum import Enum, EnumMeta
+from src.dataflow.state import State
 import ujson
 
 
@@ -186,6 +187,9 @@ class EventFlowNode:
         else:
             self.next.extend([next])
 
+    def step(self, event_flow: "EventFlowGraph", state: State) -> "EventFlowNode":
+        raise NotImplementedError("This should be implemented by each of the nodes.")
+
     def get_next(self) -> List[int]:
         return self.next
 
@@ -239,12 +243,36 @@ class EventFlowNode:
         return new_node
 
 
+class EventFlowGraph:
+    def __init__(self, current_node: EventFlowNode, graph: List[EventFlowNode]):
+        self.current_node: EventFlowNode = current_node
+        self.graph: EventFlowGraph = graph
+
+        self.id_to_node: Dict[str, EventFlowNode] = {node.id: node for node in graph}
+
+    def step(self, state: State) -> State:
+        next_node, updated_state = self.current_node.step(self, state)
+        self.current_node.status = "FINISHED"
+        self.current_node = self.get_node_by_id(next_node)
+
+        return updated_state
+
+    def get_current(self) -> EventFlowNode:
+        return self.current_node
+
+    def get_node_by_id(self, id):
+        return self.id_to_node[str(id)]
+
+
 class StartNode(EventFlowNode):
     def __init__(self, id: int):
         super().__init__(EventFlowNode.START, None, id)
 
     def to_dict(self):
         return super().to_dict()
+
+    def step(self, graph: EventFlowGraph, state: State) -> EventFlowNode:
+        return graph.get_node_by_id(self.next)
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
@@ -257,6 +285,9 @@ class ReturnNode(EventFlowNode):
 
     def to_dict(self):
         return super().to_dict()
+
+    def step(self, state: State):
+        return None
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
@@ -277,6 +308,9 @@ class InvokeExternal(EventFlowNode):
             self.input[arg] = None
 
         self.output[f"{method_name}_return"] = None
+
+    def step(self, state: State):
+        pass
 
     def to_dict(self) -> Dict:
         return_dict = super().to_dict()
@@ -323,6 +357,9 @@ class InvokeSplitFun(EventFlowNode):
         for definition in self.definitions:
             self.output[definition] = None
 
+    def step(self, event_flow: EventFlowGraph, state: State) -> EventFlowNode:
+        pass
+
     def to_dict(self) -> Dict:
         return_dict = super().to_dict()
         return_dict["fun_name"] = self.fun_name
@@ -344,6 +381,9 @@ class RequestState(EventFlowNode):
         self.var_name: str = var_name
 
         self.output[self.var_name] = None
+
+    def step(self, event_flow: EventFlowGraph, state: State) -> EventFlowNode:
+        pass
 
     def to_dict(self) -> Dict:
         return_dict = super().to_dict()

@@ -1,5 +1,5 @@
 from src.dataflow.dataflow import Operator, Edge, FunctionType, EventType
-from src.dataflow.event import Event, EventFlowNode, FunctionType
+from src.dataflow.event import Event, EventFlowNode, FunctionType, EventFlowGraph
 from src.dataflow.args import Arguments
 from src.dataflow.state import State
 from src.wrappers import ClassWrapper, MetaWrapper, InvocationResult, FailedInvocation
@@ -447,3 +447,24 @@ class StatefulOperator(Operator):
                 ),
                 invocation.updated_state,
             )
+
+    def _handle_event_flow(self, event: Event, state: State) -> Tuple[Event, State]:
+        flow_graph: EventFlowGraph = event.payload["flow"]
+        updated_state: State = flow_graph.step(state)
+
+        return event, updated_state
+
+    def _handle_flow_request_state(
+        self, event: Event, state: State, current_node_dict: Dict
+    ) -> Tuple[Event, State]:
+        """Request the state of this
+
+        :param event:
+        :param state:
+        :param current_node_dict:
+        :return:
+        """
+        current_node: EventFlowNode = current_node_dict["node"]
+
+        state_embedded: Dict = state.get()
+        state_embedded["__key"] == current_node["node"].input["key"]
