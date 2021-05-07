@@ -129,7 +129,7 @@ class ClassRef(object):
                     isinstance(args[arg], ClassRef)
                     and f.typ == EventFlowNode.REQUEST_STATE
                 ):
-                    f.input["key"] = args[arg]._fun_addr.key
+                    f.set_request_key(args[arg]._fun_addr.key)
                     to_assign.remove(arg)
 
             flow_dict[f.id] = {"node": f, "status": "PENDING"}

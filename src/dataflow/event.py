@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 from enum import Enum, EnumMeta
 from src.dataflow.state import State
 import ujson
@@ -187,7 +187,9 @@ class EventFlowNode:
         else:
             self.next.extend([next])
 
-    def step(self, event_flow: "EventFlowGraph", state: State) -> "EventFlowNode":
+    def step(
+        self, event_flow: "EventFlowGraph", state: State
+    ) -> Tuple["EventFlowNode", State]:
         raise NotImplementedError("This should be implemented by each of the nodes.")
 
     def get_next(self) -> List[int]:
@@ -253,7 +255,7 @@ class EventFlowGraph:
     def step(self, state: State) -> State:
         next_node, updated_state = self.current_node.step(self, state)
         self.current_node.status = "FINISHED"
-        self.current_node = self.get_node_by_id(next_node)
+        self.current_node = next_node
 
         return updated_state
 
@@ -271,8 +273,8 @@ class StartNode(EventFlowNode):
     def to_dict(self):
         return super().to_dict()
 
-    def step(self, graph: EventFlowGraph, state: State) -> EventFlowNode:
-        return graph.get_node_by_id(self.next)
+    def step(self, graph: EventFlowGraph, state: State) -> Tuple[EventFlowNode, State]:
+        return graph.get_node_by_id(self.next), state
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
@@ -287,7 +289,7 @@ class ReturnNode(EventFlowNode):
         return super().to_dict()
 
     def step(self, state: State):
-        return None
+        return self, state
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
@@ -309,7 +311,7 @@ class InvokeExternal(EventFlowNode):
 
         self.output[f"{method_name}_return"] = None
 
-    def step(self, state: State):
+    def step(self, graph: EventFlowGraph, state: State) -> Tuple[EventFlowNode, State]:
         pass
 
     def to_dict(self) -> Dict:
@@ -357,7 +359,7 @@ class InvokeSplitFun(EventFlowNode):
         for definition in self.definitions:
             self.output[definition] = None
 
-    def step(self, event_flow: EventFlowGraph, state: State) -> EventFlowNode:
+    def step(self, graph: EventFlowGraph, state: State) -> Tuple[EventFlowNode, State]:
         pass
 
     def to_dict(self) -> Dict:
@@ -376,14 +378,42 @@ class InvokeSplitFun(EventFlowNode):
 
 
 class RequestState(EventFlowNode):
+    """A RequestState node is used to get the complete state from a given stateful function.
+
+    It is expected that the client sets the request key. This is the key of the FunctionType to find the correct
+    instance (effectively this is a FunctionAddress).
+
+    Finally, in the step function the `var_name` is set with the correct state.
+    This result is later used for subsequent nodes.
+    """
+
     def __init__(self, fun_type: FunctionType, id: int, var_name: str):
         super().__init__(EventFlowNode.REQUEST_STATE, fun_type, id)
         self.var_name: str = var_name
 
+        # Inputs for this node.
+        self.input["__key"] = None
+
+        # Outputs for this node.
         self.output[self.var_name] = None
 
-    def step(self, event_flow: EventFlowGraph, state: State) -> EventFlowNode:
-        pass
+    def set_request_key(self, key: str):
+        self.input["__key"] = key
+
+    def set_state_result(self, state: Dict):
+        self.output[self.var_name] = state
+
+    def step(self, graph: EventFlowGraph, state: State) -> Tuple[EventFlowNode, State]:
+        state_get = state.get()
+
+        # We copy the key, so that subsequent nodes can use it.
+        state_get["__key"] == self.input["__key"]
+        self.set_state_result(state_get)
+
+        # We kind of assume that for GetState, it is is 'sequential' flow. So there is only 1 node next.
+        next_node = graph.get_node_by_id(self.next[0])
+
+        return next_node, state
 
     def to_dict(self) -> Dict:
         return_dict = super().to_dict()

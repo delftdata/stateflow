@@ -453,18 +453,3 @@ class StatefulOperator(Operator):
         updated_state: State = flow_graph.step(state)
 
         return event, updated_state
-
-    def _handle_flow_request_state(
-        self, event: Event, state: State, current_node_dict: Dict
-    ) -> Tuple[Event, State]:
-        """Request the state of this
-
-        :param event:
-        :param state:
-        :param current_node_dict:
-        :return:
-        """
-        current_node: EventFlowNode = current_node_dict["node"]
-
-        state_embedded: Dict = state.get()
-        state_embedded["__key"] == current_node["node"].input["key"]
