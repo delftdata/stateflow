@@ -1,8 +1,6 @@
 import pytest
-from src.wrappers import ClassWrapper, InvocationResult, FailedInvocation
+from src.wrappers.class_wrapper import ClassWrapper, InvocationResult, FailedInvocation
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from src.analysis.extract_method_descriptor import ExtractMethodDescriptor
-from src.descriptors import ClassDescriptor
 from src.dataflow.args import Arguments
 from src.dataflow.state import State
 
@@ -18,6 +16,38 @@ class SimpleClass:
     def update(self, x: int) -> int:
         self.x -= x
         return self.x
+
+    def __key__(self):
+        return self.name
+
+
+class MoreComplexReturnClass:
+    def __init__(self, name: str):
+        self.name = name
+        self.x = 10
+
+    def update_normal_return(self, x: int) -> int:
+        self.x -= x
+        return self.x
+
+    def update_tuple_return(self, x: int):
+        self.x -= x
+        return self.x, self.x
+
+    def update_list_return(self, x: int):
+        self.x -= x
+        return [self.x]
+
+    def update_another(self, x: int):
+        self.x -= x
+        return ([self.x], self.x)
+
+    def update_empty_return(self, x: int):
+        self.x -= x
+        return
+
+    def update_no_return(self, x: int):
+        self.x -= x
 
     def __key__(self):
         return self.name
@@ -39,11 +69,28 @@ class TestClassWrapper:
         parsed_class.visit(extraction)
 
         # Create ClassDescriptor
-        class_desc: ClassDescriptor = ExtractClassDescriptor.create_class_descriptor(
-            extraction
-        )
+        class_desc = ExtractClassDescriptor.create_class_descriptor(extraction)
 
         return ClassWrapper(SimpleClass, class_desc)
+
+    def complex_wrapper(self) -> ClassWrapper:
+        # Parse
+        code = inspect.getsource(MoreComplexReturnClass)
+        parsed_class = cst.parse_module(code)
+
+        wrapper = cst.metadata.MetadataWrapper(parsed_class)
+        expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+        # Extract
+        extraction: ExtractClassDescriptor = ExtractClassDescriptor(
+            parsed_class, "MoreComplexReturnClass", expression_provider
+        )
+        parsed_class.visit(extraction)
+
+        # Create ClassDescriptor
+        class_desc = ExtractClassDescriptor.create_class_descriptor(extraction)
+
+        return ClassWrapper(MoreComplexReturnClass, class_desc)
 
     def test_simple_init_method(self):
         wrapper = self.get_wrapper()
@@ -125,3 +172,27 @@ class TestClassWrapper:
         result = wrapper.invoke("notexist", state, args)
 
         assert isinstance(result, FailedInvocation)
+
+    def test_returns(self):
+        wrapper = self.complex_wrapper()
+
+        state = State({"name": "wouter", "x": 5})
+        args = Arguments({"x": 5})
+
+        result = wrapper.invoke("update_normal_return", state, args)
+        assert result.results_as_list() == [0]
+
+        result = wrapper.invoke("update_tuple_return", state, args)
+        assert result.results_as_list() == [0, 0]
+
+        result = wrapper.invoke("update_list_return", state, args)
+        assert result.results_as_list() == [[0]]
+
+        result = wrapper.invoke("update_another", state, args)
+        assert result.results_as_list() == [[0], 0]
+
+        result = wrapper.invoke("update_empty_return", state, args)
+        assert result.results_as_list() == []
+
+        result = wrapper.invoke("update_no_return", state, args)
+        assert result.results_as_list() == []
