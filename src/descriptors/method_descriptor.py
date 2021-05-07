@@ -59,16 +59,6 @@ class MethodDescriptor:
                 -1
             ]  # TODO this assumption, might not be correct if we introduce control flow.
 
-    def _match_type(self, input_type, descriptors) -> Optional:
-        descriptors_filter = [
-            desc for desc in descriptors if desc.class_name == input_type
-        ]
-
-        if len(descriptors_filter) > 0:
-            return descriptors_filter[0]
-
-        return None
-
     def link_to_other_classes(self, descriptors: List):
         for d in descriptors:
             name = d.class_name
