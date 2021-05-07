@@ -13,6 +13,9 @@ class InvocationResult:
         self.updated_state: Optional[State] = updated_state
         self.return_results: Optional[Union[Any, List[Any]]] = return_results
 
+    def return_results_as_list(self):
+        pass
+
 
 class FailedInvocation(InvocationResult):
     def __init__(self, message: str):

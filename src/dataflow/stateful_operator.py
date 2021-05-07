@@ -1,5 +1,11 @@
 from src.dataflow.dataflow import Operator, Edge, FunctionType, EventType
-from src.dataflow.event import Event, EventFlowNode, FunctionType, EventFlowGraph
+from src.dataflow.event import (
+    Event,
+    EventFlowNode,
+    FunctionType,
+    EventFlowGraph,
+    InternalClassRef,
+)
 from src.dataflow.args import Arguments
 from src.dataflow.state import State
 from src.wrappers import ClassWrapper, MetaWrapper, InvocationResult, FailedInvocation
@@ -7,26 +13,6 @@ from typing import NewType, List, Tuple, Optional, Dict, Any
 from src.serialization.json_serde import SerDe, JsonSerializer
 
 NoType = NewType("NoType", None)
-
-
-class InternalClassRef:
-    """Internal representation of another class."""
-
-    def __init__(self, key: str, fun_type: FunctionType, attributes: Dict[str, Any]):
-        """Initializes an internal class reference.
-
-        This is passed as parameter to a stateful function.
-
-        :param key: the key of the instance.
-        :param fun_type: the type of the function.
-        :param attributes: all attributes of this function.
-        """
-        self._key: str = key
-        self._fun_type: FunctionType = fun_type
-        self.__attributes: Dict[str, Any] = attributes
-
-        for n, attr in attributes.items():
-            setattr(self, n, attr)
 
 
 class StatefulOperator(Operator):
@@ -450,6 +436,6 @@ class StatefulOperator(Operator):
 
     def _handle_event_flow(self, event: Event, state: State) -> Tuple[Event, State]:
         flow_graph: EventFlowGraph = event.payload["flow"]
-        updated_state: State = flow_graph.step(state)
+        updated_state: State = flow_graph.step(self.class_wrapper, state)
 
         return event, updated_state

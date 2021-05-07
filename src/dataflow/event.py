@@ -1,6 +1,8 @@
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 from enum import Enum, EnumMeta
 from src.dataflow.state import State
+from src.wrappers.class_wrapper import ClassWrapper, InvocationResult
+from src.dataflow.args import Arguments
 import ujson
 
 
@@ -93,6 +95,26 @@ class FunctionAddress:
             return False
 
         return self.key == other.key and self.function_type == other.function_type
+
+
+class InternalClassRef:
+    """Internal representation of another class."""
+
+    def __init__(self, key: str, fun_type: FunctionType, attributes: Dict[str, Any]):
+        """Initializes an internal class reference.
+
+        This is passed as parameter to a stateful function.
+
+        :param key: the key of the instance.
+        :param fun_type: the type of the function.
+        :param attributes: all attributes of this function.
+        """
+        self._key: str = key
+        self._fun_type: FunctionType = fun_type
+        self.__attributes: Dict[str, Any] = attributes
+
+        for n, attr in attributes.items():
+            setattr(self, n, attr)
 
 
 class MetaEnum(EnumMeta):
@@ -252,8 +274,8 @@ class EventFlowGraph:
 
         self.id_to_node: Dict[str, EventFlowNode] = {node.id: node for node in graph}
 
-    def step(self, state: State) -> State:
-        next_node, updated_state = self.current_node.step(self, state)
+    def step(self, class_wrapper: ClassWrapper, state: State) -> State:
+        next_node, updated_state = self.current_node.step(self, class_wrapper, state)
         self.current_node.status = "FINISHED"
         self.current_node = next_node
 
@@ -262,19 +284,25 @@ class EventFlowGraph:
     def get_current(self) -> EventFlowNode:
         return self.current_node
 
-    def get_node_by_id(self, id):
-        return self.id_to_node[str(id)]
+    def get_node_by_id(self, id) -> Optional[EventFlowNode]:
+        return self.id_to_node.get(str(id))
 
 
 class StartNode(EventFlowNode):
     def __init__(self, id: int):
         super().__init__(EventFlowNode.START, None, id)
 
+        # There is no previous.
+        self.previous = -1
+
     def to_dict(self):
         return super().to_dict()
 
-    def step(self, graph: EventFlowGraph, state: State) -> Tuple[EventFlowNode, State]:
-        return graph.get_node_by_id(self.next), state
+    def step(
+        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
+    ) -> Tuple[EventFlowNode, State]:
+        # We assume the start node has only one next node.
+        return graph.get_node_by_id(self.next[0]), state
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
@@ -288,7 +316,9 @@ class ReturnNode(EventFlowNode):
     def to_dict(self):
         return super().to_dict()
 
-    def step(self, state: State):
+    def step(
+        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
+    ) -> Tuple[EventFlowNode, State]:
         return self, state
 
     @staticmethod
@@ -311,7 +341,9 @@ class InvokeExternal(EventFlowNode):
 
         self.output[f"{method_name}_return"] = None
 
-    def step(self, graph: EventFlowGraph, state: State) -> Tuple[EventFlowNode, State]:
+    def step(
+        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
+    ) -> Tuple[EventFlowNode, State]:
         pass
 
     def to_dict(self) -> Dict:
@@ -339,6 +371,17 @@ class InvokeExternal(EventFlowNode):
         )
 
 
+class Null:
+    """A definition of Null next to None.
+
+    It is necessary for finding the correct input variables for a EventFlowNode.
+    In some situations None is an actual parameter, this will be problematic if we initialize also using None.
+    Our framework will think we did not find the argument yet (and will search in the graph), whereas it is already set.
+    """
+
+    pass
+
+
 class InvokeSplitFun(EventFlowNode):
     def __init__(
         self,
@@ -354,13 +397,88 @@ class InvokeSplitFun(EventFlowNode):
         self.definitions = definitions
 
         for param in params:
-            self.input[param] = None
+            self.input[param] = Null()
 
         for definition in self.definitions:
             self.output[definition] = None
 
-    def step(self, graph: EventFlowGraph, state: State) -> Tuple[EventFlowNode, State]:
-        pass
+    def _collect_incomplete_input(
+        self, graph: EventFlowGraph, input_variables: List[str]
+    ) -> Dict[str, Any]:
+        """Collects incomplete input variables of this node by traversing the graph.
+
+        :param graph: the graph to traverse.
+        :param input_variables: the input variables that we still have to find.
+        :return: a mapping from the input variable to its value.
+        """
+        previous = graph.get_node_by_id(self.previous)
+        output: Dict[str, Any] = {}
+
+        while len(input_variables) > 0 and previous is not None:
+            for key in previous.output.keys():
+                if key in input_variables:
+                    """We cover two cases here:
+                    1. Previous node is a REQUEST_STATE one. We create an InternalClassRef and set that input variable.
+                    2. It is any other node, now if the variable name is _in_ the output of this node
+                        then we set this as input for this node.
+                    TODO: Consider just passing a InternalClassRef around.
+                    """
+                    if previous.typ == EventFlowNode.REQUEST_STATE:
+                        request_state_output: Dict[str, Any] = previous.output[key]
+                        key_of_state: str = request_state_output.pop("__key")
+
+                        internal_class_ref = InternalClassRef(
+                            key_of_state, previous.fun_type, request_state_output
+                        )
+
+                        output[key] = internal_class_ref
+                    else:
+                        output[key] = previous.output[key]
+
+                    # We found the variable, so we don't need to look for it anymore.
+                    input_variables.remove(key)
+
+            # We do a step backwards in the state machine.
+            previous = graph.get_node_by_id(previous.previous)
+
+        if len(input_variables) > 0:
+            raise AttributeError(
+                f"We can't find all input variables for this (splitted) function in the flow graph: {self.fun_name}. Missing inputs: {input_variables}"
+            )
+
+        return output
+
+    def step(
+        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
+    ) -> Tuple[EventFlowNode, State]:
+        incomplete_input: List[str] = [
+            key for key, _ in self.input.keys() if key is Null()
+        ]
+
+        # Constructs the function arguments.
+        # We _copy_ the self.input rather than overriding, this prevents us in sending duplicate
+        # information in the event (i.e. it is already stored in output of previous nodes).
+        fun_arguments = Arguments(
+            {
+                **self.input,
+                **self._collect_incomplete_input(graph, incomplete_input),
+            }
+        )
+
+        # Invocation of the actual 'splitted' method.
+        invocation: InvocationResult = class_wrapper.invoke(
+            self.fun_name, state, fun_arguments
+        )
+
+        """ Based on the invocation we consider three scenarios:
+        1. Invocation failed, we need somehow to go back to the client and throw an error (TODO: not implemented).
+        2. Invocation successful, but we stumbled upon a return which has been defined by the programmer.
+            In this scenario, we traverse towards the return node.
+        3. Invocation successful, and this is a splitting point towards another function.
+            In this scenario, we traverse towards the return node.
+        """
+
+        return invocation.updated_state
 
     def to_dict(self) -> Dict:
         return_dict = super().to_dict()
@@ -403,7 +521,9 @@ class RequestState(EventFlowNode):
     def set_state_result(self, state: Dict):
         self.output[self.var_name] = state
 
-    def step(self, graph: EventFlowGraph, state: State) -> Tuple[EventFlowNode, State]:
+    def step(
+        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
+    ) -> Tuple[EventFlowNode, State]:
         state_get = state.get()
 
         # We copy the key, so that subsequent nodes can use it.
@@ -423,15 +543,6 @@ class RequestState(EventFlowNode):
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict):
         return RequestState(fun_type, dict["id"], dict["var_name"])
-
-
-class EventFlowDescriptor:
-    pass
-
-
-class EventFlow:
-    def __init__(self, descriptor: EventFlowDescriptor):
-        pass
 
 
 class Event:
