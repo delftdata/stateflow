@@ -325,11 +325,13 @@ class InvokeSplitFun(EventFlowNode):
         fun_name: str,
         params: List[str],
         definitions: List[str],
+        typed_params: List[str],
     ):
         super().__init__(EventFlowNode.INVOKE_SPLIT_FUN, fun_type, id)
         self.fun_name: str = fun_name
         self.params = params
         self.definitions = definitions
+        self.typed_params = typed_params
 
         for param in params:
             self.input[param] = Null
@@ -404,7 +406,10 @@ class InvokeSplitFun(EventFlowNode):
     ) -> Tuple[EventFlowNode, State]:
         # TODO We need to check if the input needs to be transformed to InternalClassRef
         # Maybe add typed param list?
-        incomplete_input: List[str] = [key for key in self.input.keys() if key == Null]
+        # DEBUG ARGUMENTS
+        incomplete_input: List[str] = [
+            key for key in self.input.keys() if key == Null or key in self.typed_params
+        ]
 
         # Constructs the function arguments.
         # We _copy_ the self.input rather than overriding, this prevents us in sending duplicate
@@ -482,6 +487,7 @@ class InvokeSplitFun(EventFlowNode):
         return_dict = super().to_dict()
         return_dict["fun_name"] = self.fun_name
         return_dict["params"] = self.params
+        return_dict["typed_params"] = self.typed_params
         return_dict["definitions"] = self.definitions
 
         return return_dict
@@ -489,7 +495,12 @@ class InvokeSplitFun(EventFlowNode):
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict):
         return InvokeSplitFun(
-            fun_type, dict["id"], dict["fun_name"], dict["params"], dict["definitions"]
+            fun_type,
+            dict["id"],
+            dict["fun_name"],
+            dict["params"],
+            dict["definitions"],
+            dict["typed_params"],
         )
 
 

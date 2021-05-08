@@ -632,6 +632,7 @@ class StatementBlock:
                 self.fun_name(),
                 list(self.split_context.original_method_desc.input_desc.keys()),
                 list(self.definitions),
+                self.split_context.original_method_desc.get_typed_params(),
             )
             update_flow_graph(split_node)
 
@@ -670,6 +671,7 @@ class StatementBlock:
                 self.fun_name(),
                 self.dependencies,
                 [],  # We don't care about the definitions for the last block!
+                self.split_context.original_method_desc.get_typed_params(),  # TODO Is this possible?
             )
 
             update_flow_graph(split_node)
@@ -690,6 +692,7 @@ class StatementBlock:
                 self.fun_name(),
                 list(self.split_context.original_method_desc.input_desc.keys()),
                 list(self.definitions),
+                self.split_context.original_method_desc.get_typed_params(),
             )
             update_flow_graph(split_node)
 

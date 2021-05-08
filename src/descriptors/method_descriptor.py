@@ -55,6 +55,15 @@ class MethodDescriptor:
                 -1
             ]  # TODO this assumption, might not be correct if we introduce control flow.
 
+    def get_typed_params(self):
+        # TODO Improve this. Very ambiguous name.
+        params: List[str] = []
+        for name, typ in self.input_desc.get().items():
+            if typ in self.other_class_links:
+                params.append(name)
+
+        return params
+
     def link_to_other_classes(self, descriptors: List):
         for d in descriptors:
             name = d.class_name
