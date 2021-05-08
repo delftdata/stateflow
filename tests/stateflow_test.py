@@ -16,7 +16,8 @@ def kafka():
     img.stop()
 
 
-def start_runtime(flow):
+def start_runtime():
+    flow = stateflow.init()
     run_time = BeamRuntime(flow, test_mode=True)
     run_time._setup_pipeline()
     run_time.run()
@@ -24,10 +25,10 @@ def start_runtime(flow):
 
 @pytest.mark.skip(reason="let's see if this fixes pytest problems")
 def test_full_e2e(kafka):
-    flow = stateflow.init()
-
-    p = Process(target=start_runtime, args=(flow,), daemon=False)
+    p = Process(target=start_runtime, daemon=False)
     p.start()
+
+    flow = stateflow.init()
 
     time.sleep(5)
     print("Started the runtime!")
