@@ -80,6 +80,8 @@ class StatefulOperator(Operator):
             return self._handle_update_state(event, state)
         elif event_type == EventType.Request.FindClass:
             return self._handle_find_class(event, state)
+        elif event_type == EventType.Request.EventFlow:
+            return self._handle_event_flow(event, state)
         else:
             # raise AttributeError(f"Unknown event type: {event_type}.")
             return None, None
@@ -114,7 +116,8 @@ class StatefulOperator(Operator):
             event.event_type, event, state
         )
 
-        if event.event_type == EventType.Request.EventFlow:
+        # if event.event_type == EventType.Request.EventFlow:
+        if False:
             print(f"Now dealing with {event.payload}")
             current_flow_node_id = event.payload["current_flow"]
             current_node = event.payload["flow"][str(current_flow_node_id)]
@@ -203,7 +206,7 @@ class StatefulOperator(Operator):
                                 i
                             ]._key  # hacky, find another way
 
-                            print(f"now setting next node key {next_node.key}")
+                            print(f"now setting next node key {next_node._key}")
 
                             current_node["node"].output[decl] = {
                                 "key": invocation.return_results[i]._key,

@@ -15,7 +15,7 @@ from src.runtime.runtime import Runtime
 from src.dataflow.dataflow import Dataflow
 from src.dataflow.state import State
 from src.dataflow.event import Event, EventType
-from src.dataflow.event_flow import EventFlowNode
+from src.dataflow.event_flow import EventFlowNode, EventFlowGraph
 from apache_beam import pvalue
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.runners.interactive.display import pipeline_graph_renderer
@@ -60,10 +60,8 @@ class IngressBeamRouter(DoFn):
 
         # if the key is available, then we set that as key otherwise we set the event_id.
         elif event.event_type == EventType.Request.EventFlow:
-            flow = event.payload["flow"]
-            current_id = event.payload["current_flow"]
-
-            current_node = flow[str(current_id)]["node"]
+            flow_graph: EventFlowGraph = event.payload["flow"]
+            current_node = flow_graph.current_node
 
             if current_node.typ == EventFlowNode.RETURN:
                 yield (
@@ -71,14 +69,12 @@ class IngressBeamRouter(DoFn):
                     self.serializer.serialize_event(
                         event.copy(
                             event_type=EventType.Reply.SuccessfulInvocation,
-                            payload={
-                                "return_results": list(current_node.output.values())
-                            },
+                            payload={"return_results": current_node.return_results()},
                         )
                     ),
                 )
             elif current_node.typ == EventFlowNode.REQUEST_STATE:
-                key = current_node.input["key"]
+                key = current_node.get_request_key()
                 yield pvalue.TaggedOutput(
                     current_node.fun_type.get_full_name(), (key, event)
                 )

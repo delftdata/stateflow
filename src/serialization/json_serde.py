@@ -1,7 +1,7 @@
 from src.serialization.serde import SerDe, Event, Dict
 from src.dataflow.args import Arguments
 from src.dataflow.event import EventType, FunctionAddress
-from src.dataflow.event_flow import EventFlowNode
+from src.dataflow.event_flow import EventFlowGraph
 import ujson
 
 
@@ -15,10 +15,6 @@ class JsonSerializer(SerDe):
         for item in payload:
             if hasattr(payload[item], "to_dict"):
                 payload[item] = payload[item].to_dict()
-
-        if "flow" in payload:
-            for id, value in payload["flow"].items():
-                payload["flow"][id]["node"] = payload["flow"][id]["node"].to_dict()
 
         event = {
             "event_id": event_id,
@@ -41,10 +37,7 @@ class JsonSerializer(SerDe):
             payload["args"] = Arguments.from_dict(json["payload"]["args"])
 
         if "flow" in payload:
-            for id, value in payload["flow"].items():
-                payload["flow"][id]["node"] = EventFlowNode.from_dict(
-                    payload["flow"][id]["node"]
-                )
+            payload["flow"] = EventFlowGraph.from_dict(payload["flow"])
 
         return Event(event_id, fun_address, event_type, payload)
 

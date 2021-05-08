@@ -3,7 +3,7 @@ from src.client.future import StateflowFuture
 from src.dataflow.args import Arguments
 from typing import List
 from src.dataflow.event import Event, EventType
-from src.dataflow.event_flow import EventFlowNode
+from src.dataflow.event_flow import EventFlowGraph, EventFlowNode
 from src.client.stateflow_client import StateflowClient
 import uuid
 from src.serialization.json_serde import JsonSerializer
@@ -117,10 +117,7 @@ class ClassRef(object):
         :return: a stateflow future.
         """
 
-        flow_dict = {}
-
         to_assign = list(args.get_keys())
-
         for f in flow:
             for arg in to_assign:
                 if arg in f.input and not isinstance(args[arg], ClassRef):
@@ -133,11 +130,10 @@ class ClassRef(object):
                     f.set_request_key(args[arg]._fun_addr.key)
                     to_assign.remove(arg)
 
-            flow_dict[f.id] = {"node": f, "status": "PENDING"}
+        flow_graph = EventFlowGraph(flow[0], flow)
+        flow_graph.step()
 
-        flow_dict[0]["status"] = "FINISHED"
-
-        payload = {"flow": flow_dict, "current_flow": 1}
+        payload = {"flow": flow_graph}
         event_id: str = str(uuid.uuid4())
 
         invoke_flow_event = Event(

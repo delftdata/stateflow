@@ -106,18 +106,6 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.current_block_id += 1
 
 
-@dataclass
-class InvokeMethodRequest:
-    """Wrapper class to indicate that we need to invoke an (external) method. This is returned by a method
-    which is split. It holds all the information necessary for an invocation.
-    """
-
-    class_name: str
-    instance_ref_var: str
-    method_to_invoke: str
-    args: List[Any]
-
-
 class Split:
     def __init__(
         self, descriptors: List[ClassDescriptor], wrappers: List[ClassWrapper]
