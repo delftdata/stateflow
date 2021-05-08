@@ -3,15 +3,6 @@ from typing import Dict, Any, List, Set, Optional
 import libcst as cst
 
 from src.dataflow.args import Arguments
-from src.dataflow.event import (
-    EventFlowNode,
-    StartNode,
-    RequestState,
-    FunctionType,
-    InvokeSplitFun,
-    ReturnNode,
-    InvokeExternal,
-)
 
 
 class MethodDescriptor:
@@ -39,12 +30,17 @@ class MethodDescriptor:
         self.other_class_links: List = []
 
         self.statement_blocks = []
-        self.flow_list: List[EventFlowNode] = []
+        self.flow_list = []
 
     def is_splitted_function(self) -> bool:
         return len(self.statement_blocks) > 0
 
     def split_function(self, blocks):
+        from src.dataflow.event_flow import (
+            EventFlowNode,
+            StartNode,
+        )
+
         self.statement_blocks = blocks
         self.flow_list = []
 

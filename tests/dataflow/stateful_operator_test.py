@@ -4,7 +4,8 @@ import uuid
 import pytest
 
 from tests.common.common_classes import User, stateflow
-from src.dataflow.event import Event, FunctionAddress, FunctionType, EventType
+from src.dataflow.event import Event, EventType
+from src.dataflow.address import FunctionAddress, FunctionType
 from src.dataflow.args import Arguments
 from src.dataflow.state import State
 from src.dataflow.stateful_operator import StatefulOperator

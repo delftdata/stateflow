@@ -14,7 +14,8 @@ from src.serialization.json_serde import JsonSerializer, SerDe
 from src.runtime.runtime import Runtime
 from src.dataflow.dataflow import Dataflow
 from src.dataflow.state import State
-from src.dataflow.event import Event, EventType, EventFlowNode
+from src.dataflow.event import Event, EventType
+from src.dataflow.event_flow import EventFlowNode
 from apache_beam import pvalue
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.runners.interactive.display import pipeline_graph_renderer

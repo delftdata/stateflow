@@ -1,11 +1,10 @@
 import pytest
-from tests.common.common_classes import User, stateflow, Item
+import tests.common.common_classes as stateflow
 from src.client.kafka_client import StateflowKafkaClient
 from src.runtime.beam_runtime import BeamRuntime
 import time
 from multiprocessing import Process
 from tests.kafka.KafkaImage import KafkaImage
-import threading
 import uuid
 import os
 
@@ -24,7 +23,7 @@ def start_runtime(flow):
 
 
 def test_full_e2e(kafka):
-    flow = stateflow.init()
+    flow = stateflow.stateflow.init()
 
     p = Process(target=start_runtime, args=(flow,), daemon=False)
     p.start()
@@ -32,8 +31,8 @@ def test_full_e2e(kafka):
     print("Started the runtime!")
     client = StateflowKafkaClient(flow, brokers="localhost:9092")
 
-    user: User = User(str(uuid.uuid4())).get()
-    item: Item = Item(str(uuid.uuid4()), 5).get()
+    user: stateflow.User = stateflow.User(str(uuid.uuid4())).get()
+    item: stateflow.Item = stateflow.Item(str(uuid.uuid4()), 5).get()
 
     user.update_balance(20).get()
     item.update_stock(4).get()

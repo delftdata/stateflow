@@ -1,7 +1,8 @@
 import pytest
 from tests.common.common_classes import User, stateflow
 from src.client.future import StateflowFuture, StateflowFailure
-from src.dataflow.event import FunctionAddress, FunctionType, EventType, Event
+from src.dataflow.event import EventType, Event
+from src.dataflow.address import FunctionAddress, FunctionType
 from src.client.class_ref import ClassRef
 from typing import List
 

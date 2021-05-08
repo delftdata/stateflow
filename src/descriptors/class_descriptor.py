@@ -1,6 +1,7 @@
 from src.dataflow.state import StateDescriptor
 from typing import List, Optional
-from src.descriptors.method_descriptor import MethodDescriptor, FunctionType
+from src.descriptors.method_descriptor import MethodDescriptor
+from src.dataflow.address import FunctionType
 import libcst as cst
 
 

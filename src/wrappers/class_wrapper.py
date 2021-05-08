@@ -14,7 +14,9 @@ class InvocationResult:
         self.return_results: Optional[Union[Any, List[Any]]] = return_results
 
     def results_as_list(self) -> List[Any]:
-        return self.return_results
+        if isinstance(self.return_results, tuple):
+            return list(self.return_results)
+        return [self.return_results]
 
 
 class FailedInvocation(InvocationResult):

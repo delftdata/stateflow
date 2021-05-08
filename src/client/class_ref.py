@@ -2,7 +2,8 @@ from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.client.future import StateflowFuture
 from src.dataflow.args import Arguments
 from typing import List
-from src.dataflow.event import Event, EventType, EventFlowNode
+from src.dataflow.event import Event, EventType
+from src.dataflow.event_flow import EventFlowNode
 from src.client.stateflow_client import StateflowClient
 import uuid
 from src.serialization.json_serde import JsonSerializer

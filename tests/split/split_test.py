@@ -6,7 +6,7 @@ from src.split.split_analyze import (
     SplitTransformer,
     SplitContext,
 )
-from src.dataflow.event import (
+from src.dataflow.event_flow import (
     StartNode,
     InvokeExternal,
     InvokeSplitFun,

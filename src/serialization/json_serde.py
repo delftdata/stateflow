@@ -1,6 +1,7 @@
 from src.serialization.serde import SerDe, Event, Dict
 from src.dataflow.args import Arguments
-from src.dataflow.event import EventType, EventFlowNode, FunctionAddress
+from src.dataflow.event import EventType, FunctionAddress
+from src.dataflow.event_flow import EventFlowNode
 import ujson
 
 

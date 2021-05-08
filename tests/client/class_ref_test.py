@@ -8,7 +8,7 @@ from src.client.class_ref import (
     Arguments,
     EventType,
 )
-from src.dataflow.event import FunctionAddress, FunctionType
+from src.dataflow.address import FunctionType, FunctionAddress
 from unittest import mock
 
 

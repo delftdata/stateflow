@@ -5,7 +5,8 @@ from src.wrappers.class_wrapper import ClassWrapper
 from src.wrappers.meta_wrapper import MetaWrapper
 from src.dataflow.dataflow import Dataflow, Ingress, Egress
 from src.dataflow.stateful_operator import StatefulOperator, Edge, Operator
-from src.dataflow.event import FunctionType, EventType
+from src.dataflow.event import EventType
+from src.dataflow.address import FunctionType
 from src.descriptors import *
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
 from src.split.split_analyze import Split

@@ -1,7 +1,7 @@
 from src.client import ClassRef, StateflowClient, StateflowFuture
-from src.dataflow.event import FunctionType
+from src.dataflow.address import FunctionType
 from src.descriptors import ClassDescriptor
-from src.dataflow.event import Event, FunctionType, FunctionAddress, EventType
+from src.dataflow.event import Event, FunctionAddress, EventType
 from src.dataflow.args import Arguments
 from typing import Union
 import uuid

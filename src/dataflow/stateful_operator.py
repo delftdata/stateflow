@@ -1,8 +1,11 @@
 from src.dataflow.dataflow import Operator, Edge, FunctionType, EventType
-from src.dataflow.event import (
-    Event,
+from src.dataflow.event import Event
+from src.dataflow.event_flow import (
     EventFlowNode,
-    FunctionType,
+    StartNode,
+    RequestState,
+    ReturnNode,
+    InvokeExternal,
     EventFlowGraph,
     InternalClassRef,
 )

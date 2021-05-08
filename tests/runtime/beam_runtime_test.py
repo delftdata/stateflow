@@ -8,11 +8,9 @@ from hamcrest import *
 from hamcrest.core.base_matcher import BaseMatcher, Description
 from src.dataflow.event import (
     Event,
-    FunctionAddress,
-    FunctionType,
     EventType,
-    EventFlowNode,
 )
+from src.dataflow.address import FunctionAddress, FunctionType
 from src.dataflow.args import Arguments
 import uuid
 from src.serialization.json_serde import JsonSerializer

@@ -1,5 +1,6 @@
 from typing import List, Optional, Tuple
-from src.dataflow.event import EventType, FunctionType
+from src.dataflow.event import EventType
+from src.dataflow.address import FunctionType
 from src.descriptors.class_descriptor import ClassDescriptor
 from src.serialization.serde import SerDe
 

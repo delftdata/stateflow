@@ -192,7 +192,7 @@ class TestClassWrapper:
         assert result.results_as_list() == [[0], 0]
 
         result = wrapper.invoke("update_empty_return", state, args)
-        assert result.results_as_list() == []
+        assert result.results_as_list() == [None]
 
         result = wrapper.invoke("update_no_return", state, args)
-        assert result.results_as_list() == []
+        assert result.results_as_list() == [None]

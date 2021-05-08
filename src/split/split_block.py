@@ -2,7 +2,7 @@ import libcst as cst
 from typing import List, Optional, Set, Tuple, Union, Dict
 from src.descriptors.method_descriptor import MethodDescriptor
 from src.descriptors.class_descriptor import ClassDescriptor
-from src.dataflow.event import (
+from src.dataflow.event_flow import (
     EventFlowNode,
     ReturnNode,
     RequestState,
