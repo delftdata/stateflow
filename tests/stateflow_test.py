@@ -23,7 +23,7 @@ def start_runtime():
     run_time.run()
 
 
-# @pytest.mark.skip(reason="let's see if this fixes pytest problems")
+@pytest.mark.skip(reason="let's see if this fixes pytest problems")
 def test_full_e2e(kafka):
     p = Process(target=start_runtime, daemon=False)
     p.start()
