@@ -14,8 +14,9 @@ from src.split.split_block import (
     IntermediateBlockContext,
     InvocationContext,
 )
+from src.dataflow.event_flow import InvokeMethodRequest
+
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
-from dataclasses import dataclass
 
 
 class SplitAnalyzer(cst.CSTVisitor):

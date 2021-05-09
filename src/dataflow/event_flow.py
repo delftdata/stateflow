@@ -46,10 +46,10 @@ class InternalClassRef:
         for n, attr in attributes.items():
             setattr(self, n, attr)
 
-    def __key(self) -> str:
+    def _get_key(self) -> str:
         return self._key
 
-    def __to_dict(self) -> Dict:
+    def _to_dict(self) -> Dict:
         return {"key": self._key, "fun_type": self._fun_type.to_dict()}
 
 
@@ -272,10 +272,10 @@ class InvokeExternal(EventFlowNode):
         args: Arguments = Arguments(self.input)
 
         # Invoke the method.
-        invocation: InvocationResult = self.class_wrapper.invoke(
+        invocation: InvocationResult = class_wrapper.invoke(
             self.fun_name,
             state,
-            Arguments(args),
+            args,
         )
 
         """ Two scenarios:
@@ -283,8 +283,8 @@ class InvokeExternal(EventFlowNode):
         2. Invocation is successful and we go to the next node. We assume the next node is always a InvokeSplitFun.
         """
 
-        # We assume there is always only one node this EventFlowNode type.
-        next_node: InvokeSplitFun = self.next[0]
+        # We assume there is always only one next node for this EventFlowNode type.
+        next_node: InvokeSplitFun = graph.get_node_by_id(self.next[0])
         self._set_return_result(invocation.return_results)
 
         return next_node, invocation.updated_state
@@ -408,7 +408,9 @@ class InvokeSplitFun(EventFlowNode):
         # Maybe add typed param list?
         # DEBUG ARGUMENTS
         incomplete_input: List[str] = [
-            key for key in self.input.keys() if key == Null or key in self.typed_params
+            key
+            for key in self.input.keys()
+            if self.input[key] == Null or key in self.typed_params
         ]
 
         # Constructs the function arguments.
@@ -444,19 +446,17 @@ class InvokeSplitFun(EventFlowNode):
 
         # Step 2, we come across an InvokeMethodRequest and need to go the InvokeExternal node.
         next_node: EventFlowNode
-        if not any(isinstance(item, InvokeMethodRequest) for item in return_results):
+        if any(isinstance(item, InvokeMethodRequest) for item in return_results):
             # Set the output of this node. We assume a correct order.
             # I.e. the definitions names correspond to the output order.
-            print(
-                f"Definitions of {self.fun_name}: {self.definitions}. \nResults: {return_results}"
-            )
-            assert len(self.definitions) == (len(return_results) - 1)
+            # A mapping from a class instance variable, to its key.
             for i, decl in enumerate(self.definitions):
                 if isinstance(
                     return_results[i], InternalClassRef
                 ):  # We treat an InternalClassRef a bit differently.
-                    self.output[decl] = return_results[i].to_dict()
+                    self.output[decl] = return_results[i]._to_dict()
                 else:
+
                     self.output[decl] = return_results[i]
 
             # Get the InvocationRequest of this node.
@@ -468,7 +468,7 @@ class InvokeSplitFun(EventFlowNode):
             )
 
             # Prepare next node by setting the address key and the arguments.
-            next_node.set_key(invoke_method_request.instance_ref_var.__key())
+            next_node.set_key(invoke_method_request.instance_ref_var._get_key())
 
             # We assume that arguments in the InvokeMethodRequest are in the correct order.
             for i, arg_key in enumerate(next_node.input.keys()):

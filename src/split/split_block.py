@@ -159,6 +159,7 @@ class StatementAnalyzer(cst.CSTVisitor):
                 and node.value != "self"
                 and node.value != "True"
                 and node.value != "False"
+                and node.value != "print"
             ):
                 self.def_use.append(Use(node.value))
 
@@ -429,7 +430,7 @@ class StatementBlock:
 
     def _build_return(self, call_arguments: List[cst.Name]) -> cst.SimpleStatementLine:
         return_names: List[cst.BaseExpression] = []
-        for definition in sorted(self.definitions):
+        for definition in self.definitions:
             return_names.append(cst.Name(value=definition))
 
         call_arguments_names: str = ",".join([n.value for n in call_arguments])
@@ -654,7 +655,9 @@ class StatementBlock:
                 flow_node_id,
                 self.split_context.current_invocation.call_instance_var,
                 self.split_context.current_invocation.method_invoked,
-                [n.value for n in self.arguments_for_call],
+                list(
+                    self.split_context.current_invocation.method_desc.input_desc.keys()
+                ),
             )
 
             update_flow_graph(invoke_node)
@@ -714,7 +717,9 @@ class StatementBlock:
                 flow_node_id,
                 self.split_context.current_invocation.call_instance_var,
                 self.split_context.current_invocation.method_invoked,
-                [n.value for n in self.arguments_for_call],
+                list(
+                    self.split_context.current_invocation.method_desc.input_desc.keys()
+                ),
             )
 
             update_flow_graph(invoke_node)

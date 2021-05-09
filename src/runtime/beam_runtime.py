@@ -69,7 +69,7 @@ class IngressBeamRouter(DoFn):
                     self.serializer.serialize_event(
                         event.copy(
                             event_type=EventType.Reply.SuccessfulInvocation,
-                            payload={"return_results": current_node.return_results()},
+                            payload={"return_results": current_node.get_results()},
                         )
                     ),
                 )
