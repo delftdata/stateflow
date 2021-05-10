@@ -404,3 +404,60 @@ def test_multiple_splits_with_returns():
     assert node_inter[2].id == 3 and isinstance(node_inter[2], InvokeExternal)
     assert node_inter[2].previous == node_inter[0].id
     assert node_inter[2].fun_type.name == "CCC"
+
+
+def test_if_statements():
+    class Other(object):
+        def __init__(self):
+            self.x = 0
+
+        def set(self, x: int):
+            self.x = x
+            return self.a
+
+        def bigger_than(self, x: int) -> bool:
+            return x > self.x
+
+    class IfClass(object):
+        def __init__(self):
+            self.a = 0
+            self.b = 0
+
+        def cool_method(self, other: Other):
+            a = self.a + self.b
+
+            if False:
+                a = self.a + self.b
+
+            if a > 3:
+                other.set(self.a)
+            elif other.bigger_than(self.a):
+                self.a = 5
+            else:
+                other.set(self.b)
+
+            return other.x
+
+    stateflow.stateflow(IfClass, parse_file=False)
+    stateflow.stateflow(Other, parse_file=False)
+
+    wrapper = stateflow.registered_classes[0]
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "cool_method"
+    )
+
+    split = Split(
+        [cls.class_desc for cls in stateflow.registered_classes],
+        stateflow.registered_classes,
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+    )

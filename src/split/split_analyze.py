@@ -19,8 +19,41 @@ from src.dataflow.event_flow import InvokeMethodRequest
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
 
 
+class HasInteraction(cst.CSTVisitor):
+    def __init__(self, node_to_analyze: cst.CSTNode, split_context: SplitContext):
+        self.has_interaction = False
+        self.split_context = split_context
+
+        node_to_analyze.visit(self)
+
+    def visit_Call(self, node: cst.Call):
+        # Simple case: `item.update_stock()`
+        # item is passed as parameter
+        if m.matches(node.func, m.Attribute(m.Name(), m.Name())):
+            attr: cst.Attribute = node.func
+
+            callee: str = attr.value.value
+
+            # Find callee class in the complete 'context'.
+            desc: ClassDescriptor = self.split_context.class_descriptors.get(
+                self.split_context.original_method_desc.input_desc[callee]
+            )
+
+            if desc is not None:
+                self.has_interaction = True
+
+    def get(self):
+        return self.has_interaction
+
+
 class SplitAnalyzer(cst.CSTVisitor):
-    def __init__(self, class_node: cst.ClassDef, split_context: SplitContext):
+    def __init__(
+        self,
+        class_node: cst.ClassDef,
+        split_context: SplitContext,
+        block_id_offset: int = 0,
+        outer_block: bool = True,
+    ):
         self.class_node: cst.ClassDef = class_node
         self.split_context = split_context
 
@@ -28,26 +61,13 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.statements: List[cst.BaseStatement] = []
 
         # Parsed blocks
-        self.current_block_id: int = 0
+        self.current_block_id: int = block_id_offset
         self.blocks: List["StatementBlock"] = []
 
         # Analyze this method.
-        self._analyze()
+        self._outer_analyze()
 
-        # Parse the 'last' statement.
-        previous_block = self.blocks[-1]
-        self.blocks.append(
-            StatementBlock(
-                self.current_block_id,
-                self.statements,
-                LastBlockContext.from_instance(
-                    self.split_context,
-                    previous_invocation=previous_block.split_context.current_invocation,
-                ),
-            )
-        )
-
-    def _analyze(self):
+    def _outer_analyze(self):
         if not m.matches(self.split_context.original_method_node, m.FunctionDef()):
             raise AttributeError(
                 f"Expected a function definition but got an {self.split_context.original_method_node}."
@@ -56,6 +76,19 @@ class SplitAnalyzer(cst.CSTVisitor):
         for stmt in self.split_context.original_method_node.body.children:
             stmt.visit(self)
             self.statements.append(stmt)
+
+            # Parse the 'last' statement.
+            previous_block = self.blocks[-1]
+            self.blocks.append(
+                StatementBlock(
+                    self.current_block_id,
+                    self.statements,
+                    LastBlockContext.from_instance(
+                        self.split_context,
+                        previous_invocation=previous_block.split_context.current_invocation,
+                    ),
+                )
+            )
 
     def visit_Call(self, node: cst.Call):
         # Simple case: `item.update_stock()`
@@ -76,6 +109,16 @@ class SplitAnalyzer(cst.CSTVisitor):
             )
 
             self._process_stmt_block(invocation_context)
+
+    def visit_If(self, node: cst.If):
+        if not HasInteraction(node, self.split_context).get():
+            print("We don't need to identify this block.")
+            return False
+        else:
+            current_if: cst.If = node
+            if_blocks: List[StatementBlock] = SplitAnalyzer()
+
+        return False
 
     def _process_stmt_block(self, invocation_context: InvocationContext):
         if self.current_block_id == 0:
