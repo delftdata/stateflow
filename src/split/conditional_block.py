@@ -8,7 +8,7 @@ class ConditionalExpressionAnalyzer(cst.CSTVisitor):
         self.expression_provider = expression_provider
         self.usages: List[Use] = []
 
-    # TODO Verify if we have a Call, we need to add a InvokeExternal before this node.
+    # TODO Verify if we have a Call, we need to add a InvokeExternal before this node + add the result as usage.
     def visit_Call(self, node: cst.Call):
         pass
 
@@ -33,12 +33,38 @@ class ConditionalBlock:
             split_context.expression_provider
         )
         analyzer.visit(test)
-        self.dependencies: List[str] = [u.name for u in analyzer.usages]
 
+        self.dependencies: List[str] = [u.name for u in analyzer.usages]
         self.new_function: cst.FunctionDef = self.build_definition()
 
+    def fun_name(self) -> str:
+        """Get the name of this function given the block id.
+        :return: the (unique) name of this block.
+        """
+        return (
+            f"{self.split_context.original_method_node.name.value}_cond_{self.block_id}"
+        )
+
+    def _build_params(self) -> cst.Parameters:
+        params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
+        for usage in self.dependencies:
+            params.append(cst.Param(cst.Name(value=usage)))
+        param_node: cst.Parameters = cst.Parameters(tuple(params))
+
+        return param_node
+
+    def _build_return(self) -> cst.SimpleStatementLine:
+        return cst.SimpleStatementLine(body=[cst.Return(self.test_expr)])
+
     def build_definition(self) -> cst.FunctionDef:
-        # build_name
-        # set return signature bool
-        # set return node with the test_expression.
-        pass
+        fun_name: cst.Name = cst.Name(self.fun_name())
+        param_node: cst.Paramaters = self._build_params()
+        return_node: cst.SimpleStatementLine = self._build_return()
+
+        return self.split_context.original_method_node.with_changes(
+            name=fun_name,
+            params=param_node,
+            body=self.split_context.original_method_node.body.with_changes(
+                body=return_node
+            ),
+        )

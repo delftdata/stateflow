@@ -14,8 +14,7 @@ from src.split.split_block import (
     IntermediateBlockContext,
     InvocationContext,
 )
-from src.dataflow.event_flow import InvokeMethodRequest
-
+from src.split.conditional_block import ConditionalBlock
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
 
 
@@ -65,7 +64,8 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.blocks: List["StatementBlock"] = []
 
         # Analyze this method.
-        self._outer_analyze()
+        if outer_block:
+            self._outer_analyze()
 
     def _outer_analyze(self):
         if not m.matches(self.split_context.original_method_node, m.FunctionDef()):
@@ -115,8 +115,22 @@ class SplitAnalyzer(cst.CSTVisitor):
             print("We don't need to identify this block.")
             return False
         else:
+            # 1 Build conditional block:
             current_if: cst.If = node
-            if_blocks: List[StatementBlock] = SplitAnalyzer()
+            conditional_block: ConditionalBlock = ConditionalBlock(
+                self.current_block_id, self.split_context, node.test
+            )
+
+            self.current_block_id += 1
+
+            current_if: cst.If = node
+            analyze_if_body: SplitAnalyzer = SplitAnalyzer(
+                self.class_node,
+                self.split_context,
+                block_id_offset=self.current_block_id,
+                outer_block=False,
+            )
+            if_blocks: List[StatementBlock] = analyze_if_body.blocks
 
         return False
 
