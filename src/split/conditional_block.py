@@ -9,7 +9,7 @@ class ConditionalExpressionAnalyzer(cst.CSTVisitor):
         self.usages: List[Use] = []
 
     # TODO Verify if we have a Call, we need to add a InvokeExternal before this node.
-    def visit_Call(self, node: "Call"):
+    def visit_Call(self, node: cst.Call):
         pass
 
     def visit_Name(self, node: cst.Name):
