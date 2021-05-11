@@ -4,6 +4,7 @@ from src.client.kafka_client import StateflowKafkaClient
 from src.runtime.beam_runtime import BeamRuntime
 import time
 from multiprocessing import Process
+from threading import Thread
 from tests.kafka.KafkaImage import KafkaImage
 import uuid
 import os
@@ -18,14 +19,14 @@ def kafka():
 
 def start_runtime():
     flow = stateflow.init()
-    run_time = BeamRuntime(flow, test_mode=True)
+    run_time = BeamRuntime(flow, timeout=10)
     run_time._setup_pipeline()
     run_time.run()
 
 
-@pytest.mark.skip(reason="let's see if this fixes pytest problems")
+# @pytest.mark.skip(reason="let's see if this fixes pytest problems")
 def test_full_e2e(kafka):
-    p = Process(target=start_runtime, daemon=False)
+    p = Thread(target=start_runtime, daemon=False)
     p.start()
 
     flow = stateflow.init()
@@ -40,17 +41,22 @@ def test_full_e2e(kafka):
     user.update_balance(20).get()
     item.update_stock(4).get()
 
+    initial_balance = user.balance.get()
+    initial_stock = item.stock.get()
+
     buy = user.buy_item(3, item).get()
 
     final_balance = user.balance.get()
     final_stock = item.stock.get()
 
     # Killing streaming system.
-    os.kill(p.pid, 9)
+    # os.kill(p.pid, 9)
+    p.join()
 
     # Kill client.
     client.running = False
-
     assert buy is True
+    assert initial_stock == 4
+    assert initial_balance == 20
     assert final_balance == 5
     assert final_stock == 1

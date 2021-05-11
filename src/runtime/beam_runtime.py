@@ -13,12 +13,10 @@ from typing import List, Tuple, Any, Union
 from src.serialization.json_serde import JsonSerializer, SerDe
 from src.runtime.runtime import Runtime
 from src.dataflow.dataflow import Dataflow
-from src.dataflow.state import State
 from src.dataflow.event import Event, EventType
 from src.dataflow.event_flow import EventFlowNode, EventFlowGraph
 from apache_beam import pvalue
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.runners.interactive.display import pipeline_graph_renderer
 
 
 class IngressBeamRouter(DoFn):
@@ -146,7 +144,11 @@ class BeamOperator(DoFn):
 
 class BeamRuntime(Runtime):
     def __init__(
-        self, dataflow: Dataflow, serializer: SerDe = JsonSerializer(), test_mode=False
+        self,
+        dataflow: Dataflow,
+        serializer: SerDe = JsonSerializer(),
+        test_mode=False,
+        timeout=-1,
     ):
         self.init_operators: List[BeamInitOperator] = []
         self.operators: List[BeamOperator] = []
@@ -161,6 +163,7 @@ class BeamRuntime(Runtime):
         # We can use this to verify (and test) the outputs of the pipeline.
         self.test_mode = test_mode
         self.test_output = {}
+        self.timeout = timeout
 
         for operator in dataflow.operators:
             operator.meta_wrapper = None  # We set this meta wrapper to None, we don't need it in the runtime.
@@ -170,12 +173,14 @@ class BeamRuntime(Runtime):
     def _setup_kafka_client(self) -> KafkaConsume:
         return KafkaConsume(
             consumer_config={
-                "bootstrap_servers": "localhost:9092",
-                "auto_offset_reset": "latest",
-                "group_id": str(uuid.uuid4()),
+                "bootstrap.servers": "localhost:9092",
+                "auto.offset.reset": "latest",
+                "group.id": "static",  # str(uuid.uuid4()),
+                "group.instance.id": "consume_group",
                 "topic": ["client_request", "internal"],
             },
             value_decoder=bytes,
+            timeout=self.timeout,
         )
 
     def _setup_kafka_producer(self, topic: str) -> kafkaio.KafkaProduce:
@@ -242,10 +247,8 @@ class BeamRuntime(Runtime):
             self._setup_pipeline()
 
         if not self.test_mode:
-            self.pipeline.run()
+            self.pipeline.run().wait_until_finish()
         else:
             result = self.pipeline.run()
             result.wait_until_finish()
             result.cancel()
-
-        print("I should be here!")

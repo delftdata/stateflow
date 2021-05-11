@@ -1,7 +1,28 @@
 from __future__ import division, print_function
 
-from apache_beam import PTransform, ParDo, DoFn, Create
+from apache_beam import PTransform, ParDo, DoFn, Create, combiners, RestrictionProvider
+from typing import Tuple, ByteString
+from apache_beam.transforms.userstate import (
+    TimerSpec,
+    TimeDomain,
+    on_timer,
+    BagStateSpec,
+    CombiningValueStateSpec,
+    ReadModifyWriteStateSpec,
+)
+import time
+from apache_beam.io.restriction_trackers import OffsetRange
+from apache_beam.coders import VarIntCoder, TupleCoder, StrUtf8Coder, BytesCoder
+from apache_beam.utils.timestamp import Timestamp, Duration
 from kafka import KafkaConsumer, KafkaProducer
+from confluent_kafka import Consumer, TopicPartition, OFFSET_END
+from confluent_kafka.admin import (
+    AdminClient,
+    ClusterMetadata,
+    TopicMetadata,
+    PartitionMetadata,
+)
+import confluent_kafka
 
 
 class KafkaConsume(PTransform):
@@ -47,33 +68,76 @@ class KafkaConsume(PTransform):
         Where the first element of the tuple is the Kafka message key and the second element is the Kafka message being passed through the topic
     """
 
-    def __init__(self, consumer_config, value_decoder=None, *args, **kwargs):
+    def __init__(
+        self, consumer_config, timeout=-1, value_decoder=None, *args, **kwargs
+    ):
         """Initializes ``KafkaConsume``"""
         super(KafkaConsume, self).__init__()
         self._consumer_args = dict(
             consumer_config=consumer_config,
             value_decoder=value_decoder,
+            timeout=timeout,
         )
 
     def expand(self, pcoll):
-        return pcoll | Create([self._consumer_args]) | ParDo(_ConsumeKafkaTopic())
+        return (
+            pcoll
+            | Create([("key", self._consumer_args)])
+            | ParDo(_ConsumeKafkaTopic(self._consumer_args))
+        )
 
 
 class _ConsumeKafkaTopic(DoFn):
     """Internal ``DoFn`` to read from Kafka topic and return messages"""
 
-    def process(self, consumer_args):
-        consumer_config = consumer_args.pop("consumer_config")
-        topic = consumer_config.pop("topic")
-        value_decoder = consumer_args.pop("value_decoder") or bytes.decode
+    BUFFER_TIMER = TimerSpec("buffer_timer", TimeDomain.REAL_TIME)
+    STALE_TIMER = TimerSpec("stale_timer", TimeDomain.REAL_TIME)
+    OFFSET_STATE = ReadModifyWriteStateSpec("offsets", StrUtf8Coder())
 
-        consumer = KafkaConsumer(*topic, **consumer_config)
+    def __init__(self, consumer_args):
+        self.consumer_config = consumer_args.pop("consumer_config")
+        self.topic = self.consumer_config.pop("topic")
+        self.timeout = consumer_args.pop("timeout")
+        self.value_decoder = consumer_args.pop("value_decoder") or bytes.decode
+        self.max_buffer_size = 1
 
-        for msg in consumer:
-            try:
-                yield msg.key, value_decoder(msg.value)
-            except Exception as e:
-                raise e
+        self.consumer: Consumer = None
+
+    def process(
+        self,
+        element_pair,
+    ):
+        if self.timeout == -1:
+            self.consumer = Consumer(**self.consumer_config)
+            self.consumer.subscribe(topics=self.topic)
+            while True:
+                msg = self.consumer.poll(0.1)
+                if msg is None:
+                    continue
+
+                if msg.error():
+                    print("Consumer error: {}".format(msg.error()))
+                    continue
+
+                yield msg.key(), msg.value()
+        else:
+            print(f"Now starting Kafka with a timeout of {self.timeout}")
+            start_time = time.time() + self.timeout
+            self.consumer = Consumer(**self.consumer_config)
+            self.consumer.subscribe(topics=self.topic)
+            while True:
+                if time.time() >= start_time:
+                    print("Now returning due to timeout.")
+                    return
+                msg = self.consumer.poll(0.1)
+                if msg is None:
+                    continue
+
+                if msg.error():
+                    print("Consumer error: {}".format(msg.error()))
+                    continue
+
+                yield msg.key(), msg.value()
 
 
 class KafkaProduce(PTransform):

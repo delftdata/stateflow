@@ -77,18 +77,18 @@ class SplitAnalyzer(cst.CSTVisitor):
             stmt.visit(self)
             self.statements.append(stmt)
 
-            # Parse the 'last' statement.
-            previous_block = self.blocks[-1]
-            self.blocks.append(
-                StatementBlock(
-                    self.current_block_id,
-                    self.statements,
-                    LastBlockContext.from_instance(
-                        self.split_context,
-                        previous_invocation=previous_block.split_context.current_invocation,
-                    ),
-                )
+        # Parse the 'last' statement.
+        previous_block = self.blocks[-1]
+        self.blocks.append(
+            StatementBlock(
+                self.current_block_id,
+                self.statements,
+                LastBlockContext.from_instance(
+                    self.split_context,
+                    previous_invocation=previous_block.split_context.current_invocation,
+                ),
             )
+        )
 
     def visit_Call(self, node: cst.Call):
         # Simple case: `item.update_stock()`
