@@ -433,14 +433,14 @@ class StatementBlock:
         for definition in self.definitions:
             return_names.append(cst.Name(value=definition))
 
-        call_arguments_names: str = ",".join([n.value for n in call_arguments])
-        call_expression: cst.BaseExpression = cst.parse_expression(
-            f"InvokeMethodRequest('{self.split_context.current_invocation.class_desc.class_name}', "
-            f"{self.split_context.current_invocation.call_instance_var}, "
-            f"'{self.split_context.current_invocation.method_invoked}', [{call_arguments_names}])"
-        )
-
-        return_names.append(call_expression)
+        if self.split_context.current_invocation:
+            call_arguments_names: str = ",".join([n.value for n in call_arguments])
+            call_expression: cst.BaseExpression = cst.parse_expression(
+                f"InvokeMethodRequest('{self.split_context.current_invocation.class_desc.class_name}', "
+                f"{self.split_context.current_invocation.call_instance_var}, "
+                f"'{self.split_context.current_invocation.method_invoked}', [{call_arguments_names}])"
+            )
+            return_names.append(call_expression)
 
         if len(return_names) == 1:
             return cst.SimpleStatementLine(body=[cst.Return(return_names[0])])
@@ -465,11 +465,10 @@ class StatementBlock:
             params.append(cst.Param(cst.Name(value=usage)))
 
         # Get the result of the previous call as parameter of this block.
-        print(f"{self.fun_name()}")
-        print(f"Now adding as dependency {self._previous_call_result().value}")
-        previous_block_call: cst.Name = self._previous_call_result()
-        params.append(cst.Param(previous_block_call))
-        self.dependencies.append(self._previous_call_result().value)
+        if self.split_context.previous_invocation:  # only if this invocation exists.
+            previous_block_call: cst.Name = self._previous_call_result()
+            params.append(cst.Param(previous_block_call))
+            self.dependencies.append(self._previous_call_result().value)
 
         param_node: cst.Parameters = cst.Parameters(tuple(params))
 
@@ -482,7 +481,7 @@ class StatementBlock:
             is 'correct'.
         2. We create a set of assignments for the arguments of the call
             (which is done after the execution of this first block).
-        3. We return 'internal' definitions and a InvokeMethodRequest wrapper.
+        3. We return 'internal' definition and a InvokeMethodRequest wrapper in case the split reason is a Call.
 
         :return: a new FunctionDefinition.
         """
@@ -526,17 +525,20 @@ class StatementBlock:
     def _build_intermediate_block(self) -> cst.FunctionDef:
         """Builds an intermediate block.
 
-        1. We build a new parameter list for this block, this includes _all_ dependencies of this block
-            + the return result of the call.
-        2. We replace the Call node of the invocation which is executed _before_ this intermediate block, with an
-            return variable from this call.
-        3. We create a set of assignments for the arguments of the next call
+        If we have a 'previous call':
+            1. We build a new parameter list for this block, this includes _all_ dependencies of this block
+                + the return result of the call.
+            2. We replace the Call node of the invocation which is executed _before_ this intermediate block, with an
+                return variable from this call.
+        If we don't have a previous call:
+            1. We build a new parameter list for this block, this includes _all_ dependencies of this block.
+        2/3. We create a set of assignments for the arguments of the next call
             (which is done after the execution of this intermediate block).
-        4. We return the 'internal' definitions and a InvokeMethodRequest wrapper.
+        3/4. We return the 'internal' definitions and a InvokeMethodRequest wrapper.
 
         :return: a new FunctionDefinition.
         """
-        # This block has an invocation to another class. We need to have that instance var as param.
+        # If this block has an invocation to another class. We need to have that instance var as param.
         if self.split_context.current_invocation:
             self.dependencies.append(
                 self.split_context.current_invocation.call_instance_var
@@ -549,18 +551,19 @@ class StatementBlock:
         param_node: cst.Parameters() = self._build_params()
 
         # Step 2, replace the _previous_ call.
-        self.statements[0] = self.statements[0].visit(
-            ReplaceCall(
-                self.split_context.previous_invocation.method_invoked,
-                self._previous_call_result(),
+        if self.split_context.previous_invocation:
+            self.statements[0] = self.statements[0].visit(
+                ReplaceCall(
+                    self.split_context.previous_invocation.method_invoked,
+                    self._previous_call_result(),
+                )
             )
-        )
 
-        # Step 3, assignments for the _next_ call.
+        # Step 2/3, assignments for the _next_ call.
         argument_assignments = self._build_argument_assignments()
         self.arguments_for_call = [name for name, _ in argument_assignments]
 
-        # Step 4, build the return statement.
+        # Step 3/4, build the return statement.
         return_stmt: cst.Return = self._build_return(self.arguments_for_call)
 
         if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
@@ -588,11 +591,14 @@ class StatementBlock:
     def _build_last_block(self) -> cst.FunctionDef:
         """Builds the last block.
 
-        1. We build a new parameter list for this block, this includes _all_ dependencies of this block
-            + the return result of the call.
-        2. We replace the Call node of the invocation which is executed _before_ this last block, with an
-            return variable from this call.
-        3. We keep the original return signature + return nodes.
+        If we have a 'previous call':
+            1. We build a new parameter list for this block, this includes _all_ dependencies of this block
+                + the return result of the call.
+            2. We replace the Call node of the invocation which is executed _before_ this last block, with an
+                return variable from this call.
+        If we don't have a previous call:
+            1. We build a new parameter list for this block, this includes _all_ dependencies of this block.
+        2/3. We keep the original return signature + return nodes.
         :return: a new FunctionDefinition.
         """
 
@@ -601,15 +607,16 @@ class StatementBlock:
         # Step 1, parameter node.
         param_node: cst.Parameters() = self._build_params()
 
-        # Step 2, replace the _previous_ call.
-        self.statements[0] = self.statements[0].visit(
-            ReplaceCall(
-                self.split_context.previous_invocation.method_invoked,
-                self._previous_call_result(),
+        # Step 2, replace the _previous_ call only if this previous call exists.
+        if self.split_context.previous_invocation:
+            self.statements[0] = self.statements[0].visit(
+                ReplaceCall(
+                    self.split_context.previous_invocation.method_invoked,
+                    self._previous_call_result(),
+                )
             )
-        )
 
-        # Step 3, keep the original return signature.
+        # Step 2/3, keep the original return signature.
         returns_signature = self.split_context.original_method_node.returns
 
         if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):

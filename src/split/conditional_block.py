@@ -32,7 +32,7 @@ class ConditionalBlock:
         analyzer: ConditionalExpressionAnalyzer = ConditionalExpressionAnalyzer(
             split_context.expression_provider
         )
-        analyzer.visit(test)
+        test.visit(analyzer)
 
         self.dependencies: List[str] = [u.name for u in analyzer.usages]
         self.new_function: cst.FunctionDef = self.build_definition()

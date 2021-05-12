@@ -116,11 +116,13 @@ class SplitAnalyzer(cst.CSTVisitor):
             print("We don't need to identify this block.")
             return False
         else:
+            print("We need to analyze this block.")
             # 1 Build conditional block:
             current_if: cst.If = node
             conditional_block: ConditionalBlock = ConditionalBlock(
                 self.current_block_id, self.split_context, node.test
             )
+            self.blocks.append(conditional_block)
 
             self.current_block_id += 1
 
