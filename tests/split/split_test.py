@@ -411,6 +411,8 @@ def test_multiple_splits_with_returns():
 
 
 def test_if_statements():
+    stateflow.clear()
+
     class Other(object):
         def __init__(self):
             self.x = 0
@@ -429,9 +431,6 @@ def test_if_statements():
 
         def cool_method(self, other: Other):
             a = self.a + self.b
-
-            if False:
-                a = self.a + self.b
 
             if a > 3:
                 other.set(self.a * 9)

@@ -42,6 +42,7 @@ class ConditionalBlock(Block):
         test.visit(analyzer)
 
         self.dependencies: List[str] = [u.name for u in analyzer.usages]
+        self.has_call: bool = True
         self.new_function: cst.FunctionDef = self.build_definition()
 
     def fun_name(self) -> str:
@@ -51,6 +52,9 @@ class ConditionalBlock(Block):
         return (
             f"{self.split_context.original_method_node.name.value}_cond_{self.block_id}"
         )
+
+    def has_call(self) -> bool:
+        return self.has_call
 
     def _build_params(self) -> cst.Parameters:
         params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
