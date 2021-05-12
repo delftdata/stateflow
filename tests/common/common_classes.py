@@ -48,3 +48,38 @@ class User:
 
     def __key__(self):
         return self.username
+
+
+@stateflow.stateflow
+class ExperimentalB:
+    def __init__(self, name: str):
+        self.name = name
+        self.balance = 0
+
+    def add_balance(self, balance: int):
+        self.balance += balance
+
+    def balance_equal_to(self, equal_balance: int) -> bool:
+        return self.balance == equal_balance
+
+    def __key__(self):
+        return self.name
+
+
+@stateflow.stateflow
+class ExperimentalA:
+    def __init__(self, name: str):
+        self.name = name
+        self.balance = 0
+
+    def complex_method(self, balance: int, other: ExperimentalB) -> bool:
+        self.balance += balance * 2
+        other.add_balance(balance * 2)
+        self.balance -= balance
+        other.add_balance(-balance)
+        self.balance -= balance
+        is_equal = other.balance_equal_to(balance)
+        return is_equal
+
+    def __key__(self):
+        return self.name

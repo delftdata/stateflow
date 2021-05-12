@@ -64,7 +64,7 @@ class StateflowKafkaClient(StateflowClient):
                 continue
 
             key = msg.key().decode("utf-8")
-            # print(f"{key} -> Received message")
+            print(f"{key} -> Received message")
             if key in self.futures.keys():
                 self.futures[key].complete(
                     self.serializer.deserialize_event(msg.value())
@@ -98,3 +98,40 @@ class StateflowKafkaClient(StateflowClient):
         payload = {}
 
         return self.send(Event(event_id, fun_address, event_type, payload), clasz)
+
+    def _send_ping(self) -> StateflowFuture:
+        event = Event(
+            str(uuid.uuid4()),
+            FunctionAddress(FunctionType("", "", False), None),
+            EventType.Request.Ping,
+            {},
+        )
+
+        self.producer.produce(
+            self.req_topic,
+            value=bytes(self.serializer.serialize_event(event), "utf-8"),
+            key=bytes(event.event_id, "utf-8"),
+        )
+
+        future = StateflowFuture(event.event_id, time.time(), event.fun_address, None)
+
+        self.futures[event.event_id] = future
+        self.producer.flush()
+
+        return future
+
+    def wait_until_healthy(self) -> bool:
+        pong = False
+
+        while not pong:
+            pong_future = self._send_ping()
+
+            try:
+                pong_future.get(timeout=0.5)
+                print("Got a pong!")
+                pong = True
+            except AttributeError:  # future timeout
+                print("Not a pong yet :(")
+                del self.futures[pong_future.id]
+
+        return pong

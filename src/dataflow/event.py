@@ -26,6 +26,8 @@ class _Request(Enum, metaclass=MetaEnum):
 
     EventFlow = "EventFlow"
 
+    Ping = "Ping"
+
     def __str__(self):
         return f"Request.{self.value}"
 
@@ -39,6 +41,8 @@ class _Reply(Enum, metaclass=MetaEnum):
 
     SuccessfulStateRequest = "SuccessfulStateRequest"
     FailedInvocation = "FailedInvocation"
+
+    Pong = "Pong"
 
     def __str__(self):
         return f"Reply.{self.value}"

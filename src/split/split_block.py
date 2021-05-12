@@ -465,6 +465,8 @@ class StatementBlock:
             params.append(cst.Param(cst.Name(value=usage)))
 
         # Get the result of the previous call as parameter of this block.
+        print(f"{self.fun_name()}")
+        print(f"Now adding as dependency {self._previous_call_result().value}")
         previous_block_call: cst.Name = self._previous_call_result()
         params.append(cst.Param(previous_block_call))
         self.dependencies.append(self._previous_call_result().value)
@@ -534,6 +536,12 @@ class StatementBlock:
 
         :return: a new FunctionDefinition.
         """
+        # This block has an invocation to another class. We need to have that instance var as param.
+        if self.split_context.current_invocation:
+            self.dependencies.append(
+                self.split_context.current_invocation.call_instance_var
+            )
+
         # Function signature
         fun_name: cst.Name = cst.Name(self.fun_name())
 
@@ -575,6 +583,52 @@ class StatementBlock:
             name=fun_name,
             params=param_node,
             body=function_body,
+        )
+
+    def _build_last_block(self) -> cst.FunctionDef:
+        """Builds the last block.
+
+        1. We build a new parameter list for this block, this includes _all_ dependencies of this block
+            + the return result of the call.
+        2. We replace the Call node of the invocation which is executed _before_ this last block, with an
+            return variable from this call.
+        3. We keep the original return signature + return nodes.
+        :return: a new FunctionDefinition.
+        """
+
+        fun_name: cst.Name = cst.Name(self.fun_name())
+
+        # Step 1, parameter node.
+        param_node: cst.Parameters() = self._build_params()
+
+        # Step 2, replace the _previous_ call.
+        self.statements[0] = self.statements[0].visit(
+            ReplaceCall(
+                self.split_context.previous_invocation.method_invoked,
+                self._previous_call_result(),
+            )
+        )
+
+        # Step 3, keep the original return signature.
+        returns_signature = self.split_context.original_method_node.returns
+
+        if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
+            final_body = self.statements
+
+            function_body = self.split_context.original_method_node.body.with_changes(
+                body=final_body,
+            )
+
+        else:
+            raise AttributeError(
+                f"Expected the body of a function to be in an indented block, but got an {self.split_context.original_method_node.body}."
+            )
+
+        return self.split_context.original_method_node.with_changes(
+            name=fun_name,
+            params=param_node,
+            body=function_body,
+            returns=returns_signature,
         )
 
     def build_event_flow_nodes(self, start_node: EventFlowNode) -> List[EventFlowNode]:
@@ -693,7 +747,7 @@ class StatementBlock:
                 class_type,
                 flow_node_id,
                 self.fun_name(),
-                list(self.split_context.original_method_desc.input_desc.keys()),
+                self.dependencies,
                 list(self.definitions),
                 self.split_context.original_method_desc.get_typed_params(),
             )
@@ -725,52 +779,6 @@ class StatementBlock:
             update_flow_graph(invoke_node)
 
         return flow_nodes
-
-    def _build_last_block(self) -> cst.FunctionDef:
-        """Builds the last block.
-
-        1. We build a new parameter list for this block, this includes _all_ dependencies of this block
-            + the return result of the call.
-        2. We replace the Call node of the invocation which is executed _before_ this last block, with an
-            return variable from this call.
-        3. We keep the original return signature + return nodes.
-        :return: a new FunctionDefinition.
-        """
-
-        fun_name: cst.Name = cst.Name(self.fun_name())
-
-        # Step 1, parameter node.
-        param_node: cst.Parameters() = self._build_params()
-
-        # Step 2, replace the _previous_ call.
-        self.statements[0] = self.statements[0].visit(
-            ReplaceCall(
-                self.split_context.previous_invocation.method_invoked,
-                self._previous_call_result(),
-            )
-        )
-
-        # Step 3, keep the original return signature.
-        returns_signature = self.split_context.original_method_node.returns
-
-        if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
-            final_body = self.statements
-
-            function_body = self.split_context.original_method_node.body.with_changes(
-                body=final_body,
-            )
-
-        else:
-            raise AttributeError(
-                f"Expected the body of a function to be in an indented block, but got an {self.split_context.original_method_node.body}."
-            )
-
-        return self.split_context.original_method_node.with_changes(
-            name=fun_name,
-            params=param_node,
-            body=function_body,
-            returns=returns_signature,
-        )
 
     def is_first(self) -> bool:
         """Returns if this StatementBlock is the first block.

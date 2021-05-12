@@ -65,12 +65,14 @@ class StateflowFuture(Generic[T]):
                 self.result = event.payload["state"]
         elif event.event_type == EventType.Reply.FoundClass:
             self.result = self.return_type(__key=event.fun_address.key)
+        elif event.event_type == EventType.Reply.Pong:
+            self.result = None
         else:
             raise AttributeError(
                 f"Can't complete unknown even type: {event.event_type}"
             )
 
-    def get(self) -> T:
+    def get(self, timeout=-1) -> T:
         """Gets the return value of this future.
         If not completed, it will wait until it is.
 
@@ -78,7 +80,12 @@ class StateflowFuture(Generic[T]):
 
         :return: the return value.
         """
+        timeout_time = time.time() + timeout
         while not self.is_completed:
+            if timeout != -1 and time.time() >= timeout_time:
+                raise AttributeError(
+                    f"Timeout for the future {self} after {timeout} seconds."
+                )
             time.sleep(0.01)
 
         if isinstance(self.result, list):

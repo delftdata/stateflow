@@ -16,6 +16,7 @@ from src.split.split_block import (
 )
 from src.split.conditional_block import ConditionalBlock
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
+from src.dataflow.event_flow import InvokeMethodRequest
 
 
 class HasInteraction(cst.CSTVisitor):

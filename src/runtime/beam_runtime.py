@@ -47,15 +47,6 @@ class IngressBeamRouter(DoFn):
                     },
                 ),
             )
-        elif route_name not in self.outputs:
-            yield (
-                event.event_id,
-                event.copy(
-                    event_type=EventType.Reply.FailedInvocation,
-                    payload={"error_message": "This event could not be routed."},
-                ),
-            )
-
         # if the key is available, then we set that as key otherwise we set the event_id.
         elif event.event_type == EventType.Request.EventFlow:
             flow_graph: EventFlowGraph = event.payload["flow"]
@@ -85,7 +76,11 @@ class IngressBeamRouter(DoFn):
                 yield pvalue.TaggedOutput(
                     current_node.fun_type.get_full_name(), (current_node.key, event)
                 )
-
+        elif event.event_type == EventType.Request.Ping:
+            print("Omg I received a ping!")
+            yield event.event_id, self.serializer.serialize_event(
+                event.copy(event_type=EventType.Reply.Pong)
+            )
         elif event.fun_address.key:
             yield pvalue.TaggedOutput(route_name, (event.fun_address.key, event))
         else:
@@ -130,9 +125,7 @@ class BeamOperator(DoFn):
         if updated_state is not None:
             operator_state.write(updated_state)
 
-        # print(
-        #      f"Sending  {return_event.event_id} {self.serializer.serialize_event(return_event)}"
-        #  )
+        print(f"Returning  {return_event.event_id}")
         if return_event.event_type == EventType.Request.EventFlow:
             yield pvalue.TaggedOutput(
                 "internal",
@@ -175,8 +168,7 @@ class BeamRuntime(Runtime):
             consumer_config={
                 "bootstrap.servers": "localhost:9092",
                 "auto.offset.reset": "latest",
-                "group.id": "static",  # str(uuid.uuid4()),
-                "group.instance.id": "consume_group",
+                "group.id": str(uuid.uuid4()),
                 "topic": ["client_request", "internal"],
             },
             value_decoder=bytes,
@@ -251,4 +243,3 @@ class BeamRuntime(Runtime):
         else:
             result = self.pipeline.run()
             result.wait_until_finish()
-            result.cancel()

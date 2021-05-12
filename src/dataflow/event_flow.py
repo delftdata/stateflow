@@ -405,13 +405,15 @@ class InvokeSplitFun(EventFlowNode):
         self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
     ) -> Tuple[EventFlowNode, State]:
         # TODO We need to check if the input needs to be transformed to InternalClassRef
-        # Maybe add typed param list?
-        # DEBUG ARGUMENTS
         incomplete_input: List[str] = [
             key
             for key in self.input.keys()
             if self.input[key] == Null or key in self.typed_params
         ]
+
+        print(
+            f"Now trying to invoke method {self.fun_name}. The input we still have to search: {incomplete_input}. All input variables are: {list(self.input.keys())}"
+        )
 
         # Constructs the function arguments.
         # We _copy_ the self.input rather than overriding, this prevents us in sending duplicate
@@ -468,7 +470,10 @@ class InvokeSplitFun(EventFlowNode):
             )
 
             # Prepare next node by setting the address key and the arguments.
-            next_node.set_key(invoke_method_request.instance_ref_var._get_key())
+            if isinstance(invoke_method_request.instance_ref_var, InternalClassRef):
+                next_node.set_key(invoke_method_request.instance_ref_var._get_key())
+            else:
+                next_node.set_key(invoke_method_request.instance_ref_var["key"])
 
             # We assume that arguments in the InvokeMethodRequest are in the correct order.
             for i, arg_key in enumerate(next_node.input.keys()):
