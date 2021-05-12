@@ -236,7 +236,7 @@ def test_multiple_splits():
     )
 
     print(modified_tree.code)
-    assert stmts[1].dependencies == ["a", "get_return"]
+    assert stmts[1].dependencies == ["a", "c", "get_return"]
     assert stmts[1].definitions == ["b_result", "new_a"]
 
     assert stmts[2].dependencies == ["b_result", "a", "set_return"]
