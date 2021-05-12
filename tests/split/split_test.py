@@ -5,6 +5,9 @@ from src.split.split_analyze import (
     RemoveAfterClassDefinition,
     SplitTransformer,
     SplitContext,
+    Block,
+    StatementBlock,
+    ConditionalBlock,
 )
 from src.dataflow.event_flow import (
     StartNode,
@@ -13,6 +16,7 @@ from src.dataflow.event_flow import (
     ReturnNode,
     RequestState,
 )
+from typing import List
 import src.stateflow as stateflow
 
 
@@ -430,7 +434,7 @@ def test_if_statements():
                 a = self.a + self.b
 
             if a > 3:
-                other.set(self.a)
+                other.set(self.a * 9)
             elif other.bigger_than(self.a):
                 self.a = 5
             else:
@@ -461,3 +465,64 @@ def test_if_statements():
             stateflow.registered_classes[0].class_desc,
         ),
     )
+
+    blocks: List[Block] = analyzer.blocks
+
+    # Check unique id's
+    assert len([b.block_id for b in blocks]) == len(set([b.block_id for b in blocks]))
+
+    """
+    a = self.a + self.b
+
+    if False:
+       a = self.a + self.b
+    """
+    assert isinstance(blocks[0], StatementBlock)
+    assert (
+        blocks[0].dependencies == []
+    )  # Actually it has dependencies, but those are in the parameters we assume.
+    assert blocks[0].definitions == ["a", "other"]  # We add parameters as definitions.
+    assert blocks[0].previous_block is None
+    assert blocks[0].next_block == [blocks[1]]
+
+    # if a > 3:
+    assert isinstance(blocks[1], ConditionalBlock)
+    assert blocks[1].dependencies == ["a"]
+    assert blocks[1].previous_block == blocks[0]
+    assert set(blocks[1].next_block) == set([blocks[2], blocks[4]])
+
+    """
+    other.set(self.a)
+    
+    which is split again in two 2 blocks:
+    - invoke_set_arg_x = self.a * 9 and returns a InvokeMethodRequest
+    - set_return
+    """
+    # invoke_set_arg_x = self.a * 9
+    assert isinstance(blocks[2], StatementBlock)
+    assert blocks[2].dependencies == ["other"]
+    assert blocks[2].definitions == []
+    assert blocks[2].previous_block == blocks[1]
+    assert blocks[2].next_block == [blocks[3]]
+
+    # set_return
+    assert isinstance(blocks[3], StatementBlock)
+    assert blocks[3].dependencies == ["set_return"]
+    assert blocks[3].definitions == []
+    assert blocks[3].previous_block == blocks[2]
+    assert blocks[3].next_block == [blocks[8]]
+
+    # other.bigger_than(self.a)
+    assert isinstance(blocks[4], ConditionalBlock)
+
+    # self.a = 5
+    assert isinstance(blocks[5], StatementBlock)
+
+    # else
+    assert isinstance(blocks[6], StatementBlock)
+
+    # other.set(self.b)
+    assert isinstance(blocks[7], StatementBlock)
+
+    # return other.x
+    assert isinstance(blocks[8], StatementBlock)

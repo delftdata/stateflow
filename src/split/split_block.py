@@ -264,20 +264,30 @@ class Block:
         self.split_context = split_context
 
         # Keep track of the previous and next statement block.
-        self.previous_block: Optional["StatementBlock"] = previous_block
-        self.next_block: Optional["StatementBlock"] = None
+        self.previous_block: Optional["Block"] = previous_block
+        self.next_block: List["Block"] = []
 
         # Set the current block as next block for the previous one.
         if self.previous_block:
             self.previous_block.set_next_block(self)
 
-    def set_next_block(self, block: "StatementBlock"):
-        """Sets the next StatementBlock.
+        # Dependencies and definitions
+        self.dependencies: List[str] = []
+        self.definitions: List[str] = []
+
+    def set_previous_block(self, block: "Block"):
+        self.previous_block = block
+        self.previous_block.set_next_block(self)
+
+    def set_next_block(self, block: "Block"):
+        """Sets the next Block.
         This needs to be set _after_ creating this SplitContext, since we don't know the next block until it is created.
+        A block can have multiple next blocks, so they are stored in a list.
 
         :param block: the next statement block.
         """
-        self.next_block = block
+        if block not in self.next_block:
+            self.next_block.append(block)
 
 
 class StatementBlock(Block):
@@ -312,11 +322,17 @@ class StatementBlock(Block):
         self.new_function: cst.FunctionDef = self.build_definition()
 
     def _analyze_statements(self):
+        previous_invocation: Optional[InvocationContext] = (
+            self.split_context.previous_invocation
+            if not isinstance(self.split_context, FirstBlockContext)
+            else None
+        )
+
         for statement in self.statements:
             stmt_analyzer = StatementAnalyzer(
                 self.split_context.expression_provider,
                 self.split_context.previous_invocation.method_invoked
-                if not isinstance(self.split_context, FirstBlockContext)
+                if previous_invocation
                 else None,
             )
             statement.visit(stmt_analyzer)
@@ -488,11 +504,16 @@ class StatementBlock(Block):
     def _build_first_block(self) -> cst.FunctionDef:
         """Build the first block of this function.
 
-        1. We copy the original function signature + parameters. This assumes that the code by the developer
-            is 'correct'.
-        2. We create a set of assignments for the arguments of the call
-            (which is done after the execution of this first block).
-        3. We return 'internal' definition and a InvokeMethodRequest wrapper in case the split reason is a Call.
+        If we have a 'previous call':
+            1. We copy the original function signature + parameters. This assumes that the code by the developer
+                is 'correct'.
+            2. We create a set of assignments for the arguments of the call
+                (which is done after the execution of this first block).
+            3. We return 'internal' definition and a InvokeMethodRequest wrapper.
+        If no previous call:
+            1. We copy the original function signature + parameters. This assumes that the code by the developer
+                is 'correct'.
+            2. We return 'internal' definition.
 
         :return: a new FunctionDefinition.
         """
@@ -506,7 +527,10 @@ class StatementBlock(Block):
         params: cst.Parameters = self.split_context.original_method_node.params
 
         # Step 2, assignments for the _next_ call.
-        argument_assignments = self._build_argument_assignments()
+        if self.split_context.current_invocation:
+            argument_assignments = self._build_argument_assignments()
+        else:
+            argument_assignments = []
         self.arguments_for_call = [name for name, _ in argument_assignments]
 
         # Step 3, build the return statement.
@@ -571,7 +595,10 @@ class StatementBlock(Block):
             )
 
         # Step 2/3, assignments for the _next_ call.
-        argument_assignments = self._build_argument_assignments()
+        if self.split_context.current_invocation:
+            argument_assignments = self._build_argument_assignments()
+        else:
+            argument_assignments = []
         self.arguments_for_call = [name for name, _ in argument_assignments]
 
         # Step 3/4, build the return statement.
