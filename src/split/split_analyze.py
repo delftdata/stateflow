@@ -51,22 +51,54 @@ class SplitAnalyzer(cst.CSTVisitor):
         self,
         class_node: cst.ClassDef,
         split_context: SplitContext,
+        unparsed_statements: List[cst.CSTNode] = [],
         block_id_offset: int = 0,
         outer_block: bool = True,
     ):
         self.class_node: cst.ClassDef = class_node
-        self.split_context = split_context
+        self.split_context: SplitContext = split_context
+        self.unparsed_statements: List[cst.CSTNode] = (
+            unparsed_statements
+            if len(unparsed_statements) > 0
+            else split_context.original_method_node.body.children
+        )
 
         # Unparsed blocks
         self.statements: List[cst.BaseStatement] = []
 
         # Parsed blocks
         self.current_block_id: int = block_id_offset
-        self.blocks: List["StatementBlock"] = []
+        self.blocks: List[StatementBlock] = []
 
         # Analyze this method.
         if outer_block:
             self._outer_analyze()
+        else:
+            self._inner_analyze()
+
+    def _analyze_statements(self):
+        for stmt in self.unparsed_statements:
+            stmt.visit(self)
+            self.statements.append(stmt)
+
+    def _inner_analyze(self):
+        self._analyze_statements()
+
+        previous_invocation: Optional[InvocationContext] = None
+        if len(self.blocks) > 0 and self.blocks[-1].split_context.current_invocation:
+            previous_invocation = self.blocks[-1].split_context.current_invocation
+
+        self.blocks.append(
+            StatementBlock(
+                self.current_block_id,
+                self.statements,
+                IntermediateBlockContext.from_instance(
+                    self.split_context,
+                    current_invocation=None,
+                    previous_invocation=previous_invocation,
+                ),
+            )
+        )
 
     def _outer_analyze(self):
         if not m.matches(self.split_context.original_method_node, m.FunctionDef()):
@@ -74,19 +106,20 @@ class SplitAnalyzer(cst.CSTVisitor):
                 f"Expected a function definition but got an {self.split_context.original_method_node}."
             )
 
-        for stmt in self.split_context.original_method_node.body.children:
-            stmt.visit(self)
-            self.statements.append(stmt)
+        self._analyze_statements()
 
         # Parse the 'last' statement.
-        previous_block = self.blocks[-1]
+        previous_invocation: Optional[InvocationContext] = None
+        if len(self.blocks) > 0 and self.blocks[-1].split_context.current_invocation:
+            previous_invocation = self.blocks[-1].split_context.current_invocation
+
         self.blocks.append(
             StatementBlock(
                 self.current_block_id,
                 self.statements,
                 LastBlockContext.from_instance(
                     self.split_context,
-                    previous_invocation=previous_block.split_context.current_invocation,
+                    previous_invocation=previous_invocation,
                 ),
             )
         )
@@ -118,22 +151,47 @@ class SplitAnalyzer(cst.CSTVisitor):
         else:
             print("We need to analyze this block.")
             # 1 Build conditional block:
-            current_if: cst.If = node
-            conditional_block: ConditionalBlock = ConditionalBlock(
-                self.current_block_id, self.split_context, node.test
-            )
-            self.blocks.append(conditional_block)
+            current_if: Union[cst.If] = node
 
-            self.current_block_id += 1
+            while isinstance(current_if, cst.If):
+                conditional_block: ConditionalBlock = ConditionalBlock(
+                    self.current_block_id, self.split_context, node.test
+                )
+                self.blocks.append(conditional_block)
+                self.current_block_id += 1
 
-            current_if: cst.If = node
-            analyze_if_body: SplitAnalyzer = SplitAnalyzer(
-                self.class_node,
-                self.split_context,
-                block_id_offset=self.current_block_id,
-                outer_block=False,
-            )
-            if_blocks: List[StatementBlock] = analyze_if_body.blocks
+                # Build body of this if_block.
+                analyze_if_body: SplitAnalyzer = SplitAnalyzer(
+                    self.class_node,
+                    self.split_context,
+                    current_if.body.children,
+                    block_id_offset=self.current_block_id,
+                    outer_block=False,
+                )
+                # These are the blocks inside the if body.
+                if_blocks: List[StatementBlock] = analyze_if_body.blocks
+
+                # Update outer-scope.
+                self.blocks.extend(if_blocks)
+                self.current_block_id = len(self.blocks)
+
+                current_if = current_if.orelse
+
+            if isinstance(current_if, cst.Else):
+                else_stmt: cst.Else = node
+                analyze_else_body: SplitAnalyzer = SplitAnalyzer(
+                    self.class_node,
+                    self.split_context,
+                    else_stmt.body.children,
+                    block_id_offset=self.current_block_id,
+                    outer_block=False,
+                )
+
+                else_blocks: List[StatementBlock] = analyze_else_body
+
+                # Update outer-scope.
+                self.blocks.extend(else_blocks)
+                self.current_block_id = len(self.blocks)
 
         return False
 
@@ -193,6 +251,7 @@ class Split:
                             method,
                             desc,
                         ),
+                        method.method_node.body.children,
                     )
 
                     parsed_stmts: List[StatementBlock] = analyzer.blocks

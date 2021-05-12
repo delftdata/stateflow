@@ -253,7 +253,34 @@ class LastBlockContext(SplitContext):
     previous_invocation: Optional[InvocationContext] = None
 
 
-class StatementBlock:
+class Block:
+    def __init__(
+        self,
+        block_id: int,
+        split_context: SplitContext,
+        previous_block: Optional["Block"] = None,
+    ):
+        self.block_id = block_id
+        self.split_context = split_context
+
+        # Keep track of the previous and next statement block.
+        self.previous_block: Optional["StatementBlock"] = previous_block
+        self.next_block: Optional["StatementBlock"] = None
+
+        # Set the current block as next block for the previous one.
+        if self.previous_block:
+            self.previous_block.set_next_block(self)
+
+    def set_next_block(self, block: "StatementBlock"):
+        """Sets the next StatementBlock.
+        This needs to be set _after_ creating this SplitContext, since we don't know the next block until it is created.
+
+        :param block: the next statement block.
+        """
+        self.next_block = block
+
+
+class StatementBlock(Block):
     def __init__(
         self,
         block_id: int,
@@ -263,23 +290,15 @@ class StatementBlock:
         ],
         previous_block: Optional["StatementBlock"] = None,
     ):
-        self.block_id = block_id
+        super().__init__(block_id, split_context, previous_block)
         self.statements = statements
         self.split_context = split_context
 
         self.arguments_for_call = []
         self.returns = 0
 
-        # Keep track of the previous and next statement block.
-        self.previous_block: Optional["StatementBlock"] = previous_block
-        self.next_block: Optional["StatementBlock"] = None
-
         # A list of Def/Use variables per statement line, in the order that they are declared/used.
         self.def_use_list: List[List[Union[Def, Use]]] = []
-
-        # Set the current block as next block for the previous one.
-        if self.previous_block:
-            self.previous_block.set_next_block(self)
 
         # Remove whitespace and analyze statements.
         self._remove_whitespace()
@@ -310,14 +329,6 @@ class StatementBlock:
         """ Removes whitespace from statements if it is there. """
         if m.matches(self.statements[0], m.TrailingWhitespace()):
             self.statements.pop(0)
-
-    def set_next_block(self, block: "StatementBlock"):
-        """Sets the next StatementBlock.
-        This needs to be set _after_ creating this SplitContext, since we don't know the next block until it is created.
-
-        :param block: the next statement block.
-        """
-        self.next_block = block
 
     def _compute_definitions(self) -> List[str]:
         """Computes the (unique) list of definitions in this block.

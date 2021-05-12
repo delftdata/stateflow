@@ -1,6 +1,6 @@
 import libcst as cst
-from src.split.split_block import SplitContext, Use
-from typing import List
+from src.split.split_block import SplitContext, Use, Block
+from typing import List, Optional
 
 
 class ConditionalExpressionAnalyzer(cst.CSTVisitor):
@@ -20,12 +20,15 @@ class ConditionalExpressionAnalyzer(cst.CSTVisitor):
                 self.usages.append(Use(node.value))
 
 
-class ConditionalBlock:
+class ConditionalBlock(Block):
     def __init__(
-        self, block_id: int, split_context: SplitContext, test: cst.BaseExpression
+        self,
+        block_id: int,
+        split_context: SplitContext,
+        test: cst.BaseExpression,
+        previous_block: Optional["Block"] = None,
     ):
-        self.block_id: int = block_id
-        self.split_context: SplitContext = split_context
+        super().__init__(block_id, split_context, previous_block)
         self.test_expr: cst.BaseExpression = test
 
         # Verify usages of this block.
