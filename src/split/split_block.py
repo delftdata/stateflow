@@ -223,6 +223,7 @@ class FirstBlockContext(SplitContext):
     A first block only has a current invocation.
         I.e. it does not have to deal with the result of a 'previous'
         invocation.
+    It might also be None, then we treat it as 'just' a block of computation which returns its definitions.
     """
 
     current_invocation: Optional[InvocationContext] = None
@@ -235,6 +236,8 @@ class IntermediateBlockContext(SplitContext):
     An intermediate block has both a 'previous' and a 'current invocation'.
     1. For the previous invocation, it has to add the result as a parameter and replace the call with this result param.
     2. For the current invocation, it has to evaluate the arguments and return a MethodInvocationRequest.
+
+    One or both might also be None, then we treat it as 'just' a block of computation which returns its definitions.
     """
 
     previous_invocation: Optional[InvocationContext] = None
@@ -248,6 +251,7 @@ class LastBlockContext(SplitContext):
     A last block only has a previous invocation.
        I.e. it does not have to deal with the result of a 'current'
        invocation
+    One or both might also be None, then we treat it as 'just' a block of computation.
     """
 
     previous_invocation: Optional[InvocationContext] = None
@@ -288,6 +292,29 @@ class Block:
         """
         if block not in self.next_block:
             self.next_block.append(block)
+
+    def _build_params(self) -> cst.Parameters:
+        params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
+        for usage in self.dependencies:
+            params.append(cst.Param(cst.Name(value=usage)))
+
+        # Get the result of the previous call as parameter of this block.
+        if self.split_context.previous_invocation:  # only if this invocation exists.
+            previous_block_call: cst.Name = self._previous_call_result()
+            params.append(cst.Param(previous_block_call))
+            self.dependencies.append(self._previous_call_result().value)
+
+        param_node: cst.Parameters = cst.Parameters(tuple(params))
+
+        return param_node
+
+    def _previous_call_result(self) -> cst.Name:
+        """Returns the Name node of the call result of the previously invoked function.
+        It will be passed as a parameter for this block.
+        """
+        return cst.Name(
+            f"{self.split_context.previous_invocation.method_invoked}_return"
+        )
 
 
 class StatementBlock(Block):
@@ -343,7 +370,9 @@ class StatementBlock(Block):
 
     def _remove_whitespace(self):
         """ Removes whitespace from statements if it is there. """
-        if m.matches(self.statements[0], m.TrailingWhitespace()):
+        if len(self.statements) > 0 and m.matches(
+            self.statements[0], m.TrailingWhitespace()
+        ):
             self.statements.pop(0)
 
     def _compute_definitions(self) -> List[str]:
@@ -477,29 +506,6 @@ class StatementBlock(Block):
                     cst.Return(cst.Tuple([cst.Element(name) for name in return_names]))
                 ]
             )
-
-    def _previous_call_result(self) -> cst.Name:
-        """Returns the Name node of the call result of the previously invoked function.
-        It will be passed as a parameter for this block.
-        """
-        return cst.Name(
-            f"{self.split_context.previous_invocation.method_invoked}_return"
-        )
-
-    def _build_params(self) -> cst.Parameters:
-        params: List[cst.Param] = [cst.Param(cst.Name(value="self"))]
-        for usage in self.dependencies:
-            params.append(cst.Param(cst.Name(value=usage)))
-
-        # Get the result of the previous call as parameter of this block.
-        if self.split_context.previous_invocation:  # only if this invocation exists.
-            previous_block_call: cst.Name = self._previous_call_result()
-            params.append(cst.Param(previous_block_call))
-            self.dependencies.append(self._previous_call_result().value)
-
-        param_node: cst.Parameters = cst.Parameters(tuple(params))
-
-        return param_node
 
     def _build_first_block(self) -> cst.FunctionDef:
         """Build the first block of this function.

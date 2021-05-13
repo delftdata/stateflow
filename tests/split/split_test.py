@@ -431,7 +431,6 @@ def test_if_statements():
 
         def cool_method(self, other: Other):
             a = self.a + self.b
-
             if a > 3:
                 other.set(self.a * 9)
             elif other.bigger_than(self.a):
@@ -472,10 +471,8 @@ def test_if_statements():
 
     """
     a = self.a + self.b
-
-    if False:
-       a = self.a + self.b
     """
+    print(f"{blocks[0].block_id} and {[b.block_id for b in blocks[0].next_block]}")
     assert isinstance(blocks[0], StatementBlock)
     assert (
         blocks[0].dependencies == []
@@ -511,17 +508,49 @@ def test_if_statements():
     assert blocks[3].previous_block == blocks[2]
     assert blocks[3].next_block == [blocks[8]]
 
-    # other.bigger_than(self.a)
-    assert isinstance(blocks[4], ConditionalBlock)
+    # invoke_bigger_than_x = self.a
+    assert isinstance(blocks[4], StatementBlock)
+
+    # bigger_than_result
+    assert isinstance(blocks[5], ConditionalBlock)
 
     # self.a = 5
-    assert isinstance(blocks[5], StatementBlock)
-
-    # else
     assert isinstance(blocks[6], StatementBlock)
 
-    # other.set(self.b)
+    # else
     assert isinstance(blocks[7], StatementBlock)
 
-    # return other.x
+    # other.set(self.b)
     assert isinstance(blocks[8], StatementBlock)
+
+    # return other.x
+    assert isinstance(blocks[9], StatementBlock)
+
+
+def test_if_statements_complex():
+    stateflow.clear()
+
+    class OtherComplex(object):
+        def __init__(self):
+            self.x = 0
+
+        def set(self, x: int):
+            self.x = x
+            return self.a
+
+        def bigger_than(self, x: int) -> bool:
+            return x > self.x
+
+    class IfClassComplex(object):
+        def __init__(self):
+            self.a = 0
+            self.b = 0
+
+        def cool_method(self, other: OtherComplex):
+            if self.a > 3:
+                if self.b < 0:
+                    return
+            else:
+                other.set(self.a)
+
+            return other.x

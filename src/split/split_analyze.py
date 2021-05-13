@@ -15,15 +15,22 @@ from src.split.split_block import (
     InvocationContext,
     Block,
 )
-from src.split.conditional_block import ConditionalBlock
+from src.split.conditional_block import ConditionalBlock, ConditionalBlockContext
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
 from src.dataflow.event_flow import InvokeMethodRequest
 
 
 class HasInteraction(cst.CSTVisitor):
-    def __init__(self, node_to_analyze: cst.CSTNode, split_context: SplitContext):
+    def __init__(
+        self,
+        node_to_analyze: cst.CSTNode,
+        split_context: SplitContext,
+        single: bool = False,
+    ):
         self.has_interaction = False
         self.split_context = split_context
+        self.invocation_context: Optional[InvocationContext] = None
+        self.single: bool = single
 
         node_to_analyze.visit(self)
 
@@ -34,6 +41,7 @@ class HasInteraction(cst.CSTVisitor):
             attr: cst.Attribute = node.func
 
             callee: str = attr.value.value
+            method: str = attr.attr.value
 
             # Find callee class in the complete 'context'.
             desc: ClassDescriptor = self.split_context.class_descriptors.get(
@@ -41,10 +49,25 @@ class HasInteraction(cst.CSTVisitor):
             )
 
             if desc is not None:
-                self.has_interaction = True
+                if (
+                    self.has_interaction and not self.single
+                ):  # We do not allow multiple calls on one line.
+                    raise AttributeError(
+                        "Multiple calls in an if condition are not yet supported. "
+                        "You could evaluate the if-conditions in multiple statements "
+                        f"_before_ the if-block. The previous call was {self.invocation_context}"
+                    )
+                else:
+                    self.invocation_context = InvocationContext(
+                        desc, callee, method, desc.get_method_by_name(method), node.args
+                    )
+                    self.has_interaction = True
 
-    def get(self):
+    def get(self) -> bool:
         return self.has_interaction
+
+    def get_invocation(self) -> Optional[InvocationContext]:
+        return self.invocation_context
 
 
 class SplitAnalyzer(cst.CSTVisitor):
@@ -162,82 +185,91 @@ class SplitAnalyzer(cst.CSTVisitor):
             self._process_stmt_block_with_invocation(invocation_context)
 
     def visit_If(self, node: cst.If):
-        if not HasInteraction(node, self.split_context).get():
-            print("We don't need to identify this block.")
+        if not HasInteraction(node, self.split_context, single=True).get():
             return False
-        else:
-            if len(self.blocks) == 0:
-                self._process_stmt_block_without_invocation()
 
-            # Build conditional block:
-            current_if: Union[cst.If] = node
-            conditional_block: Optional[ConditionalBlock] = None
-            last_body_block: List[Block] = []
+        if len(self.blocks) == 0:
+            self._process_stmt_block_without_invocation()
 
-            while isinstance(current_if, cst.If):
-                # TODO We now assume there is a 'previous' block, always.
-                conditional_block = ConditionalBlock(
-                    self.current_block_id,
+        # Build conditional block:
+        current_if: Union[cst.If] = node
+        conditional_block: Optional[ConditionalBlock] = None
+        last_body_block: List[Block] = []
+
+        while isinstance(current_if, cst.If):
+            interaction: HasInteraction = HasInteraction(
+                current_if.test, self.split_context
+            )
+            if interaction.get():
+                self._process_stmt_block_with_invocation(interaction.get_invocation())
+
+            conditional_block = ConditionalBlock(
+                self.current_block_id,
+                ConditionalBlockContext.from_instance(
                     self.split_context,
-                    node.test,
-                    self.blocks[-1] if conditional_block is None else conditional_block,
-                )
-                self._add_block(conditional_block)
-                self.current_block_id += 1
+                    previous_invocation=interaction.get_invocation()
+                    if interaction.get()
+                    else None,
+                ),
+                node.test,
+                self.blocks[-1] if conditional_block is None else conditional_block,
+            )
+            self._add_block(conditional_block)
+            self.current_block_id += 1
 
-                # Build body of this if_block.
-                analyze_if_body: SplitAnalyzer = SplitAnalyzer(
-                    self.class_node,
-                    self.split_context,
-                    current_if.body.children,
-                    block_id_offset=self.current_block_id,
-                    outer_block=False,
-                )
+            # Build body of this if_block.
+            analyze_if_body: SplitAnalyzer = SplitAnalyzer(
+                self.class_node,
+                self.split_context,
+                current_if.body.children,
+                block_id_offset=self.current_block_id,
+                outer_block=False,
+            )
 
-                # These are the blocks inside the if body.
-                if_blocks: List[StatementBlock] = analyze_if_body.blocks
+            # These are the blocks inside the if body.
+            if_blocks: List[StatementBlock] = analyze_if_body.blocks
 
-                # Link up first if_block, to conditional:
-                if_blocks[0].set_previous_block(conditional_block)
+            # Link up first if_block, to conditional:
+            if_blocks[0].set_previous_block(conditional_block)
 
-                # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
-                # the if statement.
-                last_body_block.append(if_blocks[-1])
+            # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
+            # the if statement.
+            last_body_block.append(if_blocks[-1])
 
-                # Update outer-scope.
-                self.blocks.extend(if_blocks)
-                self.current_block_id = len(self.blocks)
+            # Update outer-scope.
+            self.blocks.extend(if_blocks)
+            self.current_block_id = len(self.blocks)
 
-                # Pick next if, else, or None.
-                current_if = current_if.orelse
+            # Pick next if, else, or None.
+            current_if = current_if.orelse
 
-            if isinstance(current_if, cst.Else):
-                else_stmt: cst.Else = node
-                analyze_else_body: SplitAnalyzer = SplitAnalyzer(
-                    self.class_node,
-                    self.split_context,
-                    else_stmt.body.children,
-                    block_id_offset=self.current_block_id,
-                    outer_block=False,
-                )
+        if isinstance(current_if, cst.Else):
+            else_stmt: cst.Else = node
+            analyze_else_body: SplitAnalyzer = SplitAnalyzer(
+                self.class_node,
+                self.split_context,
+                else_stmt.body.children,
+                block_id_offset=self.current_block_id,
+                outer_block=False,
+            )
 
-                else_blocks: List[StatementBlock] = analyze_else_body.blocks
+            else_blocks: List[StatementBlock] = analyze_else_body.blocks
 
-                # We connect the first block of this else body, to the last conditional.
-                # We assume this conditional_block is not None, because you can't have an "else" clause
-                # without an if or elif before it.
-                else_blocks[0].set_next_block(conditional_block)
+            # We connect the first block of this else body, to the last conditional.
+            # We assume this conditional_block is not None, because you can't have an "else" clause
+            # without an if or elif before it.
+            else_blocks[0].set_next_block(conditional_block)
 
-                # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
-                # the if statement.
-                last_body_block.append(else_blocks[-1])
+            # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
+            # the if statement.
+            last_body_block.append(else_blocks[-1])
 
-                # Update outer-scope.
-                self.blocks.extend(else_blocks)
-                self.current_block_id = len(self.blocks)
+            # Update outer-scope.
+            self.blocks.extend(else_blocks)
+            self.current_block_id = len(self.blocks)
 
-            print(f"Unlinked blocks: {[b.block_id for b in last_body_block]}")
-            self.unlinked_blocks = last_body_block
+        print(f"Unlinked blocks: {[b.block_id for b in last_body_block]}")
+        self.unlinked_blocks = last_body_block
 
         return False
 
