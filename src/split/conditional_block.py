@@ -43,19 +43,16 @@ class ConditionalBlock(Block):
         block_id: int,
         split_context: ConditionalBlockContext,
         test: cst.BaseExpression,
-        previous_block: Optional["Block"] = None,
+        previous_block: Optional[Block] = None,
+        invocation_block: Optional[Block] = None,
+        label: str = "",
     ):
-        # If our previous block is a conditional and this conditional has an external invocation,
-        # we want to link to the 'first block' of that invocation rather than the actual 'conditional'.
-        # this 'first block' is the block where arguments are evaluated.
-        if (
-            isinstance(previous_block, ConditionalBlock)
-            and split_context.previous_invocation
-        ):
-            previous_block = previous_block.previous_block
-
-        super().__init__(block_id, split_context, previous_block)
+        super().__init__(block_id, split_context, previous_block, label)
         self.test_expr: cst.BaseExpression = test
+        self.invocation_block: Optional[Block] = invocation_block
+
+        if self.invocation_block:
+            self.invocation_block.set_next_block(self)
 
         # Verify usages of this block.
         analyzer: ConditionalExpressionAnalyzer = ConditionalExpressionAnalyzer(
@@ -73,6 +70,9 @@ class ConditionalBlock(Block):
         return (
             f"{self.split_context.original_method_node.name.value}_cond_{self.block_id}"
         )
+
+    def get_start_block(self) -> Block:
+        return self if not self.invocation_block else self.invocation_block
 
     def _build_return(self) -> cst.SimpleStatementLine:
         return cst.SimpleStatementLine(body=[cst.Return(self.test_expr)])

@@ -466,13 +466,16 @@ def test_if_statements():
 
     blocks: List[Block] = analyzer.blocks
 
+    from src.util import dataflow_visualizer
+
+    dataflow_visualizer.visualize(blocks)
+
     # Check unique id's
     assert len([b.block_id for b in blocks]) == len(set([b.block_id for b in blocks]))
 
-    """
+    """ block 0
     a = self.a + self.b
     """
-    print(f"{blocks[0].block_id} and {[b.block_id for b in blocks[0].next_block]}")
     assert isinstance(blocks[0], StatementBlock)
     assert (
         blocks[0].dependencies == []
@@ -481,13 +484,14 @@ def test_if_statements():
     assert blocks[0].previous_block is None
     assert blocks[0].next_block == [blocks[1]]
 
+    # Block 1
     # if a > 3:
     assert isinstance(blocks[1], ConditionalBlock)
     assert blocks[1].dependencies == ["a"]
     assert blocks[1].previous_block == blocks[0]
     assert set(blocks[1].next_block) == set([blocks[2], blocks[4]])
 
-    """
+    """ block 2
     other.set(self.a)
     
     which is split again in two 2 blocks:
@@ -501,13 +505,16 @@ def test_if_statements():
     assert blocks[2].previous_block == blocks[1]
     assert blocks[2].next_block == [blocks[3]]
 
+    # Block 3
     # set_return
+    print(f"{[b.block_id for b in blocks[3].next_block]}")
     assert isinstance(blocks[3], StatementBlock)
     assert blocks[3].dependencies == ["set_return"]
     assert blocks[3].definitions == []
     assert blocks[3].previous_block == blocks[2]
-    assert blocks[3].next_block == [blocks[8]]
+    assert blocks[3].next_block == [blocks[9]]
 
+    # Block 4
     # invoke_bigger_than_x = self.a
     assert isinstance(blocks[4], StatementBlock)
 

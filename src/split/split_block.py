@@ -263,6 +263,7 @@ class Block:
         block_id: int,
         split_context: SplitContext,
         previous_block: Optional["Block"] = None,
+        label: str = "",
     ):
         self.block_id = block_id
         self.split_context = split_context
@@ -271,17 +272,18 @@ class Block:
         self.previous_block: Optional["Block"] = previous_block
         self.next_block: List["Block"] = []
 
-        # Set the current block as next block for the previous one.
-        if self.previous_block:
-            self.previous_block.set_next_block(self)
+        # Set the previous block if it's there.
+        self.set_previous_block(previous_block)
 
         # Dependencies and definitions
         self.dependencies: List[str] = []
         self.definitions: List[str] = []
 
+        # Labels are used for debugging and visualization.
+        self.label = label
+
     def set_previous_block(self, block: "Block"):
         self.previous_block = block
-        self.previous_block.set_next_block(self)
 
     def set_next_block(self, block: "Block"):
         """Sets the next Block.
@@ -316,6 +318,12 @@ class Block:
             f"{self.split_context.previous_invocation.method_invoked}_return"
         )
 
+    def get_label(self) -> str:
+        return self.label
+
+    def set_label(self, label: str):
+        self.label = label
+
 
 class StatementBlock(Block):
     def __init__(
@@ -326,8 +334,9 @@ class StatementBlock(Block):
             FirstBlockContext, IntermediateBlockContext, LastBlockContext
         ],
         previous_block: Optional["StatementBlock"] = None,
+        label: str = "",
     ):
-        super().__init__(block_id, split_context, previous_block)
+        super().__init__(block_id, split_context, previous_block, label)
         self.statements = statements
         self.split_context = split_context
 
