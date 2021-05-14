@@ -54,11 +54,20 @@ class ConditionalBlock(Block):
         if self.invocation_block:
             self.invocation_block.set_next_block(self)
 
+        # Get rid of the invocation and replace with the result.
+        if self.split_context.previous_invocation:
+            self.test_expr = self.test_expr.visit(
+                ReplaceCall(
+                    self.split_context.previous_invocation.method_invoked,
+                    self._previous_call_result(),
+                )
+            )
+
         # Verify usages of this block.
         analyzer: ConditionalExpressionAnalyzer = ConditionalExpressionAnalyzer(
             split_context.expression_provider
         )
-        test.visit(analyzer)
+        self.test_expr.visit(analyzer)
 
         self.dependencies: List[str] = [u.name for u in analyzer.usages]
         self.new_function: cst.FunctionDef = self.build_definition()
@@ -80,15 +89,6 @@ class ConditionalBlock(Block):
     def build_definition(self) -> cst.FunctionDef:
         fun_name: cst.Name = cst.Name(self.fun_name())
         param_node: cst.Paramaters = self._build_params()
-
-        # Step 2, replace the _previous_ call only if this previous call exists.
-        if self.split_context.previous_invocation:
-            self.test_expr = self.test_expr.visit(
-                ReplaceCall(
-                    self.split_context.previous_invocation.method_invoked,
-                    self._previous_call_result(),
-                )
-            )
 
         return_node: cst.SimpleStatementLine = self._build_return()
 

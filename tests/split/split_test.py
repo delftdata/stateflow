@@ -435,10 +435,11 @@ def test_if_statements():
                 other.set(self.a * 9)
             elif other.bigger_than(self.a):
                 self.a = 5
+                hoi = 4
             else:
                 other.set(self.b)
 
-            return other.x
+            return self.b
 
     stateflow.stateflow(IfClass, parse_file=False)
     stateflow.stateflow(Other, parse_file=False)
@@ -490,6 +491,7 @@ def test_if_statements():
     assert blocks[1].dependencies == ["a"]
     assert blocks[1].previous_block == blocks[0]
     assert set(blocks[1].next_block) == set([blocks[2], blocks[4]])
+    assert blocks[1].invocation_block == None
 
     """ block 2
     other.set(self.a)
@@ -501,7 +503,9 @@ def test_if_statements():
     # invoke_set_arg_x = self.a * 9
     assert isinstance(blocks[2], StatementBlock)
     assert blocks[2].dependencies == ["other"]
-    assert blocks[2].definitions == []
+    assert (
+        blocks[2].definitions == []
+    )  # Assignments for methods are not seen as definitions, because they are wrapped.
     assert blocks[2].previous_block == blocks[1]
     assert blocks[2].next_block == [blocks[3]]
 
@@ -517,18 +521,39 @@ def test_if_statements():
     # Block 4
     # invoke_bigger_than_x = self.a
     assert isinstance(blocks[4], StatementBlock)
+    assert blocks[4].dependencies == ["other"]
+    assert blocks[4].definitions == []
+    assert blocks[4].previous_block == blocks[1]
+    assert blocks[4].next_block == [blocks[5]]
 
     # bigger_than_result
     assert isinstance(blocks[5], ConditionalBlock)
+    assert blocks[5].dependencies == ["bigger_than_return"]
+    assert blocks[5].definitions == []
+    assert blocks[5].previous_block == blocks[4]
+    assert blocks[5].invocation_block == blocks[4]
+    assert blocks[5].next_block == [blocks[6], blocks[7]]
 
     # self.a = 5
     assert isinstance(blocks[6], StatementBlock)
+    assert blocks[6].dependencies == []
+    assert blocks[6].definitions == ["hoi"]
+    assert blocks[6].previous_block == blocks[5]
+    assert blocks[6].next_block == [blocks[9]]
 
     # else
     assert isinstance(blocks[7], StatementBlock)
+    assert blocks[7].dependencies == ["other"]
+    assert blocks[7].definitions == []
+    assert blocks[7].previous_block == blocks[5]
+    assert blocks[7].next_block == [blocks[8]]
 
     # other.set(self.b)
     assert isinstance(blocks[8], StatementBlock)
+    assert blocks[8].dependencies == ["set_return"]
+    assert blocks[8].definitions == []
+    assert blocks[8].previous_block == blocks[7]
+    assert blocks[8].next_block == [blocks[9]]
 
     # return other.x
     assert isinstance(blocks[9], StatementBlock)
