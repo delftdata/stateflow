@@ -42,18 +42,35 @@ class MethodDescriptor:
         )
 
         self.statement_blocks = blocks
-        self.flow_list = []
+        self.flow_list: List[EventFlowNode] = []
 
         # Build start of the flow.
         flow_start: EventFlowNode = StartNode(0)
-        latest_node: EventFlowNode = flow_start
+        latest_node_id: int = flow_start.id
         self.flow_list.append(flow_start)
 
+        # A mapping from Block to EventFlowNode.
+        # Used to correctly build a EventFlowGraph
+        flow_mapping = {block: None for block in self.statement_blocks}
+        block_stack: List = [self.statement_blocks[0]]
+        visited: List[int] = []
+
+        print("Now splitting function.")
         for block in self.statement_blocks:
-            self.flow_list.extend(block.build_event_flow_nodes(latest_node))
-            latest_node = self.flow_list[
-                -1
-            ]  # TODO this assumption, might not be correct if we introduce control flow.
+            flow_nodes: List[EventFlowNode] = block.build_event_flow_nodes(
+                latest_node_id
+            )
+            self.flow_list.extend(flow_nodes)
+            flow_mapping[block] = flow_nodes
+
+            latest_node_id = self.flow_list[-1].id
+
+        for block, flow_nodes in flow_mapping.items():
+            for next in block.next_block:
+                next_flow_node_list = flow_mapping[next]
+                flow_nodes[-1].set_next(next_flow_node_list[0].id)
+
+                # We won't set the previous, this is what we will do dynamically.
 
     def get_typed_params(self):
         # TODO Improve this. Very ambiguous name.

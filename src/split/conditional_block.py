@@ -9,6 +9,7 @@ from src.split.split_block import (
     ReplaceCall,
     EventFlowNode,
 )
+from src.dataflow.event_flow import InvokeConditional
 from typing import List, Optional
 from src.descriptors.class_descriptor import ClassDescriptor
 from dataclasses import dataclass
@@ -70,6 +71,9 @@ class ConditionalBlock(Block):
         )
         self.test_expr.visit(analyzer)
 
+        self.true_block: Optional[Block] = None
+        self.false_block: Optional[Block] = None
+
         self.dependencies: List[str] = [u.name for u in analyzer.usages]
         self.new_function: cst.FunctionDef = self.build_definition()
 
@@ -81,36 +85,44 @@ class ConditionalBlock(Block):
             f"{self.split_context.original_method_node.name.value}_cond_{self.block_id}"
         )
 
+    def _get_true_block(self) -> Optional[Block]:
+        return self.true_block
+
+    def _get_false_block(self) -> Optional[Block]:
+        return self.false_block
+
+    def set_true_block(self, block: Block):
+        self.true_block = block
+
+    def set_false_block(self, block: Block):
+        self.false_block = block
+
     def get_start_block(self) -> Block:
         return self if not self.invocation_block else self.invocation_block
 
     def _build_return(self) -> cst.SimpleStatementLine:
         return cst.SimpleStatementLine(body=[cst.Return(self.test_expr)])
 
-    def build_event_flow_nodes(self, start_node: EventFlowNode) -> List[EventFlowNode]:
-        # Initialize id and latest flow node.
-        flow_node_id = start_node.id + 1  # Offset the id with start_node.
-        latest_node: EventFlowNode = start_node
-
-        # Initialize list of flow nodes for this StatementBlock.
-        flow_nodes: List[EventFlowNode] = []
+    def build_event_flow_nodes(self, node_id: int) -> List[EventFlowNode]:
+        # Initialize id.
+        flow_node_id = node_id + 1  # Offset the id.
 
         # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
         class_type = self.split_context.class_desc.to_function_type()
 
-        def update_flow_graph(new_node: EventFlowNode):
-            nonlocal flow_nodes, latest_node, flow_node_id
-            flow_nodes.append(new_node)
+        """ For an conditional node, we assume the following scenario:
+            1. We assume that if the conditional relies on an external function,
+            the previous node has that result. 
+            2. The conditional is simply evaluated and based on the result,
+            the path is decided. 
+        """
+        invoke_conditional: InvokeConditional = InvokeConditional(
+            class_type, flow_node_id, self.fun_name(), self.dependencies, -1, -1
+        )
 
-            # Set next and previous.
-            latest_node.set_next(new_node.id)
-            new_node.set_previous(latest_node.id)
+        # We set the if True block to
 
-            # Set latest.
-            latest_node = new_node
-
-            # Increment id.
-            flow_node_id += 1
+        return [invoke_conditional]
 
     def build_definition(self) -> cst.FunctionDef:
         fun_name: cst.Name = cst.Name(self.fun_name())
@@ -121,6 +133,6 @@ class ConditionalBlock(Block):
             name=fun_name,
             params=param_node,
             body=self.split_context.original_method_node.body.with_changes(
-                body=return_node
+                body=[return_node]
             ),
         )

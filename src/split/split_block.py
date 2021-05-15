@@ -282,6 +282,8 @@ class Block:
         # Labels are used for debugging and visualization.
         self.label = label
 
+        self.new_function: Optional[cst.FunctionDef] = None
+
     def set_previous_block(self, block: "Block"):
         self.previous_block = block
 
@@ -321,8 +323,13 @@ class Block:
     def build_definition(self) -> cst.FunctionDef:
         raise NotImplementedError("Should be implemented by subclasses.")
 
-    def build_event_flow_nodes(self, start_node: EventFlowNode) -> List[EventFlowNode]:
+    def build_event_flow_nodes(self, node_id: int) -> List[EventFlowNode]:
         raise NotImplementedError("Should be implemented by subclasses.")
+
+    def code(self) -> str:
+        return self.split_context.class_desc.module_node.code_for_node(
+            self.new_function
+        )
 
     def get_label(self) -> str:
         return self.label
@@ -697,10 +704,10 @@ class StatementBlock(Block):
             returns=returns_signature,
         )
 
-    def build_event_flow_nodes(self, start_node: EventFlowNode) -> List[EventFlowNode]:
+    def build_event_flow_nodes(self, node_id: int) -> List[EventFlowNode]:
         # Initialize id and latest flow node.
-        flow_node_id = start_node.id + 1  # Offset the id with start_node.
-        latest_node: EventFlowNode = start_node
+        flow_node_id = node_id + 1  # Offset the id with start_node.
+        latest_node: Optional[EventFlowNode] = None
 
         # Initialize list of flow nodes for this StatementBlock.
         flow_nodes: List[EventFlowNode] = []
@@ -713,8 +720,9 @@ class StatementBlock(Block):
             flow_nodes.append(new_node)
 
             # Set next and previous.
-            latest_node.set_next(new_node.id)
-            new_node.set_previous(latest_node.id)
+            if latest_node:
+                latest_node.set_next(new_node.id)
+                new_node.set_previous(latest_node.id)
 
             # Set latest.
             latest_node = new_node
@@ -765,22 +773,23 @@ class StatementBlock(Block):
                 # Since the last node should be InvokeSplitFun (not ReturnNode), we update the latest node again.
                 latest_node = split_node
 
-            # Step 3, we add an InvokeExternal node.
-            invoke_node = InvokeExternal(
-                FunctionType.create(
-                    self.split_context.class_descriptors[
-                        self.split_context.current_invocation.class_desc.class_name
-                    ]
-                ),
-                flow_node_id,
-                self.split_context.current_invocation.call_instance_var,
-                self.split_context.current_invocation.method_invoked,
-                list(
-                    self.split_context.current_invocation.method_desc.input_desc.keys()
-                ),
-            )
+            # Step 3, we add an InvokeExternal node, only if necessary.
+            if self.split_context.current_invocation:
+                invoke_node = InvokeExternal(
+                    FunctionType.create(
+                        self.split_context.class_descriptors[
+                            self.split_context.current_invocation.class_desc.class_name
+                        ]
+                    ),
+                    flow_node_id,
+                    self.split_context.current_invocation.call_instance_var,
+                    self.split_context.current_invocation.method_invoked,
+                    list(
+                        self.split_context.current_invocation.method_desc.input_desc.keys()
+                    ),
+                )
+                update_flow_graph(invoke_node)
 
-            update_flow_graph(invoke_node)
         elif self.is_last():
             """For a last node, we assume the following scenario:
             1. We invoke the last part of the function (i.e. InvokeSplitFun).
@@ -828,21 +837,22 @@ class StatementBlock(Block):
                 latest_node = split_node
 
             # Step 3, we add an InvokeExternal node.
-            invoke_node = InvokeExternal(
-                FunctionType.create(
-                    self.split_context.class_descriptors[
-                        self.split_context.current_invocation.class_desc.class_name
-                    ]
-                ),
-                flow_node_id,
-                self.split_context.current_invocation.call_instance_var,
-                self.split_context.current_invocation.method_invoked,
-                list(
-                    self.split_context.current_invocation.method_desc.input_desc.keys()
-                ),
-            )
+            if self.split_context.current_invocation:
+                invoke_node = InvokeExternal(
+                    FunctionType.create(
+                        self.split_context.class_descriptors[
+                            self.split_context.current_invocation.class_desc.class_name
+                        ]
+                    ),
+                    flow_node_id,
+                    self.split_context.current_invocation.call_instance_var,
+                    self.split_context.current_invocation.method_invoked,
+                    list(
+                        self.split_context.current_invocation.method_desc.input_desc.keys()
+                    ),
+                )
 
-            update_flow_graph(invoke_node)
+                update_flow_graph(invoke_node)
 
         return flow_nodes
 

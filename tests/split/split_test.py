@@ -558,6 +558,10 @@ def test_if_statements():
     # return other.x
     assert isinstance(blocks[9], StatementBlock)
 
+    method_desc.split_function(blocks)
+
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
 
 def test_if_statements_complex():
     stateflow.clear()

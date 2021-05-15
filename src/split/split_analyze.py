@@ -209,7 +209,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         current_if: Union[cst.If] = node
 
         # The current conditional block, initialized to None.
-        conditional_block: Optional[Union[ConditionalBlock]] = self.blocks[-1]
+        conditional_block: Optional[Union[ConditionalBlock, Block]] = self.blocks[-1]
 
         # The list of the last block of each if body, this needs to be linked up to the next block _after_
         # this if-block.
@@ -251,6 +251,9 @@ class SplitAnalyzer(cst.CSTVisitor):
             new_conditional.get_start_block().set_previous_block(conditional_block)
             conditional_block.set_next_block(new_conditional.get_start_block())
 
+            if isinstance(conditional_block, ConditionalBlock):
+                conditional_block.set_false_block(new_conditional.get_start_block())
+
             # Add conditional block and update state.
             self._add_block(new_conditional)
             self.current_block_id += 1
@@ -274,6 +277,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             # Link up first if_block, to conditional:
             conditional_block.set_next_block(if_blocks[0])
+            conditional_block.set_true_block(if_blocks[0])
             if_blocks[0].set_previous_block(conditional_block)
 
             # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
@@ -306,6 +310,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             # We assume this conditional_block is not None, because you can't have an "else" clause
             # without an if or elif before it.
             conditional_block.set_next_block(else_blocks[0])
+            conditional_block.set_false_block(else_blocks[0])
             else_blocks[0].set_previous_block(conditional_block)
 
             # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
