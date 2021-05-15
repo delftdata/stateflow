@@ -318,6 +318,12 @@ class Block:
             f"{self.split_context.previous_invocation.method_invoked}_return"
         )
 
+    def build_definition(self) -> cst.FunctionDef:
+        raise NotImplementedError("Should be implemented by subclasses.")
+
+    def build_event_flow_nodes(self, start_node: EventFlowNode) -> List[EventFlowNode]:
+        raise NotImplementedError("Should be implemented by subclasses.")
+
     def get_label(self) -> str:
         return self.label
 

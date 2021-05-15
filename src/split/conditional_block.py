@@ -7,6 +7,7 @@ from src.split.split_block import (
     StatementBlock,
     InvocationContext,
     ReplaceCall,
+    EventFlowNode,
 )
 from typing import List, Optional
 from src.descriptors.class_descriptor import ClassDescriptor
@@ -86,12 +87,36 @@ class ConditionalBlock(Block):
     def _build_return(self) -> cst.SimpleStatementLine:
         return cst.SimpleStatementLine(body=[cst.Return(self.test_expr)])
 
+    def build_event_flow_nodes(self, start_node: EventFlowNode) -> List[EventFlowNode]:
+        # Initialize id and latest flow node.
+        flow_node_id = start_node.id + 1  # Offset the id with start_node.
+        latest_node: EventFlowNode = start_node
+
+        # Initialize list of flow nodes for this StatementBlock.
+        flow_nodes: List[EventFlowNode] = []
+
+        # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
+        class_type = self.split_context.class_desc.to_function_type()
+
+        def update_flow_graph(new_node: EventFlowNode):
+            nonlocal flow_nodes, latest_node, flow_node_id
+            flow_nodes.append(new_node)
+
+            # Set next and previous.
+            latest_node.set_next(new_node.id)
+            new_node.set_previous(latest_node.id)
+
+            # Set latest.
+            latest_node = new_node
+
+            # Increment id.
+            flow_node_id += 1
+
     def build_definition(self) -> cst.FunctionDef:
         fun_name: cst.Name = cst.Name(self.fun_name())
         param_node: cst.Paramaters = self._build_params()
 
         return_node: cst.SimpleStatementLine = self._build_return()
-
         return self.split_context.original_method_node.with_changes(
             name=fun_name,
             params=param_node,

@@ -57,6 +57,7 @@ class EventFlowNode:
 
     REQUEST_STATE = "REQUEST_STATE"
     INVOKE_SPLIT_FUN = "INVOKE_SPLIT_FUN"
+    INVOKE_CONDITIONAL = "INVOKE_CONDITIONAL"
 
     INVOKE_EXTERNAL = "INVOKE_EXTERNAL"
 
@@ -506,6 +507,48 @@ class InvokeSplitFun(EventFlowNode):
             dict["params"],
             dict["definitions"],
             dict["typed_params"],
+        )
+
+
+class InvokeConditional(EventFlowNode):
+    def __init__(
+        self,
+        fun_type: FunctionType,
+        id: int,
+        fun_name: str,
+        params: List[str],
+        if_true_node: int,
+        if_false_node: int,
+    ):
+        super().__init__(EventFlowNode.INVOKE_CONDITIONAL, fun_type, id)
+        self.fun_name = fun_name
+        self.params = params
+        self.if_true_node = if_true_node
+        self.if_false_node = if_false_node
+
+        for param in params:
+            self.input[param] = Null
+
+        # This node has no output.
+
+    def to_dict(self) -> Dict:
+        return_dict = super().to_dict()
+        return_dict["fun_name"] = self.fun_name
+        return_dict["params"] = self.params
+        return_dict["if_true_node"] = self.if_true_node
+        return_dict["if_false_node"] = self.if_false_node
+
+        return return_dict
+
+    @staticmethod
+    def construct(fun_type: FunctionType, dict: Dict):
+        return InvokeSplitFun(
+            fun_type,
+            dict["id"],
+            dict["fun_name"],
+            dict["params"],
+            dict["if_true_node"],
+            dict["if_true_node"],
         )
 
 
