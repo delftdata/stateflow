@@ -492,6 +492,8 @@ def test_if_statements():
     assert blocks[1].previous_block == blocks[0]
     assert set(blocks[1].next_block) == set([blocks[2], blocks[4]])
     assert blocks[1].invocation_block == None
+    assert blocks[1].true_block == blocks[2]
+    assert blocks[1].false_block == blocks[4]
 
     """ block 2
     other.set(self.a)
@@ -533,6 +535,8 @@ def test_if_statements():
     assert blocks[5].previous_block == blocks[4]
     assert blocks[5].invocation_block == blocks[4]
     assert blocks[5].next_block == [blocks[6], blocks[7]]
+    assert blocks[5].true_block == blocks[6]
+    assert blocks[5].false_block == blocks[7]
 
     # self.a = 5
     assert isinstance(blocks[6], StatementBlock)

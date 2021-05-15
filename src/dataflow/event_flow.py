@@ -80,6 +80,9 @@ class EventFlowNode:
     def set_previous(self, previous: int):
         self.previous = previous
 
+    def resolve_next(self, nodes: List["EventFlowNode"], block):
+        self.set_next(nodes[0].id)
+
     def set_next(self, next: List[int]):
         """Set the next EventFlowNode.
         If there already exist a self.next, the input is extended.
@@ -517,8 +520,10 @@ class InvokeConditional(EventFlowNode):
         id: int,
         fun_name: str,
         params: List[str],
-        if_true_node: int,
-        if_false_node: int,
+        if_true_node: int = -1,
+        if_false_node: int = -1,
+        if_true_block_id: int = -1,
+        if_false_block_id: int = -1,
     ):
         super().__init__(EventFlowNode.INVOKE_CONDITIONAL, fun_type, id)
         self.fun_name = fun_name
@@ -526,10 +531,29 @@ class InvokeConditional(EventFlowNode):
         self.if_true_node = if_true_node
         self.if_false_node = if_false_node
 
+        self.if_true_block_id: int = if_true_block_id
+        self.if_false_block_id: int = if_false_block_id
+
         for param in params:
             self.input[param] = Null
 
         # This node has no output.
+
+    def step(
+        self, event_flow: EventFlowGraph, state: State
+    ) -> Tuple[EventFlowNode, State]:
+        pass
+
+    def resolve_next(self, nodes: List[EventFlowNode], block):
+        next_node = nodes[0].id
+        if block.block_id == self.if_true_block_id:
+            self.if_true_node = next_node
+        elif block.block_id == self.if_false_block_id:
+            self.if_false_node = next_node
+        else:
+            AttributeError("Next node for conditional is not its True nor False block.")
+
+        self.set_next(next_node)
 
     def to_dict(self) -> Dict:
         return_dict = super().to_dict()
@@ -542,7 +566,7 @@ class InvokeConditional(EventFlowNode):
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict):
-        return InvokeSplitFun(
+        return InvokeConditional(
             fun_type,
             dict["id"],
             dict["fun_name"],

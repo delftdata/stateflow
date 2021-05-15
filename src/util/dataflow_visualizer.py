@@ -14,7 +14,7 @@ def visualize(blocks: List[Block]):
         if isinstance(b, ConditionalBlock):
             dot_node = dot.node(
                 str(b.block_id),
-                label=f"{b.code()}",
+                label=f"{b.block_id} - {b.label}",
                 _attributes={
                     "shape": "rectangle",
                     "fillcolor": "lightskyblue",
@@ -22,7 +22,9 @@ def visualize(blocks: List[Block]):
                 },
             )
         else:
-            dot_node = dot.node(str(b.block_id), label=f"{b.code()}", shape="rectangle")
+            dot_node = dot.node(
+                str(b.block_id), label=f"{b.block_id} - {b.label}", shape="rectangle"
+            )
         nodes.append(dot_node)
 
     for b in blocks:
@@ -54,19 +56,44 @@ def visualize_flow(flow: List[EventFlowNode]):
     nodes = []
 
     for n in flow:
-        nodes.append(
-            dot.node(
-                str(n.id),
-                label=str(n.typ),
+        if isinstance(n, InvokeConditional):
+            nodes.append(
+                dot.node(
+                    str(n.id),
+                    label=str(n.typ),
+                    _attributes={
+                        "shape": "rectangle",
+                        "fillcolor": "lightskyblue",
+                        "style": "filled",
+                    },
+                )
             )
-        )
+        else:
+            nodes.append(
+                dot.node(
+                    str(n.id),
+                    label=str(n.typ),
+                )
+            )
 
     for n in flow:
         if isinstance(n, InvokeConditional):
             conditional: InvokeConditional = n
 
-            dot.edge(str(conditional.id), str(conditional.if_true_node), label="True")
-            dot.edge(str(conditional.id), str(conditional.if_false_node), label="False")
+            dot.edge(
+                str(conditional.id),
+                str(conditional.if_true_node),
+                label="T",
+                color="darkgreen",
+                style="dotted",
+            )
+            dot.edge(
+                str(conditional.id),
+                str(conditional.if_false_node),
+                label="F",
+                color="crimson",
+                style="dotted",
+            )
         else:
             for next in n.next:
                 dot.edge(str(n.id), str(next))

@@ -120,7 +120,8 @@ class SplitAnalyzer(cst.CSTVisitor):
     def _analyze_statements(self):
         for stmt in self.unparsed_statements:
             stmt.visit(self)
-            self.statements.append(stmt)
+            if not m.matches(stmt, m.If()):
+                self.statements.append(stmt)
 
     def _get_previous_invocation(self) -> Optional[InvocationContext]:
         previous_invocation: Optional[InvocationContext] = None
@@ -136,7 +137,6 @@ class SplitAnalyzer(cst.CSTVisitor):
 
     def _inner_analyze(self):
         self._analyze_statements()
-
         previous_block: Optional[Block] = self._get_previous_block()
         final_block: Block = StatementBlock(
             self.current_block_id,

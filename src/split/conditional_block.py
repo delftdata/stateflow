@@ -117,10 +117,16 @@ class ConditionalBlock(Block):
             the path is decided. 
         """
         invoke_conditional: InvokeConditional = InvokeConditional(
-            class_type, flow_node_id, self.fun_name(), self.dependencies, -1, -1
+            class_type,
+            flow_node_id,
+            self.fun_name(),
+            self.dependencies,
+            if_true_block_id=self.true_block.block_id,
+            if_false_block_id=self.false_block.block_id,
         )
 
-        # We set the if True block to
+        # The 'true' and 'false' block are updated later on.
+        # We don't know their id's yet.
 
         return [invoke_conditional]
 

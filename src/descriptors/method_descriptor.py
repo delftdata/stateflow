@@ -52,8 +52,6 @@ class MethodDescriptor:
         # A mapping from Block to EventFlowNode.
         # Used to correctly build a EventFlowGraph
         flow_mapping = {block: None for block in self.statement_blocks}
-        block_stack: List = [self.statement_blocks[0]]
-        visited: List[int] = []
 
         print("Now splitting function.")
         for block in self.statement_blocks:
@@ -65,12 +63,19 @@ class MethodDescriptor:
 
             latest_node_id = self.flow_list[-1].id
 
+        # Now that we got all flow nodes built, we can properly link them to each other.
         for block, flow_nodes in flow_mapping.items():
-            for next in block.next_block:
-                next_flow_node_list = flow_mapping[next]
-                flow_nodes[-1].set_next(next_flow_node_list[0].id)
+            print(f"Now looking at {block.block_id}")
+            # Get next block of this current block.
+            for next_block in block.next_block:
+                print(f"Block {block.block_id} is linked to {next_block.block_id}")
+                next_flow_node_list = flow_mapping[next_block]
+                flow_nodes[-1].resolve_next(next_flow_node_list, next_block)
 
                 # We won't set the previous, this is what we will do dynamically.
+                # Based on the path that is traversed, we know what the previous was.
+
+        flow_start.set_next(self.flow_list[1].id)
 
     def get_typed_params(self):
         # TODO Improve this. Very ambiguous name.
