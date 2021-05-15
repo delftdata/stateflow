@@ -94,6 +94,52 @@ class EventFlowNode:
         else:
             self.next.extend([next])
 
+    def _collect_incomplete_input(
+        self, graph: "EventFlowGraph", input_variables: List[str]
+    ) -> Dict[str, Any]:
+        """Collects incomplete input variables of this node by traversing the graph.
+
+        :param graph: the graph to traverse.
+        :param input_variables: the input variables that we still have to find.
+        :return: a mapping from the input variable to its value.
+        """
+        previous = graph.get_node_by_id(self.previous)
+        output: Dict[str, Any] = {}
+
+        while len(input_variables) > 0 and previous is not None:
+            for key in previous.output.keys():
+                if key in input_variables:
+                    """We cover two cases here:
+                    1. Previous node is a REQUEST_STATE one. We create an InternalClassRef and set that input variable.
+                    2. It is any other node, now if the variable name is _in_ the output of this node
+                        then we set this as input for this node.
+                    TODO: Consider just passing a InternalClassRef around.
+                    """
+                    if previous.typ == EventFlowNode.REQUEST_STATE:
+                        request_state_output: Dict[str, Any] = previous.output[key]
+                        key_of_state: str = request_state_output.pop("__key")
+
+                        internal_class_ref = InternalClassRef(
+                            key_of_state, previous.fun_type, request_state_output
+                        )
+
+                        output[key] = internal_class_ref
+                    else:
+                        output[key] = previous.output[key]
+
+                    # We found the variable, so we don't need to look for it anymore.
+                    input_variables.remove(key)
+
+            # We do a step backwards in the state machine.
+            previous = graph.get_node_by_id(previous.previous)
+
+        if len(input_variables) > 0:
+            raise AttributeError(
+                f"We can't find all input variables for this (splitted) function in the flow graph: {self.fun_name}. Missing inputs: {input_variables}"
+            )
+
+        return output
+
     def step(
         self, event_flow: "EventFlowGraph", state: State
     ) -> Tuple["EventFlowNode", State]:
@@ -166,6 +212,7 @@ class EventFlowGraph:
     def step(self, class_wrapper: ClassWrapper = None, state: State = None) -> State:
         next_node, updated_state = self.current_node.step(self, class_wrapper, state)
         self.current_node.status = "FINISHED"
+        self.next_node.previous = self.current_node.id
         self.current_node = next_node
 
         return updated_state
@@ -343,52 +390,6 @@ class InvokeSplitFun(EventFlowNode):
         for definition in self.definitions:
             self.output[definition] = Null
 
-    def _collect_incomplete_input(
-        self, graph: EventFlowGraph, input_variables: List[str]
-    ) -> Dict[str, Any]:
-        """Collects incomplete input variables of this node by traversing the graph.
-
-        :param graph: the graph to traverse.
-        :param input_variables: the input variables that we still have to find.
-        :return: a mapping from the input variable to its value.
-        """
-        previous = graph.get_node_by_id(self.previous)
-        output: Dict[str, Any] = {}
-
-        while len(input_variables) > 0 and previous is not None:
-            for key in previous.output.keys():
-                if key in input_variables:
-                    """We cover two cases here:
-                    1. Previous node is a REQUEST_STATE one. We create an InternalClassRef and set that input variable.
-                    2. It is any other node, now if the variable name is _in_ the output of this node
-                        then we set this as input for this node.
-                    TODO: Consider just passing a InternalClassRef around.
-                    """
-                    if previous.typ == EventFlowNode.REQUEST_STATE:
-                        request_state_output: Dict[str, Any] = previous.output[key]
-                        key_of_state: str = request_state_output.pop("__key")
-
-                        internal_class_ref = InternalClassRef(
-                            key_of_state, previous.fun_type, request_state_output
-                        )
-
-                        output[key] = internal_class_ref
-                    else:
-                        output[key] = previous.output[key]
-
-                    # We found the variable, so we don't need to look for it anymore.
-                    input_variables.remove(key)
-
-            # We do a step backwards in the state machine.
-            previous = graph.get_node_by_id(previous.previous)
-
-        if len(input_variables) > 0:
-            raise AttributeError(
-                f"We can't find all input variables for this (splitted) function in the flow graph: {self.fun_name}. Missing inputs: {input_variables}"
-            )
-
-        return output
-
     def _get_next_node_by_type(
         self, graph: EventFlowGraph, node_type: str
     ) -> EventFlowNode:
@@ -540,9 +541,51 @@ class InvokeConditional(EventFlowNode):
         # This node has no output.
 
     def step(
-        self, event_flow: EventFlowGraph, state: State
+        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
     ) -> Tuple[EventFlowNode, State]:
-        pass
+
+        incomplete_input: List[str] = [
+            key for key in self.input.keys() if self.input[key] == Null
+        ]
+
+        # Constructs the function arguments.
+        # We _copy_ the self.input rather than overriding, this prevents us in sending duplicate
+        # information in the event (i.e. it is already stored in output of previous nodes).
+        fun_arguments = Arguments(
+            {
+                **self.input,
+                **self._collect_incomplete_input(graph, incomplete_input),
+            }
+        )
+
+        # Invocation of the actual 'splitted' method.
+        invocation: InvocationResult = class_wrapper.invoke(
+            self.fun_name, state, fun_arguments
+        )
+
+        """ Based on the invocation we consider two scenarios:
+            1. Invocation failed, we need somehow to go back to the client and throw an error (TODO: not implemented).
+            2. Invocation successful, and returns True. We need to traverse the dataflow towards the 'True' block.
+            3. Invocation successful, and returns False. We need to traverse the dataflow towards the 'False' block.
+        """
+
+        # Step 1, a failed invocation. TODO: needs proper handling.
+        if isinstance(invocation, FailedInvocation):
+            raise AttributeError(
+                f"Expected a successful invocation but got a failed one: {invocation.message}."
+            )
+
+        return_results: List = invocation.results_as_list()
+        cond: bool = return_results[0]
+
+        # True path
+        if cond:
+            next_node = graph.get_node_by_id(self.if_true_node)
+        # True path
+        else:
+            next_node = graph.get_node_by_id(self.if_false_node)
+
+        return next_node, invocation.updated_state
 
     def resolve_next(self, nodes: List[EventFlowNode], block):
         next_node = nodes[0].id
