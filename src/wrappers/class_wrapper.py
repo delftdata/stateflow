@@ -1,5 +1,5 @@
 from src.dataflow.state import State
-from typing import List, Optional, Any, Dict, Union
+from typing import List, Optional, Any, Dict, Union, Tuple
 from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.dataflow.args import Arguments
 
@@ -70,12 +70,9 @@ class ClassWrapper:
             class_instance = self.cls(**arguments.get())
             class_key = class_instance.__key__()
 
-            # Get the updated state.
-            updated_state = {}
-            for k in self.class_desc.state_desc.get_keys():
-                updated_state[k] = getattr(class_instance, k)
-
-            return InvocationResult(State(updated_state), [class_key])
+            return InvocationResult(
+                self._get_updated_state(class_instance), [class_key]
+            )
         except Exception as e:
             return FailedInvocation(
                 f"Exception occurred during creation of {self.class_desc.class_name}: {e}."
@@ -95,6 +92,20 @@ class ClassWrapper:
             return None
 
         return self.methods_desc[method_name]
+
+    def _get_updated_state(self, instance: Any) -> State:
+        # Get the updated state.
+        updated_state = {}
+        for k in self.class_desc.state_desc.get_keys():
+            updated_state[k] = getattr(instance, k)
+
+        return State(updated_state)
+
+    def _call_method(
+        self, instance: Any, method_name: str, arguments: Arguments
+    ) -> Any:
+        method_to_call = getattr(instance, method_name)
+        return method_to_call(**arguments.get())
 
     def invoke(
         self, method_name: str, state: State, arguments: Arguments
@@ -124,16 +135,55 @@ class ClassWrapper:
                 setattr(constructed_class, k, state[k])
 
             # Call the method.
-            method_to_call = getattr(constructed_class, method_name)
-            method_result = method_to_call(**arguments.get())
-
-            # Get the updated state.
-            updated_state = {}
-            for k in self.class_desc.state_desc.get_keys():
-                updated_state[k] = getattr(constructed_class, k)
+            method_result = self._call_method(constructed_class, method_name, arguments)
 
             # Return the results.
-            return InvocationResult(State(updated_state), method_result)
+            return InvocationResult(
+                self._get_updated_state(constructed_class), method_result
+            )
+        except Exception as e:
+            return FailedInvocation(f"Exception occurred during invocation: {e}.")
+
+    def invoke_with_instance_return_instance(
+        self, method_name: str, instance: Any, arguments: Arguments
+    ) -> Tuple[InvocationResult, Any]:
+        try:
+            # Call the method.
+            method_result = self._call_method(instance, method_name, arguments)
+
+            # Return the results.
+            return InvocationResult(None, method_result), instance
+        except Exception as e:
+            return FailedInvocation(f"Exception occurred during invocation: {e}.")
+
+    def invoke_with_instance(
+        self, method_name: str, instance: Any, arguments: Arguments
+    ) -> InvocationResult:
+        try:
+            # Call the method.
+            method_result = self._call_method(instance, method_name, arguments)
+
+            # Return the results.
+            return InvocationResult(self._get_updated_state(instance), method_result)
+        except Exception as e:
+            return FailedInvocation(f"Exception occurred during invocation: {e}.")
+
+    def invoke_return_instance(
+        self, method_name: str, state: State, arguments: Arguments
+    ) -> Union[InvocationResult, Tuple[InvocationResult, Any]]:
+        try:
+            # Construct a new class.
+            constructed_class = self.cls.__new__(self.cls)
+
+            # Set state of class.
+            for k in self.class_desc.state_desc.get_keys():
+                setattr(constructed_class, k, state[k])
+
+            # Call the method.
+            method_result = self._call_method(constructed_class, method_name, arguments)
+
+            # Return the results.
+            return InvocationResult(None, method_result), constructed_class
         except Exception as e:
             return FailedInvocation(f"Exception occurred during invocation: {e}.")
 
