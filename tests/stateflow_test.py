@@ -13,6 +13,8 @@ from multiprocessing import Process
 from threading import Thread
 from tests.kafka.KafkaImage import KafkaImage
 import uuid
+from src.util import dataflow_visualizer
+from src.dataflow.address import FunctionType
 import os
 
 

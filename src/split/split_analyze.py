@@ -161,18 +161,22 @@ class SplitAnalyzer(cst.CSTVisitor):
             )
 
         self._analyze_statements()
-        self._add_block(
-            StatementBlock(
-                self.current_block_id,
-                self.statements,
-                LastBlockContext.from_instance(
-                    self.split_context,
-                    previous_invocation=self._get_previous_invocation(),
-                ),
-                self._get_previous_block(),
-                "block without invocation",
-            )
+
+        previous_block: Optional[Block] = self._get_previous_block()
+        final_block: Block = StatementBlock(
+            self.current_block_id,
+            self.statements,
+            LastBlockContext.from_instance(
+                self.split_context,
+                previous_invocation=self._get_previous_invocation(),
+            ),
+            previous_block,
+            "block without invocation",
         )
+        self._add_block(final_block)
+
+        if previous_block:
+            previous_block.set_next_block(final_block)
 
     def visit_Call(self, node: cst.Call):
         # Simple case: `item.update_stock()`
