@@ -111,11 +111,14 @@ class TestClassWrapper:
     def test_simple_init_error_during_invocation(self):
         wrapper = self.get_wrapper()
 
+        original = getattr(wrapper.cls, "__key__")
         setattr(wrapper.cls, "__key__", ...)
 
         args = Arguments({"name": "wouter"})
         res = wrapper.init_class(args)
         assert isinstance(res, FailedInvocation)
+
+        setattr(wrapper.cls, "__key__", original)
 
     def test_unknown_method(self):
         assert self.get_wrapper().find_method("UNKNOWN") is None

@@ -120,7 +120,10 @@ class SplitAnalyzer(cst.CSTVisitor):
     def _analyze_statements(self):
         for stmt in self.unparsed_statements:
             stmt.visit(self)
-            if not m.matches(stmt, m.If()):
+            if not (
+                m.matches(stmt, m.If())
+                and HasInteraction(stmt, self.split_context, single=True).get()
+            ):
                 self.statements.append(stmt)
 
     def _get_previous_invocation(self) -> Optional[InvocationContext]:

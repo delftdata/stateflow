@@ -364,31 +364,29 @@ def test_multiple_splits_with_returns():
     # GET STATE -> GET STATE -> INVOKE SPLIT FUN -> INVOKE EXTERNAL
     node_one = stmts[0].build_event_flow_nodes(0)
 
+    from src.util import dataflow_visualizer
+
+    dataflow_visualizer.visualize_flow(node_one)
+    dataflow_visualizer.visualize(stmts)
+    print(stmts[0].code())
+    print(stmts[1].code())
+
     assert len(node_one) == 5
 
     assert node_one[0].id == 1 and isinstance(node_one[0], RequestState)
-    assert node_one[0].next == [node_one[1].id]
     assert node_one[0].var_name == "b"
     assert node_one[0].fun_type.name == "BBB"
 
     assert node_one[1].id == 2 and isinstance(node_one[1], RequestState)
-    assert node_one[1].previous == node_one[0].id
-    assert node_one[1].next == [node_one[2].id]
     assert node_one[1].var_name == "c"
     assert node_one[1].fun_type.name == "CCC"
 
     assert node_one[2].id == 3 and isinstance(node_one[2], InvokeSplitFun)
-    assert node_one[2].previous == node_one[1].id
-    assert node_one[2].next == [node_one[3].id, node_one[4].id]
     assert node_one[2].fun_type.name == "AAA"
 
     assert node_one[3].id == 4 and isinstance(node_one[3], ReturnNode)
-    assert node_one[3].previous == node_one[2].id
-    assert node_one[3].next == []
 
     assert node_one[4].id == 5 and isinstance(node_one[4], InvokeExternal)
-    assert node_one[4].previous == node_one[2].id
-    assert node_one[4].next == []
     assert node_one[4].fun_type.name == "BBB"
 
     node_last = stmts[-1].build_event_flow_nodes(0)
@@ -403,10 +401,8 @@ def test_multiple_splits_with_returns():
     assert len(node_inter) == 3
     assert node_inter[0].id == 1 and isinstance(node_inter[0], InvokeSplitFun)
     assert node_inter[0].fun_type.name == "AAA"
-    assert node_inter[0].next == [node_inter[1].id, node_inter[2].id]
     assert node_inter[1].id == 2 and isinstance(node_inter[1], ReturnNode)
     assert node_inter[2].id == 3 and isinstance(node_inter[2], InvokeExternal)
-    assert node_inter[2].previous == node_inter[0].id
     assert node_inter[2].fun_type.name == "CCC"
 
 
