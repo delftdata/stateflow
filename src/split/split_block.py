@@ -519,6 +519,11 @@ class StatementBlock(Block):
                 f"'{self.split_context.current_invocation.method_invoked}', [{call_arguments_names}])"
             )
             return_names.append(call_expression)
+        else:  # 'Normal split', we encode this in a Dictionary.
+            normal_split_expr: cst.BaseExpression = cst.parse_expression(
+                "{'_type': 'NormalSplit'}"
+            )
+            return_names.append(normal_split_expr)
 
         if len(return_names) == 1:
             return cst.SimpleStatementLine(body=[cst.Return(return_names[0])])

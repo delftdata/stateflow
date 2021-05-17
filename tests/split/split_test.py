@@ -481,6 +481,8 @@ def test_if_statements():
     assert blocks[0].previous_block is None
     assert blocks[0].next_block == [blocks[1]]
 
+    print(blocks[0].code())
+
     # Block 1
     # if a > 3:
     assert isinstance(blocks[1], ConditionalBlock)
@@ -559,7 +561,6 @@ def test_if_statements():
     assert isinstance(blocks[9], StatementBlock)
 
     method_desc.split_function(blocks)
-
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
 
