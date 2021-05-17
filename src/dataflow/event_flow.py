@@ -408,6 +408,32 @@ class InvokeSplitFun(EventFlowNode):
             if graph.get_node_by_id(i).typ == node_type
         ][0]
 
+    def _get_next_node_by_not_type(
+        self, graph: EventFlowGraph, node_type: str
+    ) -> EventFlowNode:
+        """Returns the next node which is not equal to a certain type.
+        Assumes there is only 2 next nodes.
+
+        :param graph: the graph to obtain the actual nodes.
+        :param node_type: the type to not look for.
+        :return: the corresponding EventFlowNode.
+        """
+        return [
+            graph.get_node_by_id(i)
+            for i in self.next
+            if graph.get_node_by_id(i).typ != node_type
+        ][0]
+
+    def _set_definitions(self, return_results: List):
+        for i, decl in enumerate(self.definitions):
+            if isinstance(
+                return_results[i], InternalClassRef
+            ):  # We treat an InternalClassRef a bit differently.
+                self.output[decl] = return_results[i]._to_dict()
+            else:
+
+                self.output[decl] = return_results[i]
+
     def step(
         self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
     ) -> Tuple[EventFlowNode, State]:
@@ -459,14 +485,7 @@ class InvokeSplitFun(EventFlowNode):
             # Set the output of this node. We assume a correct order.
             # I.e. the definitions names correspond to the output order.
             # A mapping from a class instance variable, to its key.
-            for i, decl in enumerate(self.definitions):
-                if isinstance(
-                    return_results[i], InternalClassRef
-                ):  # We treat an InternalClassRef a bit differently.
-                    self.output[decl] = return_results[i]._to_dict()
-                else:
-
-                    self.output[decl] = return_results[i]
+            self._set_definitions(return_results)
 
             # Get the InvocationRequest of this node.
             invoke_method_request: InvokeMethodRequest = return_results[-1]
@@ -485,6 +504,17 @@ class InvokeSplitFun(EventFlowNode):
             # We assume that arguments in the InvokeMethodRequest are in the correct order.
             for i, arg_key in enumerate(next_node.input.keys()):
                 next_node.input[arg_key] = invoke_method_request.args[i]
+        elif (
+            len(return_results) > 0
+            and isinstance(return_results[-1], dict)
+            and return_results[-1].get("_type") == "NormalSplit"
+        ):
+            self._set_definitions(return_results)
+
+            # Come up with a better
+            next_node: EventFlowNode = self._get_next_node_by_not_type(
+                graph, EventFlowNode.RETURN
+            )
 
         else:  # Step 3, we need to go the ReturnNode.
             next_node: ReturnNode = self._get_next_node_by_type(

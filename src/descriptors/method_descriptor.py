@@ -66,10 +66,21 @@ class MethodDescriptor:
         # Now that we got all flow nodes built, we can properly link them to each other.
         for block, flow_nodes in flow_mapping.items():
             print(f"Now looking at {block.block_id}")
+
             # Get next block of this current block.
             for next_block in block.next_block:
                 print(f"Block {block.block_id} is linked to {next_block.block_id}")
                 next_flow_node_list = flow_mapping[next_block]
+                if flow_nodes is None or next_flow_node_list is None:
+                    raise RuntimeError(
+                        f"Empty block flow nodes: {block.block_id}"
+                        f"{block.code()}"
+                        f"{flow_nodes}"
+                        f"Next block: {next_block.block_id}"
+                        f"{next_block.code()}"
+                        f"{next_flow_node_list}"
+                    )
+
                 flow_nodes[-1].resolve_next(next_flow_node_list, next_block)
 
                 # We won't set the previous, this is what we will do dynamically.
