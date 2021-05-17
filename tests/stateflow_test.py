@@ -34,49 +34,54 @@ def start_runtime():
 
 # @pytest.mark.skip(reason="let's see if this fixes pytest problems")
 def test_full_e2e_multiple_splits(kafka):
-    time.sleep(5)
-    p = Thread(target=start_runtime, daemon=False)
-    p.start()
+    try:
+        time.sleep(5)
+        p = Thread(target=start_runtime, daemon=False)
+        p.start()
 
-    flow = stateflow.init()
+        flow = stateflow.init()
 
-    print("Started the runtime!")
-    client = StateflowKafkaClient(flow, brokers="localhost:9092")
-    client.wait_until_healthy()
-    print("Started client")
+        print("Started the runtime!")
+        client = StateflowKafkaClient(flow, brokers="localhost:9092")
+        client.wait_until_healthy()
+        print("Started client")
 
-    b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
-    a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=5)
+        b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
+        a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=5)
 
-    outcome = a.complex_method(10, b).get(timeout=5)
-    final_balance_b = b.balance.get(timeout=5)
-    final_balance_a = a.balance.get(timeout=5)
+        outcome = a.complex_method(10, b).get(timeout=5)
+        final_balance_b = b.balance.get(timeout=5)
+        final_balance_a = a.balance.get(timeout=5)
 
-    # Kill client.
-    client.running = False
+        # Kill client.
+        client.running = False
 
-    # Killing streaming system.
-    p.join()
+        # Killing streaming system.
+        p.join()
 
-    assert outcome is True
-    assert final_balance_b == 10
-    assert final_balance_a == 0
+        assert outcome is True
+        assert final_balance_b == 10
+        assert final_balance_a == 0
 
-    print("All asserts are correct")
+        print("All asserts are correct")
+    except Exception as exc:
+        print(f"Got an exception {exc}")
+        client.running = False
+        assert False
 
 
 def test_full_e2e(kafka):
-    time.sleep(5)
-    p = Thread(target=start_runtime, daemon=False)
-    p.start()
-
-    flow = stateflow.init()
-    print("Started the runtime!")
-    client = StateflowKafkaClient(flow, brokers="localhost:9092")
-    client.wait_until_healthy()
-    print("Started client")
-
     try:
+        time.sleep(5)
+        p = Thread(target=start_runtime, daemon=False)
+        p.start()
+
+        flow = stateflow.init()
+        print("Started the runtime!")
+        client = StateflowKafkaClient(flow, brokers="localhost:9092")
+        client.wait_until_healthy()
+        print("Started client")
+
         user: User = User(str(uuid.uuid4())).get(timeout=25)
         item: Item = Item(str(uuid.uuid4()), 5).get(timeout=5)
 
