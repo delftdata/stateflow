@@ -26,10 +26,14 @@ def kafka():
 
 
 def start_runtime():
-    flow = stateflow.init()
-    run_time = BeamRuntime(flow, timeout=15)
-    run_time._setup_pipeline()
-    run_time.run()
+    try:
+        flow = stateflow.init()
+        run_time = BeamRuntime(flow, timeout=15)
+        run_time._setup_pipeline()
+        run_time.run()
+    except Exception as excp:
+        print(f"Got an exception. {excp}")
+        raise RuntimeError("Exception!")
 
 
 # @pytest.mark.skip(reason="let's see if this fixes pytest problems")
@@ -66,7 +70,8 @@ def test_full_e2e_multiple_splits(kafka):
         print("All asserts are correct")
     except Exception as exc:
         print(f"Got an exception {exc}")
-        client.running = False
+        if client:
+            client.running = False
         assert False
 
 
@@ -110,5 +115,6 @@ def test_full_e2e(kafka):
         print("Finished all asserts :)")
     except Exception as exc:
         print(f"Got an exception {exc}")
-        client.running = False
+        if client:
+            client.running = False
         assert False
