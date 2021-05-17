@@ -94,5 +94,16 @@ class ExperimentalA:
 
         return self.balance
 
+    def more_complex_if(self, balance: int, b_ins: ExperimentalB) -> int:
+        self.balance = balance
+        if balance >= 0:
+            self.balance = balance
+            if b_ins.balance_equal_to(balance * 2):
+                self.balance = 1
+            else:
+                return -1
+
+        return self.balance
+
     def __key__(self):
         return self.name

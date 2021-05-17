@@ -99,6 +99,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         self._processing_if: bool = False
         # The body of each if-statement is an unlinked block, which we need to link to the 'latest block'.
         self._unlinked_blocks: List[Block] = []
+        self._unlinked_conditional: Optional[ConditionalBlock] = None
 
         # Analyze this method.
         if self.outer_block:
@@ -110,11 +111,14 @@ class SplitAnalyzer(cst.CSTVisitor):
         if (
             not self._processing_if
         ):  # We can only process unlinked blocks, if we're out of the if-statement.
-            [
-                b.set_next_block(block) for b in self._unlinked_blocks
-            ]  # TODO Consider adding all these for previous(block)
-            print("Now linking unlinked blocks.")
+            [b.set_next_block(block) for b in self._unlinked_blocks]
+
+            if self._unlinked_conditional:
+                self._unlinked_conditional.set_next_block(block)
+                self._unlinked_conditional.set_false_block(block)
+
             self._unlinked_blocks = []
+            self._unlinked_conditional = None
         self.blocks.append(block)
 
     def _analyze_statements(self):
@@ -327,10 +331,11 @@ class SplitAnalyzer(cst.CSTVisitor):
             # Update outer-scope.
             self.blocks.extend(else_blocks)
             self.current_block_id = len(self.blocks)
+        else:
+            self._unlinked_conditional = conditional_block
 
         print(f"Unlinked blocks: {[b.block_id for b in last_body_block]}")
         self._unlinked_blocks = last_body_block
-
         self._processing_if = False
 
         return False
@@ -421,10 +426,12 @@ class Split:
                     parsed_stmts: List[StatementBlock] = analyzer.blocks
                     updated_methods[method.method_name] = parsed_stmts
 
-                    method.split_function(parsed_stmts)
                     from src.util import dataflow_visualizer
 
+                    print(parsed_stmts)
                     dataflow_visualizer.visualize(blocks=parsed_stmts, code=True)
+
+                    method.split_function(parsed_stmts)
 
             if len(updated_methods) > 0:
                 remove_after_class_def = RemoveAfterClassDefinition(desc.class_name)
