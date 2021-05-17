@@ -215,7 +215,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         # The current if statement, we loop through all nested if nodes.
         current_if: Union[cst.If] = node
 
-        # The current conditional block, initialized to None.
+        # The current conditional block, initialized to the last.
         conditional_block: Optional[Union[ConditionalBlock, Block]] = self.blocks[-1]
 
         # The list of the last block of each if body, this needs to be linked up to the next block _after_
@@ -226,7 +226,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         if_depth: int = 0
 
         # We keep looping over all (nested) if statements.
-        while isinstance(current_if, cst.If):
+        while m.matches(current_if, m.If()):
             # If it has interaction with another stateful function,
             # we first process the arguments of that stateful function and turn it into an InvokeExternal.
             interaction: HasInteraction = HasInteraction(
@@ -248,7 +248,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                     if interaction.get()
                     else None,
                 ),
-                node.test,
+                current_if.test,
                 previous_block=invocation_block,
                 invocation_block=invocation_block,
                 label="if" if if_depth == 0 else "elif",
@@ -300,8 +300,8 @@ class SplitAnalyzer(cst.CSTVisitor):
             if_depth += 1
 
         # If we have an Else clause, we treat it differently.
-        if isinstance(current_if, cst.Else):
-            else_stmt: cst.Else = node
+        if m.matches(current_if, m.Else()):
+            else_stmt: cst.Else = current_if
             analyze_else_body: SplitAnalyzer = SplitAnalyzer(
                 self.class_node,
                 self.split_context,
@@ -422,6 +422,9 @@ class Split:
                     updated_methods[method.method_name] = parsed_stmts
 
                     method.split_function(parsed_stmts)
+                    from src.util import dataflow_visualizer
+
+                    dataflow_visualizer.visualize(blocks=parsed_stmts, code=True)
 
             if len(updated_methods) > 0:
                 remove_after_class_def = RemoveAfterClassDefinition(desc.class_name)

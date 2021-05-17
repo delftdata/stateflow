@@ -35,7 +35,13 @@ class ConditionalExpressionAnalyzer(cst.CSTVisitor):
         if node in self.expression_provider:
             expression_context = self.expression_provider[node]
 
-            if expression_context == cst.metadata.ExpressionContext.LOAD:
+            if (
+                expression_context == cst.metadata.ExpressionContext.LOAD
+                and node.value != "self"
+                and node.value != "True"
+                and node.value != "False"
+                and node.value != "print"
+            ):
                 self.usages.append(Use(node.value))
 
 

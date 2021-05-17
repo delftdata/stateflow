@@ -81,5 +81,18 @@ class ExperimentalA:
         is_equal = other.balance_equal_to(balance)
         return is_equal
 
+    def complex_if(self, balance: int, b_ins: ExperimentalB):
+        self.balance = balance
+
+        if self.balance > 10:
+            b_ins.add_balance(balance)
+            self.balance = 0
+        elif b_ins.balance_equal_to(5):
+            self.balance = 1
+        else:
+            self.balance = 2
+
+        return self.balance
+
     def __key__(self):
         return self.name

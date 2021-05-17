@@ -26,6 +26,11 @@ class MoreComplexReturnClass:
         self.name = name
         self.x = 10
 
+    def update_set_zero(self):
+        self.x = 0
+
+        return self.x
+
     def update_normal_return(self, x: int) -> int:
         self.x -= x
         return self.x
@@ -215,6 +220,15 @@ class TestClassWrapper:
         result = wrapper.invoke("notexist", state, args)
 
         assert isinstance(result, FailedInvocation)
+
+    def test_simple_invoke_return_0(self):
+        wrapper = self.complex_wrapper()
+
+        state = State({"name": "wouter", "x": 5})
+        args = Arguments({})
+        result = wrapper.invoke("update_set_zero", state, args)
+
+        assert result.results_as_list()[0] == 0
 
     def test_returns(self):
         wrapper = self.complex_wrapper()

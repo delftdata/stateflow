@@ -1,4 +1,5 @@
 from src.dataflow.dataflow import Operator, Edge, FunctionType, EventType
+from src.dataflow.address import FunctionAddress
 from src.dataflow.event import Event
 from src.dataflow.event_flow import (
     EventFlowNode,
@@ -252,5 +253,17 @@ class StatefulOperator(Operator):
     def _handle_event_flow(self, event: Event, state: State) -> Tuple[Event, State]:
         flow_graph: EventFlowGraph = event.payload["flow"]
         updated_state: State = flow_graph.step(self.class_wrapper, state)
+
+        # Keep stepping!
+        while (
+            not (
+                isinstance(flow_graph.current_node, InvokeExternal)
+                or isinstance(flow_graph.current_node, RequestState)
+                or isinstance(flow_graph.current_node, ReturnNode)
+            )
+            and flow_graph.current_node.fun_type == self.function_type
+        ):
+            print(f"Doing another step: {flow_graph.current_node}")
+            updated_state: State = flow_graph.step(self.class_wrapper, updated_state)
 
         return event, updated_state

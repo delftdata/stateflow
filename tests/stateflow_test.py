@@ -27,8 +27,7 @@ def kafka():
 
 def start_runtime():
     try:
-        flow = stateflow.init()
-        run_time = BeamRuntime(flow, timeout=15)
+        run_time = BeamRuntime(stateflow.init(), timeout=15)
         run_time._setup_pipeline()
         run_time.run()
     except Exception as excp:
@@ -40,10 +39,10 @@ def start_runtime():
 def start_and_stop(kafka):
     try:
         time.sleep(5)
+        flow = stateflow.init()
         p = Thread(target=start_runtime, daemon=False)
         p.start()
 
-        flow = stateflow.init()
         print("Started the runtime!")
         client = StateflowKafkaClient(flow, brokers="localhost:9092")
         client.wait_until_healthy()
@@ -78,6 +77,31 @@ class TestE2E:
         except Exception as exc:
             print(f"Got an exception {exc}")
             assert False
+
+    def test_simple_if(self, start_and_stop):
+        b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
+        a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=5)
+
+        outcome_0 = a.complex_if(11, b).get(timeout=5)
+        b_balance = b.balance.get()
+
+        assert outcome_0 == 0
+        assert b_balance == 11
+
+        # 2nd scenario
+        b.balance = 5
+        b_balance = b.balance.get()
+        outcome_1 = a.complex_if(9, b).get(timeout=5)
+
+        assert outcome_1 == 1
+        assert b_balance == 5
+
+        b.balance = 0
+        b_balance = b.balance.get()
+        outcome_2 = a.complex_if(9, b).get(timeout=5)
+
+        assert outcome_2 == 2
+        assert b_balance == 0
 
     def test_full_e2e(self, start_and_stop):
         try:

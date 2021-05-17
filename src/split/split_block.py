@@ -28,6 +28,30 @@ class Use:
     name: str
 
 
+class ArgumentAnalyzer(cst.CSTVisitor):
+    def __init__(self, expression_provider):
+        self.expression_provider = expression_provider
+        self.usages: List[Use] = []
+
+    def visit_Name(self, node: cst.Name):
+        """Visits a name node.
+        Examines if it is a usage (LOAD).
+        `self` attributes are ignored.
+
+        :param node: the name node.
+        """
+        if node in self.expression_provider:
+            expression_context = self.expression_provider[node]
+            if (
+                expression_context == cst.metadata.ExpressionContext.LOAD
+                and node.value != "self"
+                and node.value != "True"
+                and node.value != "False"
+                and node.value != "print"
+            ):
+                self.usages.append(Use(node.value))
+
+
 class StatementAnalyzer(cst.CSTVisitor):
     """Analyzes a statement identifying:
     1. all definitions and usages
@@ -389,6 +413,16 @@ class StatementBlock(Block):
             self.def_use_list.append(stmt_analyzer.def_use)
 
             self.returns += stmt_analyzer.returns
+
+        # If it has a current invocation, we want LOAD's in the args also as usages.
+        if (
+            not isinstance(self.split_context, LastBlockContext)
+            and self.split_context.current_invocation
+        ):
+            arg_analyzer = ArgumentAnalyzer(self.split_context.expression_provider)
+            for arg in self.split_context.current_invocation.call_arguments:
+                arg.visit(arg_analyzer)
+            self.def_use_list.append(arg_analyzer.usages)
 
     def _remove_whitespace(self):
         """ Removes whitespace from statements if it is there. """

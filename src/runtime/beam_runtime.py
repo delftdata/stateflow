@@ -53,6 +53,7 @@ class IngressBeamRouter(DoFn):
             current_node = flow_graph.current_node
 
             if current_node.typ == EventFlowNode.RETURN:
+                print(self.serializer.serialize_event(event))
                 yield (
                     event.event_id,
                     self.serializer.serialize_event(
@@ -76,8 +77,13 @@ class IngressBeamRouter(DoFn):
                 yield pvalue.TaggedOutput(
                     current_node.fun_type.get_full_name(), (current_node.key, event)
                 )
+            elif current_node.typ == EventFlowNode.INVOKE_CONDITIONAL:
+                yield pvalue.TaggedOutput(
+                    current_node.fun_type.get_full_name(),
+                    (event.fun_address.key, event),
+                )
+
         elif event.event_type == EventType.Request.Ping:
-            print("Omg I received a ping!")
             yield event.event_id, self.serializer.serialize_event(
                 event.copy(event_type=EventType.Reply.Pong)
             )
@@ -132,6 +138,7 @@ class BeamOperator(DoFn):
                 (return_event.event_id, self.serializer.serialize_event(return_event)),
             )
         else:
+            print(self.serializer.serialize_event(return_event))
             yield (return_event.event_id, self.serializer.serialize_event(return_event))
 
 

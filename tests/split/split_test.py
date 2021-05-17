@@ -561,6 +561,7 @@ def test_if_statements():
     assert isinstance(blocks[9], StatementBlock)
 
     method_desc.split_function(blocks)
+    dataflow_visualizer.visualize(blocks, True)
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
 

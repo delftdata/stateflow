@@ -5,7 +5,7 @@ from typing import List
 from graphviz import Digraph
 
 
-def visualize(blocks: List[Block]):
+def visualize(blocks: List[Block], code=False):
     dot = Digraph(comment="Visualized dataflow")
 
     nodes = []
@@ -14,7 +14,7 @@ def visualize(blocks: List[Block]):
         if isinstance(b, ConditionalBlock):
             dot_node = dot.node(
                 str(b.block_id),
-                label=f"{b.block_id} - {b.label}",
+                label=f"{b.block_id} - {b.label}" if not code else b.code(),
                 _attributes={
                     "shape": "rectangle",
                     "fillcolor": "lightskyblue",
@@ -23,7 +23,9 @@ def visualize(blocks: List[Block]):
             )
         else:
             dot_node = dot.node(
-                str(b.block_id), label=f"{b.block_id} - {b.label}", shape="rectangle"
+                str(b.block_id),
+                label=f"{b.block_id} - {b.label}" if not code else b.code(),
+                shape="rectangle",
             )
         nodes.append(dot_node)
 

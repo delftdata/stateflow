@@ -187,6 +187,8 @@ class EventFlowNode:
             new_node = RequestState.construct(fun_type, dict)
         elif flow_type == EventFlowNode.INVOKE_EXTERNAL:
             new_node = InvokeExternal.construct(fun_type, dict)
+        elif flow_type == EventFlowNode.INVOKE_CONDITIONAL:
+            new_node = InvokeConditional.construct(fun_type, dict)
         else:
             raise AttributeError(f"Unknown EventFlowNode type {flow_type}.")
 
@@ -647,7 +649,7 @@ class InvokeConditional(EventFlowNode):
             dict["fun_name"],
             dict["params"],
             dict["if_true_node"],
-            dict["if_true_node"],
+            dict["if_false_node"],
         )
 
 
