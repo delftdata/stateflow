@@ -247,7 +247,7 @@ def test_multiple_splits():
     assert stmts[2].definitions == ["c_result"]
 
     # GET STATE -> GET STATE -> INVOKE SPLIT FUN -> INVOKE EXTERNAL
-    node_one = stmts[0].build_event_flow_nodes(StartNode(0))
+    node_one = stmts[0].build_event_flow_nodes(0)
 
     assert len(node_one) == 4
 
@@ -272,7 +272,7 @@ def test_multiple_splits():
     assert node_one[3].next == []
     assert node_one[3].fun_type.name == "BB"
 
-    node_last = stmts[-1].build_event_flow_nodes(StartNode(0))
+    node_last = stmts[-1].build_event_flow_nodes(0)
     assert len(node_last) == 2
     assert node_last[0].id == 1 and isinstance(node_last[0], InvokeSplitFun)
     assert node_last[0].fun_type.name == "AA"
@@ -280,7 +280,7 @@ def test_multiple_splits():
     assert node_last[1].id == 2 and isinstance(node_last[1], ReturnNode)
     assert node_last[1].previous == node_last[0].id
 
-    node_inter = stmts[1].build_event_flow_nodes(StartNode(0))
+    node_inter = stmts[1].build_event_flow_nodes(0)
     assert len(node_inter) == 2
     assert node_inter[0].id == 1 and isinstance(node_inter[0], InvokeSplitFun)
     assert node_inter[0].fun_type.name == "AA"
@@ -362,7 +362,7 @@ def test_multiple_splits_with_returns():
     stmts = analyzer.blocks
 
     # GET STATE -> GET STATE -> INVOKE SPLIT FUN -> INVOKE EXTERNAL
-    node_one = stmts[0].build_event_flow_nodes(StartNode(0))
+    node_one = stmts[0].build_event_flow_nodes(0)
 
     assert len(node_one) == 5
 
@@ -391,7 +391,7 @@ def test_multiple_splits_with_returns():
     assert node_one[4].next == []
     assert node_one[4].fun_type.name == "BBB"
 
-    node_last = stmts[-1].build_event_flow_nodes(StartNode(0))
+    node_last = stmts[-1].build_event_flow_nodes(0)
     assert len(node_last) == 2
     assert node_last[0].id == 1 and isinstance(node_last[0], InvokeSplitFun)
     assert node_last[0].fun_type.name == "AAA"
@@ -399,7 +399,7 @@ def test_multiple_splits_with_returns():
     assert node_last[1].id == 2 and isinstance(node_last[1], ReturnNode)
     assert node_last[1].previous == node_last[0].id
 
-    node_inter = stmts[1].build_event_flow_nodes(StartNode(0))
+    node_inter = stmts[1].build_event_flow_nodes(0)
     assert len(node_inter) == 3
     assert node_inter[0].id == 1 and isinstance(node_inter[0], InvokeSplitFun)
     assert node_inter[0].fun_type.name == "AAA"

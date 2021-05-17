@@ -212,7 +212,9 @@ class EventFlowGraph:
     def step(self, class_wrapper: ClassWrapper = None, state: State = None) -> State:
         next_node, updated_state = self.current_node.step(self, class_wrapper, state)
         self.current_node.status = "FINISHED"
-        self.next_node.previous = self.current_node.id
+
+        # Dynamic update of the previous node.
+        next_node.previous = self.current_node.id
         self.current_node = next_node
 
         return updated_state
