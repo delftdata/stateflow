@@ -753,3 +753,7 @@ def test_if_statements_complex():
     from src.util import dataflow_visualizer
 
     dataflow_visualizer.visualize(blocks, True)
+
+    method_desc.split_function(blocks)
+
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)

@@ -94,6 +94,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
         # Parsed blocks
         self.current_block_id: int = block_id_offset
+        self.block_id_offset = block_id_offset
         self.blocks: List[Block] = []
 
         # Keep track if we're currently processing an if-statement.
@@ -319,7 +320,14 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             # Update outer-scope.
             self.blocks.extend(if_blocks)
-            self.current_block_id = len(self.blocks)
+            self.current_block_id = self.block_id_offset + len(self.blocks)
+
+            print(f"Just investigated conditional {conditional_block.block_id}")
+            print(conditional_block.code())
+            print(f"It has the following statements:")
+            for stmt in if_blocks:
+                print(f"Block: {stmt.block_id}")
+                print(stmt.code())
 
             # Pick next if, else, or None.
             current_if = current_if.orelse
@@ -353,7 +361,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             # Update outer-scope.
             self.blocks.extend(else_blocks)
-            self.current_block_id = len(self.blocks)
+            self.current_block_id = self.block_id_offset + len(self.blocks)
         else:
             self._unlinked_conditional = conditional_block
 

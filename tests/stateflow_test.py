@@ -103,26 +103,26 @@ class TestE2E:
         assert outcome_2 == 2
         assert b_balance == 0
 
-        # b.balance = 0
-        # b_balance = b.balance.get()
-        # outcome_3 = a.more_complex_if(-3, b).get(timeout=5)
-        #
-        # assert outcome_3 == -3
-        # assert b_balance == 0
-        #
-        # b.balance = 4
-        # b_balance = b.balance.get()
-        # outcome_4 = a.more_complex_if(2, b).get(timeout=5)
-        #
-        # assert b_balance == 4
-        # assert outcome_4 == 1
-        #
-        # b.balance = 4
-        # b_balance = b.balance.get()
-        # outcome_5 = a.more_complex_if(3, b).get(timeout=5)
-        #
-        # assert outcome_5 == -1
-        # assert b_balance == 4
+        b.balance = 0
+        b_balance = b.balance.get()
+        outcome_3 = a.more_complex_if(-3, b).get(timeout=5)
+
+        assert outcome_3 == -3
+        assert b_balance == 0
+
+        b.balance = 4
+        b_balance = b.balance.get()
+        outcome_4 = a.more_complex_if(2, b).get(timeout=5)
+
+        assert b_balance == 4
+        assert outcome_4 == 1
+
+        b.balance = 4
+        b_balance = b.balance.get()
+        outcome_5 = a.more_complex_if(3, b).get(timeout=5)
+
+        assert outcome_5 == -1
+        assert b_balance == 4
 
     def test_full_e2e(self, start_and_stop):
         try:
