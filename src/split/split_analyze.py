@@ -75,17 +75,18 @@ class SplitAnalyzer(cst.CSTVisitor):
         self,
         class_node: cst.ClassDef,
         split_context: SplitContext,
-        unparsed_statements: List[cst.CSTNode] = [],
+        unparsed_statements: List[cst.CSTNode],
         block_id_offset: int = 0,
         outer_block: bool = True,
+        latest_block: Optional[Block] = None,
     ):
         self.class_node: cst.ClassDef = class_node
         self.split_context: SplitContext = split_context
-        self.unparsed_statements: List[cst.CSTNode] = (
-            unparsed_statements
-            if len(unparsed_statements) > 0
-            else split_context.original_method_node.body.children
-        )
+        self.unparsed_statements: List[cst.CSTNode] = [
+            stmt
+            for stmt in unparsed_statements
+            if not m.matches(stmt, m.TrailingWhitespace())
+        ]
         self.outer_block: bool = outer_block
 
         # Unparsed blocks
@@ -124,38 +125,56 @@ class SplitAnalyzer(cst.CSTVisitor):
     def _analyze_statements(self):
         for stmt in self.unparsed_statements:
             stmt.visit(self)
-            if not (
-                m.matches(stmt, m.If())
-                and HasInteraction(stmt, self.split_context, single=True).get()
-            ):
+            if not (m.matches(stmt, m.If())):
                 self.statements.append(stmt)
 
     def _get_previous_invocation(self) -> Optional[InvocationContext]:
         previous_invocation: Optional[InvocationContext] = None
-        if len(self.blocks) > 0 and self.blocks[-1].split_context.current_invocation:
+        if len(self.blocks) > 0 and not isinstance(
+            self.blocks[-1].split_context, LastBlockContext
+        ):
             previous_invocation = self.blocks[-1].split_context.current_invocation
 
         return previous_invocation
 
     def _get_previous_block(self) -> Optional[Block]:
-        if len(self.blocks) > 0 and not self._processing_if:
+        if (
+            len(self.blocks) > 0
+            and not self._processing_if
+            and not isinstance(self.blocks[-1].split_context, LastBlockContext)
+        ):
             return self.blocks[-1]
         return None
 
     def _inner_analyze(self):
         self._analyze_statements()
         previous_block: Optional[Block] = self._get_previous_block()
-        final_block: Block = StatementBlock(
-            self.current_block_id,
-            self.statements,
-            IntermediateBlockContext.from_instance(
-                self.split_context,
-                current_invocation=None,
-                previous_invocation=self._get_previous_invocation(),
-            ),
-            previous_block,
-            "block without invocation",
-        )
+
+        if len(self.statements) > 0 and m.matches(
+            self.statements[-1], m.SimpleStatementLine(body=[m.Return()])
+        ):
+            final_block: Block = StatementBlock(
+                self.current_block_id,
+                self.statements,
+                LastBlockContext.from_instance(
+                    self.split_context,
+                    previous_invocation=self._get_previous_invocation(),
+                ),
+                previous_block,
+                "block without invocation",
+            )
+        else:
+            final_block: Block = StatementBlock(
+                self.current_block_id,
+                self.statements,
+                IntermediateBlockContext.from_instance(
+                    self.split_context,
+                    current_invocation=None,
+                    previous_invocation=self._get_previous_invocation(),
+                ),
+                previous_block,
+                "block without invocation",
+            )
         self._add_block(final_block)
 
         if previous_block:
@@ -208,13 +227,15 @@ class SplitAnalyzer(cst.CSTVisitor):
             )
 
     def visit_If(self, node: cst.If):
-        if not HasInteraction(node, self.split_context, single=True).get():
-            return False
-
-        if len(self.blocks) == 0:
+        if len(self.blocks) == 0 or len(self.unparsed_statements) > 0:
             self._process_stmt_block_without_invocation("block before if-statement")
 
         self._processing_if = True
+
+        if not self.outer_block:
+            print(
+                f"We're now in an 'inner' block, my current block id is: {self.current_block_id}"
+            )
 
         # The current if statement, we loop through all nested if nodes.
         current_if: Union[cst.If] = node
@@ -293,7 +314,8 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
             # the if statement.
-            last_body_block.append(if_blocks[-1])
+            if not isinstance(if_blocks[-1].split_context, LastBlockContext):
+                last_body_block.append(if_blocks[-1])
 
             # Update outer-scope.
             self.blocks.extend(if_blocks)
@@ -326,7 +348,8 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
             # the if statement.
-            last_body_block.append(else_blocks[-1])
+            if not isinstance(if_blocks[-1].split_context, LastBlockContext):
+                last_body_block.append(if_blocks[-1])
 
             # Update outer-scope.
             self.blocks.extend(else_blocks)
@@ -349,7 +372,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         else:
             split_context = IntermediateBlockContext.from_instance(
                 self.split_context,
-                previous_invocation=None,
+                previous_invocation=self._get_previous_invocation(),
                 current_invocation=None,
             )
 
@@ -428,7 +451,6 @@ class Split:
 
                     from src.util import dataflow_visualizer
 
-                    print(parsed_stmts)
                     dataflow_visualizer.visualize(blocks=parsed_stmts, code=True)
 
                     method.split_function(parsed_stmts)
@@ -441,8 +463,6 @@ class Split:
                 modified_tree = modified_tree.visit(
                     SplitTransformer(desc.class_name, updated_methods)
                 )
-
-                print(modified_tree.code)
 
                 # Recompile the code and set the code in the wrapper.
                 exec(compile(modified_tree.code, "", mode="exec"), globals(), globals())

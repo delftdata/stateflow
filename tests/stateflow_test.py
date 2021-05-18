@@ -126,6 +126,14 @@ class TestE2E:
 
     def test_full_e2e(self, start_and_stop):
         try:
+            import src.util.dataflow_visualizer as viz
+
+            viz.visualize_flow(
+                stateflow.registered_classes[1]
+                .class_desc.get_method_by_name("buy_item")
+                .flow_list
+            )
+
             user: User = User(str(uuid.uuid4())).get(timeout=25)
             item: Item = Item(str(uuid.uuid4()), 5).get(timeout=5)
 

@@ -15,6 +15,7 @@ from src.dataflow.event_flow import (
     InvokeSplitFun,
     ReturnNode,
     RequestState,
+    InvokeConditional,
 )
 from typing import List
 import src.stateflow as stateflow
@@ -63,6 +64,7 @@ def test_split_dependencies():
             a_method_desc,
             stateflow.registered_classes[0].class_desc,
         ),
+        a_method_desc.method_node.body.children,
     )
     stmts = analyzer.blocks
 
@@ -114,6 +116,7 @@ def test_split_dependencies_more():
             a_method_desc,
             stateflow.registered_classes[0].class_desc,
         ),
+        a_method_desc.method_node.body.children,
     )
     stmts = analyzer.blocks
 
@@ -148,11 +151,21 @@ def test_dependencies_user_class():
             method_desc,
             stateflow.registered_classes[0].class_desc,
         ),
+        method_desc.method_node.body.children,
     )
     stmts = analyzer.blocks
 
+    for stmt in stmts:
+        print(stmt.code())
+
     assert stmts[0].dependencies == ["amount", "item"]
-    assert stmts[1].dependencies == ["total_price", "update_stock_return"]
+    assert stmts[1].dependencies == ["total_price"]
+    assert stmts[2].dependencies == []
+    assert stmts[3].dependencies == ["amount", "item"]
+    assert stmts[4].dependencies == ["update_stock_return"]
+    assert stmts[5].dependencies == ["decrease_stock"]
+    assert stmts[6].dependencies == []
+    assert stmts[7].dependencies == ["total_price"]
 
 
 def test_multiple_splits():
@@ -219,6 +232,7 @@ def test_multiple_splits():
             method_desc,
             stateflow.registered_classes[0].class_desc,
         ),
+        method_desc.method_node.body.children,
     )
     stmts = analyzer.blocks
 
@@ -358,6 +372,7 @@ def test_multiple_splits_with_returns():
             method_desc,
             stateflow.registered_classes[0].class_desc,
         ),
+        method_desc.method_node.body.children,
     )
     stmts = analyzer.blocks
 
@@ -367,11 +382,11 @@ def test_multiple_splits_with_returns():
     from src.util import dataflow_visualizer
 
     dataflow_visualizer.visualize_flow(node_one)
-    dataflow_visualizer.visualize(stmts)
+    dataflow_visualizer.visualize(stmts, code=True)
     print(stmts[0].code())
     print(stmts[1].code())
 
-    assert len(node_one) == 5
+    assert len(node_one) == 3
 
     assert node_one[0].id == 1 and isinstance(node_one[0], RequestState)
     assert node_one[0].var_name == "b"
@@ -384,26 +399,74 @@ def test_multiple_splits_with_returns():
     assert node_one[2].id == 3 and isinstance(node_one[2], InvokeSplitFun)
     assert node_one[2].fun_type.name == "AAA"
 
-    assert node_one[3].id == 4 and isinstance(node_one[3], ReturnNode)
+    node_two = stmts[1].build_event_flow_nodes(len(node_one))
+    assert node_two[0].id == 4 and isinstance(node_two[0], InvokeConditional)
 
-    assert node_one[4].id == 5 and isinstance(node_one[4], InvokeExternal)
-    assert node_one[4].fun_type.name == "BBB"
+    node_three = stmts[2].build_event_flow_nodes(len(node_one) + len(node_two))
+    assert node_three[0].id == 5 and isinstance(node_three[0], InvokeSplitFun)
+    assert node_three[1].id == 6 and isinstance(node_three[1], ReturnNode)
 
-    node_last = stmts[-1].build_event_flow_nodes(0)
-    assert len(node_last) == 2
-    assert node_last[0].id == 1 and isinstance(node_last[0], InvokeSplitFun)
-    assert node_last[0].fun_type.name == "AAA"
+    node_four = stmts[3].build_event_flow_nodes(
+        len(node_one) + len(node_two) + len(node_three)
+    )
+    assert node_four[0].id == 7 and isinstance(node_four[0], InvokeSplitFun)
+    assert (
+        node_four[1].id == 8
+        and isinstance(node_four[1], InvokeExternal)
+        and node_four[1].fun_type.name == "BBB"
+    )
 
-    assert node_last[1].id == 2 and isinstance(node_last[1], ReturnNode)
-    assert node_last[1].previous == node_last[0].id
+    node_five = stmts[4].build_event_flow_nodes(
+        len(node_one) + len(node_two) + len(node_three) + len(node_four)
+    )
 
-    node_inter = stmts[1].build_event_flow_nodes(0)
-    assert len(node_inter) == 3
-    assert node_inter[0].id == 1 and isinstance(node_inter[0], InvokeSplitFun)
-    assert node_inter[0].fun_type.name == "AAA"
-    assert node_inter[1].id == 2 and isinstance(node_inter[1], ReturnNode)
-    assert node_inter[2].id == 3 and isinstance(node_inter[2], InvokeExternal)
-    assert node_inter[2].fun_type.name == "CCC"
+    assert node_five[0].id == 9 and isinstance(node_five[0], InvokeSplitFun)
+
+    node_six = stmts[5].build_event_flow_nodes(
+        len(node_one)
+        + len(node_two)
+        + len(node_three)
+        + len(node_four)
+        + len(node_five)
+    )
+
+    assert node_six[0].id == 10 and isinstance(node_six[0], InvokeConditional)
+
+    node_seven = stmts[6].build_event_flow_nodes(
+        len(node_one)
+        + len(node_two)
+        + len(node_three)
+        + len(node_four)
+        + len(node_five)
+        + len(node_six)
+    )
+    assert node_seven[0].id == 11 and isinstance(node_seven[0], InvokeSplitFun)
+    assert node_seven[1].id == 12 and isinstance(node_seven[1], ReturnNode)
+
+    node_eight = stmts[7].build_event_flow_nodes(
+        len(node_one)
+        + len(node_two)
+        + len(node_three)
+        + len(node_four)
+        + len(node_five)
+        + len(node_six)
+        + len(node_seven)
+    )
+    assert node_eight[0].id == 13 and isinstance(node_eight[0], InvokeSplitFun)
+    assert node_eight[1].id == 14 and isinstance(node_eight[1], InvokeExternal)
+
+    node_nine = stmts[8].build_event_flow_nodes(
+        len(node_one)
+        + len(node_two)
+        + len(node_three)
+        + len(node_four)
+        + len(node_five)
+        + len(node_six)
+        + len(node_seven)
+        + len(node_eight)
+    )
+    assert node_nine[0].id == 15 and isinstance(node_nine[0], InvokeSplitFun)
+    assert node_nine[1].id == 16 and isinstance(node_nine[1], ReturnNode)
 
 
 def test_if_statements():
@@ -459,6 +522,7 @@ def test_if_statements():
             method_desc,
             stateflow.registered_classes[0].class_desc,
         ),
+        method_desc.method_node.body.children,
     )
 
     blocks: List[Block] = analyzer.blocks
@@ -565,6 +629,70 @@ def test_if_statements():
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
 
+def test_if_non_split():
+    stateflow.clear()
+
+    class DummyIf:
+        def __init__(self):
+            pass
+
+        def invoke(self):
+            return True
+
+    class IfNoSplit(object):
+        def __init__(self):
+            self.x = 0
+
+        def invoke(self, x: int, d: DummyIf) -> bool:
+            self.x = x
+            if x > 3:
+                x = 5 * 3
+                return True
+            elif x < 3:
+                x = 4
+            else:
+                x = 6
+                return False
+
+            d.invoke()
+
+            return x > self.x
+
+    stateflow.stateflow(IfNoSplit, parse_file=False)
+    stateflow.stateflow(DummyIf, parse_file=False)
+
+    wrapper = stateflow.registered_classes[0]
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "invoke"
+    )
+    split = Split(
+        [cls.class_desc for cls in stateflow.registered_classes],
+        stateflow.registered_classes,
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+
+    from src.util import dataflow_visualizer
+
+    dataflow_visualizer.visualize(blocks, True)
+
+    method_desc.split_function(blocks)
+
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
+
 def test_if_statements_complex():
     stateflow.clear()
 
@@ -588,7 +716,40 @@ def test_if_statements_complex():
             if self.a > 3:
                 if self.b < 0:
                     return
+                else:
+                    other.set(self.b)
             else:
                 other.set(self.a)
 
             return other.x
+
+    stateflow.stateflow(IfClassComplex, parse_file=False)
+    stateflow.stateflow(OtherComplex, parse_file=False)
+
+    wrapper = stateflow.registered_classes[0]
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "cool_method"
+    )
+
+    split = Split(
+        [cls.class_desc for cls in stateflow.registered_classes],
+        stateflow.registered_classes,
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+
+    from src.util import dataflow_visualizer
+
+    dataflow_visualizer.visualize(blocks, True)
