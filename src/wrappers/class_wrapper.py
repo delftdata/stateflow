@@ -227,7 +227,12 @@ class ClassWrapper:
             method_result = self._call_method(constructed_class, method_name, arguments)
 
             # Return the results.
-            return InvocationResult(None, method_result), constructed_class
+            return (
+                InvocationResult(
+                    self._get_updated_state(constructed_class), method_result
+                ),
+                constructed_class,
+            )
         except Exception as e:
             return FailedInvocation(f"Exception occurred during invocation: {e}.")
 

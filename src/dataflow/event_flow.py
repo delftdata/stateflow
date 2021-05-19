@@ -142,7 +142,7 @@ class EventFlowNode:
 
     def step(
         self, event_flow: "EventFlowGraph", state: State, instance: Any = None
-    ) -> Tuple["EventFlowNode", State]:
+    ) -> Tuple["EventFlowNode", State, Any]:
         raise NotImplementedError("This should be implemented by each of the nodes.")
 
     def get_next(self) -> List[int]:

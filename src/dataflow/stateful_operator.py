@@ -254,6 +254,8 @@ class StatefulOperator(Operator):
         flow_graph: EventFlowGraph = event.payload["flow"]
         updated_state, instance = flow_graph.step(self.class_wrapper, state)
 
+        print(f"Now I have an instance of {instance}")
+
         # Keep stepping!
         while (
             not (
@@ -263,6 +265,7 @@ class StatefulOperator(Operator):
             )
             and flow_graph.current_node.fun_type == self.function_type
         ):
+            print(f"Using that instance to {instance}")
             updated_state, _ = flow_graph.step(
                 self.class_wrapper, updated_state, instance
             )
