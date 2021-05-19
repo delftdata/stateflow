@@ -252,7 +252,7 @@ class StatefulOperator(Operator):
 
     def _handle_event_flow(self, event: Event, state: State) -> Tuple[Event, State]:
         flow_graph: EventFlowGraph = event.payload["flow"]
-        updated_state: State = flow_graph.step(self.class_wrapper, state)
+        updated_state, instance = flow_graph.step(self.class_wrapper, state)
 
         # Keep stepping!
         while (
@@ -263,7 +263,8 @@ class StatefulOperator(Operator):
             )
             and flow_graph.current_node.fun_type == self.function_type
         ):
-            print(f"Doing another step: {flow_graph.current_node}")
-            updated_state: State = flow_graph.step(self.class_wrapper, updated_state)
+            updated_state, _ = flow_graph.step(
+                self.class_wrapper, updated_state, instance
+            )
 
         return event, updated_state

@@ -141,7 +141,7 @@ class EventFlowNode:
         return output
 
     def step(
-        self, event_flow: "EventFlowGraph", state: State
+        self, event_flow: "EventFlowGraph", state: State, instance: Any = None
     ) -> Tuple["EventFlowNode", State]:
         raise NotImplementedError("This should be implemented by each of the nodes.")
 
@@ -211,15 +211,22 @@ class EventFlowGraph:
             str(node.id): node for node in graph
         }
 
-    def step(self, class_wrapper: ClassWrapper = None, state: State = None) -> State:
-        next_node, updated_state = self.current_node.step(self, class_wrapper, state)
+    def step(
+        self,
+        class_wrapper: ClassWrapper = None,
+        state: State = None,
+        instance: Any = None,
+    ) -> Tuple[State, Any]:
+        next_node, updated_state, instance = self.current_node.step(
+            self, class_wrapper, state, instance
+        )
         self.current_node.status = "FINISHED"
 
         # Dynamic update of the previous node.
         next_node.previous = self.current_node.id
         self.current_node = next_node
 
-        return updated_state
+        return updated_state, instance
 
     def get_current(self) -> EventFlowNode:
         return self.current_node
@@ -269,10 +276,14 @@ class StartNode(EventFlowNode):
         return super().to_dict()
 
     def step(
-        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
-    ) -> Tuple[EventFlowNode, State]:
+        self,
+        graph: EventFlowGraph,
+        class_wrapper: ClassWrapper,
+        state: State,
+        instance: Any = None,
+    ) -> Tuple[EventFlowNode, State, Any]:
         # We assume the start node has only one next node.
-        return graph.get_node_by_id(self.next[0]), state
+        return graph.get_node_by_id(self.next[0]), state, instance
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
@@ -287,9 +298,13 @@ class ReturnNode(EventFlowNode):
         return super().to_dict()
 
     def step(
-        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
-    ) -> Tuple[EventFlowNode, State]:
-        return self, state
+        self,
+        graph: EventFlowGraph,
+        class_wrapper: ClassWrapper,
+        state: State,
+        instance: Any,
+    ) -> Tuple[EventFlowNode, State, Any]:
+        return self, state, instance
 
     def get_results(self):
         return self.output["results"]
@@ -321,17 +336,28 @@ class InvokeExternal(EventFlowNode):
         self.output[f"{self.fun_name}_return"] = output
 
     def step(
-        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
-    ) -> Tuple[EventFlowNode, State]:
+        self,
+        graph: EventFlowGraph,
+        class_wrapper: ClassWrapper,
+        state: State,
+        instance: Any = None,
+    ) -> Tuple[EventFlowNode, State, Any]:
         # Prepare arguments for this invocation.
         args: Arguments = Arguments(self.input)
 
         # Invoke the method.
-        invocation: InvocationResult = class_wrapper.invoke(
-            self.fun_name,
-            state,
-            args,
-        )
+        if not instance:
+            invocation, instance = class_wrapper.invoke_return_instance(
+                self.fun_name,
+                state,
+                args,
+            )
+        else:
+            invocation: InvocationResult = class_wrapper.invoke_with_instance(
+                self.fun_name,
+                instance,
+                args,
+            )
 
         """ Two scenarios:
         1. TODO Invocation has failed, we need to handle this somehow.
@@ -342,7 +368,7 @@ class InvokeExternal(EventFlowNode):
         next_node: InvokeSplitFun = graph.get_node_by_id(self.next[0])
         self._set_return_result(invocation.return_results)
 
-        return next_node, invocation.updated_state
+        return next_node, invocation.updated_state, instance
 
     def set_key(self, key: str):
         self.key = key
@@ -437,8 +463,12 @@ class InvokeSplitFun(EventFlowNode):
                 self.output[decl] = return_results[i]
 
     def step(
-        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
-    ) -> Tuple[EventFlowNode, State]:
+        self,
+        graph: EventFlowGraph,
+        class_wrapper: ClassWrapper,
+        state: State,
+        instance: Any = None,
+    ) -> Tuple[EventFlowNode, State, Any]:
         # TODO We need to check if the input needs to be transformed to InternalClassRef
         incomplete_input: List[str] = [
             key
@@ -461,10 +491,18 @@ class InvokeSplitFun(EventFlowNode):
         )
 
         # Invocation of the actual 'splitted' method.
-        invocation: InvocationResult = class_wrapper.invoke(
-            self.fun_name, state, fun_arguments
-        )
-
+        if not instance:
+            invocation, instance = class_wrapper.invoke_return_instance(
+                self.fun_name,
+                state,
+                fun_arguments,
+            )
+        else:
+            invocation: InvocationResult = class_wrapper.invoke_with_instance(
+                self.fun_name,
+                instance,
+                fun_arguments,
+            )
         """ Based on the invocation we consider three scenarios:
         1. Invocation failed, we need somehow to go back to the client and throw an error (TODO: not implemented).
         2. Invocation successful, and this is a splitting point towards another function.
@@ -525,7 +563,7 @@ class InvokeSplitFun(EventFlowNode):
 
             next_node.set_results(invocation.results_as_list())
 
-        return next_node, invocation.updated_state
+        return next_node, invocation.updated_state, instance
 
     def to_dict(self) -> Dict:
         return_dict = super().to_dict()
@@ -575,8 +613,12 @@ class InvokeConditional(EventFlowNode):
         # This node has no output.
 
     def step(
-        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
-    ) -> Tuple[EventFlowNode, State]:
+        self,
+        graph: EventFlowGraph,
+        class_wrapper: ClassWrapper,
+        state: State,
+        instance: Any = None,
+    ) -> Tuple[EventFlowNode, State, Any]:
 
         incomplete_input: List[str] = [
             key for key in self.input.keys() if self.input[key] == Null
@@ -593,9 +635,18 @@ class InvokeConditional(EventFlowNode):
         )
 
         # Invocation of the actual 'splitted' method.
-        invocation: InvocationResult = class_wrapper.invoke(
-            self.fun_name, state, fun_arguments
-        )
+        if not instance:
+            invocation, instance = class_wrapper.invoke_return_instance(
+                self.fun_name,
+                state,
+                fun_arguments,
+            )
+        else:
+            invocation: InvocationResult = class_wrapper.invoke_with_instance(
+                self.fun_name,
+                instance,
+                fun_arguments,
+            )
 
         """ Based on the invocation we consider two scenarios:
             1. Invocation failed, we need somehow to go back to the client and throw an error (TODO: not implemented).
@@ -619,7 +670,7 @@ class InvokeConditional(EventFlowNode):
         else:
             next_node = graph.get_node_by_id(self.if_false_node)
 
-        return next_node, invocation.updated_state
+        return next_node, invocation.updated_state, instance
 
     def resolve_next(self, nodes: List[EventFlowNode], block):
         next_node = nodes[0].id
@@ -683,8 +734,12 @@ class RequestState(EventFlowNode):
         self.output[self.var_name] = state
 
     def step(
-        self, graph: EventFlowGraph, class_wrapper: ClassWrapper, state: State
-    ) -> Tuple[EventFlowNode, State]:
+        self,
+        graph: EventFlowGraph,
+        class_wrapper: ClassWrapper,
+        state: State,
+        instance=None,
+    ) -> Tuple[EventFlowNode, State, Any]:
         state_get = state.get()
 
         # We copy the key, so that subsequent nodes can use it.
@@ -694,7 +749,7 @@ class RequestState(EventFlowNode):
         # We kind of assume that for GetState, it is is 'sequential' flow. So there is only 1 node next.
         next_node = graph.get_node_by_id(self.next[0])
 
-        return next_node, state
+        return next_node, state, instance
 
     def to_dict(self) -> Dict:
         return_dict = super().to_dict()
