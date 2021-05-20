@@ -154,21 +154,6 @@ class TestClassWrapper:
         assert getattr(instance, "x") == 0
         assert instance.__key__() == "wouter"
 
-    def test_simple_invoke_return_instance_with_instance(self):
-        wrapper = self.get_wrapper()
-
-        state = State({"name": "wouter", "x": 5})
-        args = Arguments({"x": 5})
-        _, instance = wrapper.invoke_return_instance("update", state, args)
-
-        new_args = Arguments({"x": -7})
-        results, instance = wrapper.invoke_with_instance_return_instance(
-            "update", instance, new_args
-        )
-
-        assert results.return_results == 7
-        assert getattr(instance, "x") == 7
-
     def test_simple_invoke_with_instance(self):
         wrapper = self.get_wrapper()
 

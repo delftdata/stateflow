@@ -144,32 +144,6 @@ class ClassWrapper:
         except Exception as e:
             return FailedInvocation(f"Exception occurred during invocation: {e}.")
 
-    def invoke_with_instance_return_instance(
-        self, method_name: str, instance: Any, arguments: Arguments
-    ) -> Tuple[InvocationResult, Any]:
-        """Invokes a method on this wrapped class.
-
-        Will perform the following procedure:
-        1. Execute method with arguments.
-        2. Return method output and resulting state in an InvocationResult.
-
-        In case of failure, we will return a FailedInvocation.
-        We assume that arguments are already checked on the client side, due to performance reasons.
-
-        :param method_name: the method to invoke.
-        :param instance: the instance of this class.
-        :param arguments: the arguments of the invocation.
-        :return: either a successful InvocationResult or a FailedInvocation.
-        """
-        try:
-            # Call the method.
-            method_result = self._call_method(instance, method_name, arguments)
-
-            # Return the results.
-            return InvocationResult(None, method_result), instance
-        except Exception as e:
-            return FailedInvocation(f"Exception occurred during invocation: {e}.")
-
     def invoke_with_instance(
         self, method_name: str, instance: Any, arguments: Arguments
     ) -> InvocationResult:
