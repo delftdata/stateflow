@@ -37,10 +37,7 @@ class User:
         if self.balance < total_price:
             return False
 
-        # Decrease the stock.
-        decrease_stock = item.update_stock(-amount)
-
-        if not decrease_stock:
+        if not item.update_stock(-amount):
             return False  # For some reason, stock couldn't be decreased.
 
         self.balance -= total_price
@@ -104,6 +101,13 @@ class ExperimentalA:
                 return -1
 
         return self.balance
+
+    def test_no_return(self, balance: int, b_ins: ExperimentalB):
+        if balance >= self.balance:
+            self.balance = 0
+            b_ins.add_balance(balance)
+        else:
+            self.balance = 1
 
     def __key__(self):
         return self.name
