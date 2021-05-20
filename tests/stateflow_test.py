@@ -124,10 +124,10 @@ class TestE2E:
         assert outcome_5 == -1
         assert b_balance == 4
 
-        b.balance = 5
+        b.balance = 0
         b.balance.get()
         a.balance = 0
-        b.balance.get()
+        a.balance.get()
         outcome_6 = a.test_no_return(6, b).get(timeout=5)
         b_balance = b.balance.get()
         a_balance = a.balance.get()

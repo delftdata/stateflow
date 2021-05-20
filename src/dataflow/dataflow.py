@@ -1,8 +1,11 @@
-from typing import List, Optional, Tuple
-from src.dataflow.event import EventType
+from typing import List, Optional, Tuple, ByteString, Union
+from src.dataflow.event import EventType, Event
+from src.dataflow.event_flow import EventFlowGraph, EventFlowNode
 from src.dataflow.address import FunctionType
 from src.descriptors.class_descriptor import ClassDescriptor
 from src.serialization.serde import SerDe
+from enum import Enum
+from dataclasses import dataclass
 
 
 class Operator:
@@ -29,29 +32,130 @@ class Edge:
         self.event_type = event_type
 
 
-class Router:
-    from src.dataflow.event import Event
+class RouteDirection(Enum):
+    EGRESS = 1
+    INTERNAL = 2
+    CLIENT = 3
 
-    def __init__(self, flow: "Dataflow", current: Edge, serializer: SerDe):
-        self.flow = flow
-        self.current = current
+
+@dataclass
+class Route:
+    direction: RouteDirection
+    route_name: str
+    key: str
+    value: Union[Event, ByteString]
+
+
+class EgressRouter:
+    def __init__(self, serializer: SerDe):
         self.serializer = serializer
 
-    def parse(self):
-        pass
+    def _route_event_flow(self, event: Event) -> Route:
+        flow_graph: EventFlowGraph = event.payload["flow"]
+        current_node = flow_graph.current_node
 
-    def _parse(self, key_and_event: Tuple[bytes, bytes]) -> Tuple[str, Event]:
-        return (key_and_event[0].decode("utf-8"),)
+        if current_node.typ == EventFlowNode.RETURN:
+            return Route(
+                RouteDirection.CLIENT,
+                "",
+                event.event_id,
+                self.serializer.serialize_event(
+                    event.copy(
+                        event_type=EventType.Reply.SuccessfulInvocation,
+                        payload={"return_results": current_node.get_results()},
+                    )
+                ),
+            )
+        else:
+            return Route(
+                RouteDirection.INTERNAL,
+                "",
+                event.event_id,
+                self.serializer.serialize_event(event),
+            )
 
-    def flow(self, event: Event):
-        if (
-            isinstance(event, tuple)
-            and isinstance(event[0], bytes)
-            and isinstance(event[1], bytes)
-        ):
-            _, event = self._parse(event)
+    def route_and_serialize(self, event: Event) -> Route:
+        if event.event_type == EventType.Request.EventFlow:
+            return self._route_event_flow(event)
+        elif isinstance(event.event_type, EventType.Reply):
+            return Route(
+                RouteDirection.CLIENT,
+                "",
+                event.event_id,
+                self.serializer.serialize_event(event),
+            )
+        else:
+            raise AttributeError(
+                f"Unknown event type {event.event_type}.\nFull event: {self.serializer.serialize_event(event)}."
+            )
 
-        pass
+
+class IngressRouter:
+    def __init__(self, serializer: SerDe):
+        self.serializer = serializer
+
+    def _route_event_flow(self, event: Event) -> Route:
+        flow_graph: EventFlowGraph = event.payload["flow"]
+        current_node = flow_graph.current_node
+        route_name: str = current_node.fun_type.get_full_name()
+
+        if current_node.typ == EventFlowNode.RETURN:
+            return Route(
+                RouteDirection.EGRESS,
+                route_name,
+                event.event_id,
+                event.copy(
+                    event_type=EventType.Reply.SuccessfulInvocation,
+                    payload={"return_results": current_node.get_results()},
+                ),
+            )
+        elif current_node.typ == EventFlowNode.REQUEST_STATE:
+            key = current_node.get_request_key()
+            return Route(RouteDirection.INTERNAL, route_name, key, event)
+        elif current_node.typ == EventFlowNode.INVOKE_SPLIT_FUN:
+            return Route(
+                RouteDirection.INTERNAL, route_name, event.fun_address.key, event
+            )
+        elif current_node.typ == EventFlowNode.INVOKE_EXTERNAL:
+            return Route(RouteDirection.INTERNAL, route_name, current_node.key, event)
+        elif current_node.typ == EventFlowNode.INVOKE_CONDITIONAL:
+            return Route(
+                RouteDirection.INTERNAL, route_name, event.fun_address.key, event
+            )
+        else:
+            raise AttributeError(
+                f"Unknown EventFlowNode type in EventFlowGraph {current_node.typ}.\nFull event: {event}."
+            )
+
+    def _route_request(self, event: Event, event_type: str) -> Route:
+        route_name: str = event.fun_address.function_type.get_full_name()
+
+        if event_type == EventType.Request.EventFlow:
+            return self._route_event_flow(event)
+        elif event_type == EventType.Request.Ping:
+            return Route(
+                RouteDirection.EGRESS,
+                "",
+                event.event_id,
+                event.copy(event_type=EventType.Reply.Pong),
+            )
+        elif event.fun_address.key:
+            return Route(
+                RouteDirection.INTERNAL, route_name, event.fun_address.key, event
+            )
+        else:
+            return Route(RouteDirection.INTERNAL, route_name, event.event_id, event)
+
+    def parse_and_route(self, value: ByteString) -> Route:
+        event: Event = self.serializer.deserialize_event(value)
+        event_type: EventType = event.event_type
+
+        if not isinstance(event_type, EventType.Request):
+            raise AttributeError(
+                f"Ingress router can't route an event which is of type: {event_type}\n.Full event: {event}"
+            )
+
+        return self._route_request(event, event_type)
 
 
 class Ingress(Edge):

@@ -161,9 +161,9 @@ def test_dependencies_user_class():
     assert stmts[0].dependencies == ["amount", "item"]
     assert stmts[1].dependencies == ["total_price"]
     assert stmts[2].dependencies == []
-    assert stmts[3].dependencies == ["amount", "item"]
-    assert stmts[4].dependencies == ["update_stock_return"]
-    assert stmts[5].dependencies == ["decrease_stock"]
+    assert stmts[3].dependencies == []
+    assert stmts[4].dependencies == ["amount", "item"]
+    assert stmts[5].dependencies == ["update_stock_return"]
     assert stmts[6].dependencies == []
     assert stmts[7].dependencies == ["total_price"]
 
