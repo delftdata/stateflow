@@ -20,7 +20,6 @@ from src.dataflow.dataflow import (
     EgressRouter,
 )
 from src.dataflow.event import Event, EventType
-from src.dataflow.event_flow import EventFlowNode, EventFlowGraph
 from apache_beam import pvalue
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -43,94 +42,16 @@ class IngressBeamRouter(DoFn):
         self.outputs.add("internal")
 
     def process(self, element: Tuple[bytes, bytes]) -> Union[Tuple[str, Any], Any]:
-        # event: Event = self.serializer.deserialize_event(element[1])
-        # event_type: str = event.event_type
-        # route_name: str = f"{event.fun_address.function_type.get_full_name()}"
-
         route: Route = self.router.parse_and_route(element[1])
 
         if route.direction == RouteDirection.EGRESS:
             egress_route = self.egress.route_and_serialize(route.value)
-            print(f"Egressing to {route}")
             if egress_route.direction == RouteDirection.CLIENT:
                 yield pvalue.TaggedOutput("client", (route.key, egress_route.value))
             elif egress_route.direction == RouteDirection.INTERNAL:
                 yield pvalue.TaggedOutput("internal", (route.key, egress_route.value))
-            # yield pvalue.TaggedOutput("egress", (route.key, route.value))
         elif route.direction == RouteDirection.INTERNAL:
             yield pvalue.TaggedOutput(route.route_name, (route.key, route.value))
-        else:
-            raise AttributeError(f"Unknown route direction {route.direction}.")
-
-        # if not isinstance(event_type, EventType.Request):
-        #
-        #     yield (
-        #         event.event_id,
-        #         event.copy(
-        #             event_type=EventType.Reply.FailedInvocation,
-        #             payload={
-        #                 "error_message": "This IngressRouter only supports event requests."
-        #             },
-        #         ),
-        #     )
-        # # if the key is available, then we set that as key otherwise we set the event_id.
-        # elif event.event_type == EventType.Request.EventFlow:
-        #     flow_graph: EventFlowGraph = event.payload["flow"]
-        #     current_node = flow_graph.current_node
-        #
-        #     if current_node.typ == EventFlowNode.RETURN:
-        #         yield (
-        #             event.event_id,
-        #             self.serializer.serialize_event(
-        #                 event.copy(
-        #                     event_type=EventType.Reply.SuccessfulInvocation,
-        #                     payload={"return_results": current_node.get_results()},
-        #                 )
-        #             ),
-        #         )
-        #     elif current_node.typ == EventFlowNode.REQUEST_STATE:
-        #         key = current_node.get_request_key()
-        #         yield pvalue.TaggedOutput(
-        #             current_node.fun_type.get_full_name(), (key, event)
-        #         )
-        #     elif current_node.typ == EventFlowNode.INVOKE_SPLIT_FUN:
-        #         yield pvalue.TaggedOutput(
-        #             current_node.fun_type.get_full_name(),
-        #             (event.fun_address.key, event),
-        #         )
-        #     elif current_node.typ == EventFlowNode.INVOKE_EXTERNAL:
-        #         yield pvalue.TaggedOutput(
-        #             current_node.fun_type.get_full_name(), (current_node.key, event)
-        #         )
-        #     elif current_node.typ == EventFlowNode.INVOKE_CONDITIONAL:
-        #         yield pvalue.TaggedOutput(
-        #             current_node.fun_type.get_full_name(),
-        #             (event.fun_address.key, event),
-        #         )
-        #
-        # elif event.event_type == EventType.Request.Ping:
-        #     yield event.event_id, self.serializer.serialize_event(
-        #         event.copy(event_type=EventType.Reply.Pong)
-        #     )
-        # elif event.fun_address.key:
-        #     yield pvalue.TaggedOutput(route_name, (event.fun_address.key, event))
-        # else:
-        #     yield pvalue.TaggedOutput(route_name, (event.event_id, event))
-
-
-class EgressBeamRouter(DoFn):
-    def __init__(self, router: EgressRouter):
-        self.router: EgressRouter = router
-
-    @beam.typehints.with_input_types(Tuple[str, Any])
-    def process(self, element: Tuple[str, Event]) -> Tuple[str, ByteString]:
-        route: Route = self.router.route_and_serialize(element[1])
-
-        print(f"Egressing to {route}")
-        if route.direction == RouteDirection.CLIENT:
-            yield pvalue.TaggedOutput("client", (route.key, route.value))
-        elif route.direction == RouteDirection.INTERNAL:
-            yield pvalue.TaggedOutput("internal", (route.key, route.value))
         else:
             raise AttributeError(f"Unknown route direction {route.direction}.")
 
@@ -179,17 +100,6 @@ class BeamOperator(DoFn):
             yield pvalue.TaggedOutput("internal", (route.key, route.value))
         else:
             raise AttributeError(f"Unknown route direction {route.direction}.")
-
-        # yield (return_event.event_id, return_event)
-
-        # print(f"Returning  {return_event.event_id}")
-        # if return_event.event_type == EventType.Request.EventFlow:
-        #     yield pvalue.TaggedOutput(
-        #         "internal",
-        #         (return_event.event_id, self.serializer.serialize_event(return_event)),
-        #     )
-        # else:
-        #     yield (return_event.event_id, self.serializer.serialize_event(return_event))
 
 
 class BeamRuntime(Runtime):

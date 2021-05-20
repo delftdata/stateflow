@@ -144,7 +144,7 @@ class IngressRouter:
                 RouteDirection.INTERNAL, route_name, event.fun_address.key, event
             )
         else:
-            return Route(RouteDirection.INTERNAL, route_name, event.event_id, event)
+            return Route(RouteDirection.INTERNAL, route_name, None, event)
 
     def parse_and_route(self, value: ByteString) -> Route:
         event: Event = self.serializer.deserialize_event(value)
