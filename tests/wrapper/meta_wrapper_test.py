@@ -1,6 +1,6 @@
 import pytest
 
-from src.client import StateflowClient
+from src.client.stateflow_client import StateflowClient
 from src.wrappers.meta_wrapper import MetaWrapper
 import inspect
 import libcst as cst
