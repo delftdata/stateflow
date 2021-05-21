@@ -1,4 +1,4 @@
-from src.client import ClassRef, StateflowClient, StateflowFuture
+from src.client.class_ref import ClassRef, StateflowClient, StateflowFuture
 from src.dataflow.address import FunctionType
 from src.descriptors import ClassDescriptor
 from src.dataflow.event import Event, FunctionAddress, EventType

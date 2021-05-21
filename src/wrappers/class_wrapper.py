@@ -1,5 +1,5 @@
 from src.dataflow.state import State
-from typing import List, Optional, Any, Dict, Union, Tuple
+from typing import List, Optional, Any, Dict, Union, Tuple, TypeVar
 from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.dataflow.args import Arguments
 
@@ -45,6 +45,16 @@ class ClassWrapper:
             m.method_name: m for m in class_desc.methods_dec
         }
 
+        self.initialized: bool = False
+
+    def _verify_initialized(self):
+        if not self.initialized and isinstance(self.cls, str):
+            exec(compile(self.cls, "", mode="exec"), globals(), globals())
+            self.cls = globals()[self.class_desc.class_name]
+            self.initialized = True
+        elif not self.initialized:
+            self.initialized = True
+
     def init_class(self, arguments: Arguments) -> InvocationResult:
         """Initializes the wrapped class.
 
@@ -55,6 +65,7 @@ class ClassWrapper:
         :return: either a successful InvocationResult or a FailedInvocation.
                 The InvocationResult stores the instance key in its `return_results`.
         """
+        self._verify_initialized()
         init_method: MethodDescriptor = self.methods_desc["__init__"]
 
         # TODO: Consider removing this, we should check this maybe client side or not at all..
@@ -104,6 +115,8 @@ class ClassWrapper:
     def _call_method(
         self, instance: Any, method_name: str, arguments: Arguments
     ) -> Any:
+        from src.dataflow.event_flow import InvokeMethodRequest
+
         method_to_call = getattr(instance, method_name)
         return method_to_call(**arguments.get())
 
@@ -127,6 +140,7 @@ class ClassWrapper:
         :return: either a successful InvocationResult or a FailedInvocation.
         """
         try:
+            self._verify_initialized()
             # Construct a new class.
             constructed_class = self.cls.__new__(self.cls)
 
@@ -162,6 +176,7 @@ class ClassWrapper:
         :return: either a successful InvocationResult or a FailedInvocation.
         """
         try:
+            self._verify_initialized()
             # Call the method.
             method_result = self._call_method(instance, method_name, arguments)
 
@@ -190,6 +205,7 @@ class ClassWrapper:
         :return: either a successful InvocationResult or a FailedInvocation + the instance.
         """
         try:
+            self._verify_initialized()
             # Construct a new class.
             constructed_class = self.cls.__new__(self.cls)
 

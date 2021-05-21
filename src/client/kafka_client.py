@@ -47,8 +47,8 @@ class StateflowKafkaClient(StateflowClient):
         return Consumer(
             {
                 "bootstrap.servers": brokers,
-                "group.id": "mygroup",
-                "auto.offset.reset": "earliest",
+                "group.id": str(uuid.uuid4()),
+                "auto.offset.reset": "latest",
             }
         )
 
@@ -63,12 +63,18 @@ class StateflowKafkaClient(StateflowClient):
                 print("Consumer error: {}".format(msg.error()))
                 continue
 
-            key = msg.key().decode("utf-8")
+            if msg.key() is None:
+                event = self.serializer.deserialize_event(msg.value())
+                key = event.event_id
+            else:
+                event = None
+                key = msg.key().decode("utf-8")
+
             print(f"{key} -> Received message")
             if key in self.futures.keys():
-                self.futures[key].complete(
-                    self.serializer.deserialize_event(msg.value())
-                )
+                if not event:
+                    event = self.serializer.deserialize_event(msg.value())
+                self.futures[key].complete(event)
                 del self.futures[key]
 
             # print(self.futures.keys())
@@ -120,14 +126,14 @@ class StateflowKafkaClient(StateflowClient):
 
         return future
 
-    def wait_until_healthy(self) -> bool:
+    def wait_until_healthy(self, timeout=0.5) -> bool:
         pong = False
 
         while not pong:
             pong_future = self._send_ping()
 
             try:
-                pong_future.get(timeout=0.5)
+                pong_future.get(timeout=timeout)
                 print("Got a pong!")
                 pong = True
             except AttributeError:  # future timeout

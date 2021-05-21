@@ -1,7 +1,7 @@
 import ast
 
 from src.descriptors import ClassDescriptor, MethodDescriptor
-from src.wrappers import ClassWrapper
+from src.wrappers.class_wrapper import ClassWrapper
 from typing import List, Optional, Any, Set, Tuple, Dict, Union
 import libcst as cst
 import libcst.matchers as m
@@ -17,7 +17,6 @@ from src.split.split_block import (
 )
 from src.split.conditional_block import ConditionalBlock, ConditionalBlockContext
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
-from src.dataflow.event_flow import InvokeMethodRequest
 
 
 class HasInteraction(cst.CSTVisitor):
@@ -474,4 +473,5 @@ class Split:
 
                 # Recompile the code and set the code in the wrapper.
                 exec(compile(modified_tree.code, "", mode="exec"), globals(), globals())
-                self.wrappers[i].cls = globals()[desc.class_name]
+                # self.wrappers[i].cls = globals()[desc.class_name]
+                self.wrappers[i].cls = modified_tree.code

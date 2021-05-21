@@ -12,7 +12,8 @@ from src.dataflow.event_flow import (
 )
 from src.dataflow.args import Arguments
 from src.dataflow.state import State
-from src.wrappers import ClassWrapper, MetaWrapper, InvocationResult, FailedInvocation
+from src.wrappers.class_wrapper import ClassWrapper, InvocationResult, FailedInvocation
+from src.wrappers.meta_wrapper import MetaWrapper
 from typing import NewType, List, Tuple, Optional, Dict, Any
 from src.serialization.json_serde import SerDe, JsonSerializer
 
@@ -50,6 +51,9 @@ class StatefulOperator(Operator):
         """
         res: InvocationResult = self.class_wrapper.init_class(event.payload["args"])
 
+        import logging
+
+        logging.info(f"invoc result {res}")
         key: str = res.return_results[0]
         created_state: State = res.updated_state
 

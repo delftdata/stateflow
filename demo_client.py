@@ -9,7 +9,7 @@ client: StateflowClient = StateflowKafkaClient(
     stateflow.init(), brokers="localhost:9092"
 )
 
-client.wait_until_healthy()
+client.wait_until_healthy(timeout=10)
 
 print("Creating a user: ")
 future_user: StateflowFuture[User] = User("wouter-user")
