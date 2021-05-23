@@ -3,7 +3,7 @@ from src.client.kafka_client import StateflowClient, StateflowKafkaClient
 from src.client.future import StateflowFuture, StateflowFailure
 import time
 
-stateflow.init()
+# stateflow.init()
 
 client: StateflowClient = StateflowKafkaClient(
     stateflow.init(), brokers="localhost:9092"
