@@ -521,14 +521,18 @@ class InvokeSplitFun(EventFlowNode):
 
         # Step 2, we come across an InvokeMethodRequest and need to go the InvokeExternal node.
         next_node: EventFlowNode
-        if any(isinstance(item, InvokeMethodRequest) for item in return_results):
+        if (
+            len(return_results) > 0
+            and isinstance(return_results[-1], dict)
+            and return_results[-1].get("_type") == "InvokeMethodRequest"
+        ):
             # Set the output of this node. We assume a correct order.
             # I.e. the definitions names correspond to the output order.
             # A mapping from a class instance variable, to its key.
             self._set_definitions(return_results)
 
             # Get the InvocationRequest of this node.
-            invoke_method_request: InvokeMethodRequest = return_results[-1]
+            invoke_method_request: Dict = return_results[-1]
 
             # Get the next node.
             next_node: InvokeExternal = self._get_next_node_by_type(
@@ -536,14 +540,14 @@ class InvokeSplitFun(EventFlowNode):
             )
 
             # Prepare next node by setting the address key and the arguments.
-            if isinstance(invoke_method_request.instance_ref_var, InternalClassRef):
-                next_node.set_key(invoke_method_request.instance_ref_var._get_key())
+            if isinstance(invoke_method_request["call_instance_var"], InternalClassRef):
+                next_node.set_key(invoke_method_request["call_instance_var"]._get_key())
             else:
-                next_node.set_key(invoke_method_request.instance_ref_var["key"])
+                next_node.set_key(invoke_method_request["call_instance_var"]["key"])
 
             # We assume that arguments in the InvokeMethodRequest are in the correct order.
             for i, arg_key in enumerate(next_node.input.keys()):
-                next_node.input[arg_key] = invoke_method_request.args[i]
+                next_node.input[arg_key] = invoke_method_request["args"][i]
         elif (
             len(return_results) > 0
             and isinstance(return_results[-1], dict)

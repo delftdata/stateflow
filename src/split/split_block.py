@@ -547,10 +547,19 @@ class StatementBlock(Block):
 
         if self.split_context.current_invocation:
             call_arguments_names: str = ",".join([n.value for n in call_arguments])
+            # call_expression: cst.BaseExpression = cst.parse_expression(
+            #     f"'_type': 'InvokeMethodRequest', ('{self.split_context.current_invocation.class_desc.class_name}', "
+            #     f"{self.split_context.current_invocation.call_instance_var}, "
+            #     f"'{self.split_context.current_invocation.method_invoked}', [{call_arguments_names}])"
+            # )
+
             call_expression: cst.BaseExpression = cst.parse_expression(
-                f"InvokeMethodRequest('{self.split_context.current_invocation.class_desc.class_name}', "
-                f"{self.split_context.current_invocation.call_instance_var}, "
-                f"'{self.split_context.current_invocation.method_invoked}', [{call_arguments_names}])"
+                "{'_type': 'InvokeMethodRequest', "
+                f"'class_name': '{self.split_context.current_invocation.class_desc.class_name}',"
+                f"'call_instance_var': {self.split_context.current_invocation.call_instance_var},"
+                f"'invoked_method': '{self.split_context.current_invocation.method_invoked}',"
+                f"'args': [{call_arguments_names}]"
+                "}"
             )
             return_names.append(call_expression)
         else:  # 'Normal split', we encode this in a Dictionary.

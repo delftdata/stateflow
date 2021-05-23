@@ -213,5 +213,9 @@ class FlinkRuntime(Runtime):
     def run(self):
         if not self.pipeline_initialized:
             self._setup_pipeline()
-        print(self.env.get_config())
+        print(
+            self.env.get_config().set_global_job_parameters(
+                {"python.fn-execution.bundle.time": 5}
+            )
+        )
         self.env.execute("Stateflow Runtime")
