@@ -10,6 +10,9 @@ from pyflink.datastream.connectors import (
     FlinkKafkaConsumer,
     FlinkKafkaProducer,
 )
+from pyflink.common import Configuration
+from pyflink.util.java_utils import get_j_env_configuration
+
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.datastream.state import ValueStateDescriptor, ValueState
 from pyflink.datastream.data_stream import KeyedProcessFunction, ProcessFunction
@@ -100,8 +103,6 @@ class FlinkRuntime(Runtime):
         self.env: StreamExecutionEnvironment = (
             StreamExecutionEnvironment.get_execution_environment()
         )
-
-        print(self.env.get_config().get_global_job_parameters())
 
         self.operators = self.dataflow.operators
         self.pipeline_initialized: bool = False
@@ -211,11 +212,20 @@ class FlinkRuntime(Runtime):
         self.pipeline_initialized = True
 
     def run(self):
-        if not self.pipeline_initialized:
-            self._setup_pipeline()
-        print(
-            self.env.get_config().set_global_job_parameters(
-                {"python.fn-execution.bundle.time": 5}
+        config = Configuration(
+            j_configuration=get_j_env_configuration(
+                self.env._j_stream_execution_environment
             )
         )
+        config.set_integer("python.fn-execution.bundle.time", 1)
+        config.set_integer("python.fn-execution.bundle.size", 5)
+
+        import os
+
+        jar_path = os.path.abspath("bin/flink-sql-connector-kafka_2.11-1.13.0.jar")
+        self.env.add_jars(f"file://{jar_path}")
+
+        if not self.pipeline_initialized:
+            self._setup_pipeline()
+
         self.env.execute("Stateflow Runtime")
