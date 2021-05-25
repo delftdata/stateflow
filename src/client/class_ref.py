@@ -6,6 +6,7 @@ from src.dataflow.event import Event, EventType
 from src.dataflow.event_flow import EventFlowGraph, EventFlowNode
 from src.client.stateflow_client import StateflowClient
 import uuid
+import copy
 from src.serialization.json_serde import JsonSerializer
 
 
@@ -39,7 +40,7 @@ class MethodRef:
         """
         if self.method_desc.is_splitted_function():
             return self._class_ref._invoke_flow(
-                self.method_desc.flow_list,
+                copy.deepcopy(self.method_desc.flow_list),
                 Arguments.from_args_and_kwargs(
                     self.method_desc.input_desc.get(), *args, **kwargs
                 ),

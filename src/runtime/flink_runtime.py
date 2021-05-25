@@ -107,6 +107,20 @@ class FlinkRuntime(Runtime):
         self.operators = self.dataflow.operators
         self.pipeline_initialized: bool = False
 
+        config = Configuration(
+            j_configuration=get_j_env_configuration(
+                self.env._j_stream_execution_environment
+            )
+        )
+        config.set_integer("python.fn-execution.bundle.time", 1)
+        config.set_integer("python.fn-execution.bundle.size", 5)
+
+        import os
+
+        jar_path = os.path.abspath("bin/flink-sql-connector-kafka_2.11-1.13.0.jar")
+        print(f"Found jar path {jar_path}")
+        self.env.add_jars(f"file://{jar_path}")
+
     def _setup_kafka_client(self) -> FlinkKafkaConsumer:
         return FlinkKafkaConsumer(
             ["client_request", "internal"],
@@ -211,21 +225,12 @@ class FlinkRuntime(Runtime):
 
         self.pipeline_initialized = True
 
-    def run(self):
-        config = Configuration(
-            j_configuration=get_j_env_configuration(
-                self.env._j_stream_execution_environment
-            )
-        )
-        config.set_integer("python.fn-execution.bundle.time", 1)
-        config.set_integer("python.fn-execution.bundle.size", 5)
-
-        import os
-
-        jar_path = os.path.abspath("bin/flink-sql-connector-kafka_2.11-1.13.0.jar")
-        self.env.add_jars(f"file://{jar_path}")
-
+    def run(self, async_execution=False):
+        print("Now running Flink runtime!", flush=True)
         if not self.pipeline_initialized:
             self._setup_pipeline()
 
-        self.env.execute("Stateflow Runtime")
+        if async_execution:
+            self.env.execute_async("Stateflow Runtime")
+        else:
+            self.env.execute("Stateflow Runtime")

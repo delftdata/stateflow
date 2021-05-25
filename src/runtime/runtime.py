@@ -8,5 +8,5 @@ class Runtime:
     def _setup_pipeline(self):
         raise NotImplementedError()
 
-    def run(self):
+    def run(self, async_execution=False):
         raise NotImplementedError()

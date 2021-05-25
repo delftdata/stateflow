@@ -206,7 +206,7 @@ class BeamRuntime(Runtime):
 
         self.pipeline = pipeline
 
-    def run(self):
+    def run(self, async_execution=False):
         print("Running Beam pipeline!")
         if not self.pipeline:
             self._setup_pipeline()
