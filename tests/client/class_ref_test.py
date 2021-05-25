@@ -44,7 +44,9 @@ class TestClassRef:
         flow, args = class_ref_mock._invoke_flow.call_args[0]
 
         assert isinstance(flow, list)
-        assert flow == buy_item_method.flow_list
+        assert list([(x.id, x.typ) for x in flow]) == list(
+            [(x.id, x.typ) for x in buy_item_method.flow_list]
+        )
         assert args.get() == {"amount": 1, "item": None}
 
     def test_class_ref_simple_invoke(self):
