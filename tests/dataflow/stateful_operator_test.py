@@ -12,18 +12,18 @@ from src.dataflow.stateful_operator import StatefulOperator
 from src.serialization.json_serde import JsonSerializer
 
 
+@pytest.fixture(scope="session", autouse=True)
+def setup():
+    flow = stateflow.init()
+    item_operator = flow.operators[0]
+    user_operator = flow.operators[1]
+
+    yield user_operator, item_operator
+
+
 class TestStatefulOperator:
-    def setup(self):
-        flow = stateflow.init()
-        self.item_operator = flow.operators[0]
-        self.user_operator = flow.operators[1]
-
-    def test_init_class_negative(self):
-        # TODO create this, where the class creation throws an error
-        pass
-
-    def test_init_class_positive(self):
-        operator: StatefulOperator = self.user_operator
+    def test_init_class_positive(self, setup):
+        operator: StatefulOperator = setup[0]
 
         event_id = str(uuid.uuid4())
         event = Event(
@@ -41,8 +41,8 @@ class TestStatefulOperator:
             "init_class_state": {"username": "wouter", "balance": 0, "items": []}
         }
 
-    def test_handle_init_class_positive(self):
-        operator: StatefulOperator = self.user_operator
+    def test_handle_init_class_positive(self, setup):
+        operator: StatefulOperator = setup[0]
 
         event_id = str(uuid.uuid4())
         event = Event(
@@ -59,8 +59,8 @@ class TestStatefulOperator:
         assert return_event.event_type == EventType.Reply.SuccessfulCreateClass
         assert return_event.payload["key"] == "wouter"
 
-    def test_handle_init_class_negative(self):
-        operator: StatefulOperator = self.user_operator
+    def test_handle_init_class_negative(self, setup):
+        operator: StatefulOperator = setup[0]
 
         event_id = str(uuid.uuid4())
         event = Event(
@@ -77,8 +77,8 @@ class TestStatefulOperator:
         assert return_event.event_type == EventType.Reply.FailedInvocation
         assert return_event.payload["error_message"]
 
-    def test_invoke_stateful_positive(self):
-        operator: StatefulOperator = self.user_operator
+    def test_invoke_stateful_positive(self, setup):
+        operator: StatefulOperator = setup[0]
 
         event_id = str(uuid.uuid4())
         event = Event(
@@ -98,8 +98,8 @@ class TestStatefulOperator:
         assert return_event.payload["return_results"] is None
         assert updated_state["balance"] == 15
 
-    def test_invoke_stateful_negative(self):
-        operator: StatefulOperator = self.user_operator
+    def test_invoke_stateful_negative(self, setup):
+        operator: StatefulOperator = setup[0]
 
         event_id = str(uuid.uuid4())
         event = Event(
@@ -118,8 +118,8 @@ class TestStatefulOperator:
         assert return_event.event_type == EventType.Reply.FailedInvocation
         assert updated_state["balance"] == 10
 
-    def test_get_state_positive(self):
-        operator: StatefulOperator = self.user_operator
+    def test_get_state_positive(self, setup):
+        operator: StatefulOperator = setup[0]
 
         event_id = str(uuid.uuid4())
         event = Event(
@@ -139,8 +139,8 @@ class TestStatefulOperator:
         assert return_event.payload["state"] == 11
         assert state.get() == updated_state.get()  # State is not updated.
 
-    def test_update_state_positive(self):
-        operator: StatefulOperator = self.user_operator
+    def test_update_state_positive(self, setup):
+        operator: StatefulOperator = setup[0]
 
         event_id = str(uuid.uuid4())
         event = Event(
@@ -161,8 +161,8 @@ class TestStatefulOperator:
         assert updated_state.get()["balance"] == 8
         assert state.get() != updated_state.get()  # State is updated.
 
-    def test_find_class_positive(self):
-        operator: StatefulOperator = self.user_operator
+    def test_find_class_positive(self, setup):
+        operator: StatefulOperator = setup[0]
 
         event_id = str(uuid.uuid4())
         event = Event(
@@ -182,8 +182,8 @@ class TestStatefulOperator:
         assert return_event.payload == {}
         assert state.get() == updated_state.get()  # State is updated.
 
-    def test_state_does_not_exist_no_init_class(self):
-        operator: StatefulOperator = self.user_operator
+    def test_state_does_not_exist_no_init_class(self, setup):
+        operator: StatefulOperator = setup[0]
 
         event_id = str(uuid.uuid4())
         event = Event(

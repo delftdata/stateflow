@@ -48,7 +48,7 @@ class ClassWrapper:
         self.initialized: bool = False
 
     def _verify_initialized(self):
-        if not self.initialized and isinstance(self.cls, str):
+        if isinstance(self.cls, str):
             exec(compile(self.cls, "", mode="exec"), globals(), globals())
             self.cls = globals()[self.class_desc.class_name]
             self.initialized = True
@@ -65,18 +65,9 @@ class ClassWrapper:
         :return: either a successful InvocationResult or a FailedInvocation.
                 The InvocationResult stores the instance key in its `return_results`.
         """
-        self._verify_initialized()
-        init_method: MethodDescriptor = self.methods_desc["__init__"]
-
-        # TODO: Consider removing this, we should check this maybe client side or not at all..
-        # Especially if we want performance..
-        if not init_method.input_desc.match(arguments):
-            return FailedInvocation(
-                "Invocation arguments do not match input description of the method.\n"
-                f"Expected {init_method.input_desc}, but got {list(arguments.get_keys())}."
-            )
-
         try:
+            self._verify_initialized()
+
             # Get class and compute it's key.
             class_instance = self.cls(**arguments.get())
             class_key = class_instance.__key__()
