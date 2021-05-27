@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Set, Optional
 import libcst as cst
 
 from src.dataflow.args import Arguments
+import re
 
 
 class MethodDescriptor:
@@ -107,11 +108,19 @@ class MethodDescriptor:
 
         return params
 
+    def _is_linked(self, name: str, types: List[str]) -> bool:
+        r = re.compile(f"^({name}|List\\[{name}\\])$")
+
+        if len(list(filter(r.match, types))) > 0:
+            return True
+        else:
+            return False
+
     def link_to_other_classes(self, descriptors: List):
         for d in descriptors:
             name = d.class_name
 
-            if name in self._typed_declarations.values():
+            if self._is_linked(name, self._typed_declarations.items()):
                 # These are the declarations with a type equal to a class name.
                 decl_with_type = [
                     key

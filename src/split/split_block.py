@@ -436,7 +436,7 @@ class StatementBlock(Block):
         This list is sorted in the order of declaration. In case, there are multiple
 
         :param def_use_list: the list of definitions/usages per statement in the block.
-        :return:
+        :return: list of definitions (strings).
         """
         definitions = []
         for def_use in self.def_use_list:

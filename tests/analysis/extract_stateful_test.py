@@ -1,6 +1,6 @@
 import pytest
 from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from src.descriptors import ClassDescriptor
+from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.analysis.extract_method_descriptor import ExtractMethodDescriptor
 from typing import Any, Dict
 import libcst as cst
@@ -580,3 +580,44 @@ class OtherClass:
 
     assert visitor.is_defined
     assert visitor.class_name == "FancyClass"
+
+
+def test_correct_linking_other_classes():
+    code = """
+class FancyClass:
+    def call(self, others: List["OtherClass"], str_list: List[str], other: "OtherClass"):
+        pass
+
+class OtherClass:
+    def call(self, x: int):
+        pass
+            """
+
+    # Get the function.
+    code_tree = cst.parse_module(code)
+    wrapper = cst.metadata.MetadataWrapper(code_tree)
+    expression_provider = wrapper.resolve(cst.metadata.ExpressionContextProvider)
+
+    visitor_fancy = ExtractClassDescriptor(code_tree, "FancyClass", expression_provider)
+    code_tree.visit(visitor_fancy)
+
+    fancy: ClassDescriptor = ExtractClassDescriptor.create_class_descriptor(
+        visitor_fancy
+    )
+
+    visitor_other = ExtractClassDescriptor(code_tree, "OtherClass", expression_provider)
+    code_tree.visit(visitor_other)
+
+    other: ClassDescriptor = ExtractClassDescriptor.create_class_descriptor(
+        visitor_other
+    )
+
+    fancy.link_to_other_classes([fancy, other])
+    other.link_to_other_classes([fancy, other])
+
+    fancy_call: MethodDescriptor = fancy.get_method_by_name("call")
+    assert fancy_call._typed_declarations == {
+        "others": "List[OtherClass]",
+        "str_list": "List[str]",
+        "other": "OtherClass",
+    }
