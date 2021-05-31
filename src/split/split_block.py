@@ -101,7 +101,7 @@ class StatementAnalyzer(cst.CSTVisitor):
             # I.e. we will replace this node later on.
             if method == self.method_name:
                 # However, we need to save the call variable though.
-                self.def_use.append(Use(callee))
+                # self.def_use.append(Use(callee))
                 return False
         elif m.matches(
             node.func,
@@ -115,7 +115,7 @@ class StatementAnalyzer(cst.CSTVisitor):
 
             if method == self.method_name:
                 # However, we need to save the call variable though.
-                self.def_use.append(Use(subscript_var))
+                # self.def_use.append(Use(subscript_var))
                 return False
 
     def _visit_assignment(self):

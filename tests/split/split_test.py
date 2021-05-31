@@ -68,6 +68,10 @@ def test_split_dependencies():
     )
     stmts = analyzer.blocks
 
+    from src.util.dataflow_visualizer import visualize
+
+    visualize(stmts, code=True)
+
     assert len(stmts) == 2
     assert stmts[0].dependencies == ["c", "d"]
     assert stmts[1].dependencies == ["d", "get_a_return"]
