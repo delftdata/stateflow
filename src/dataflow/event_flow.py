@@ -106,16 +106,29 @@ class EventFlowNode:
         else:
             self.next.extend([next])
 
+    def _to_class_ref(self, value: Dict[str, Any]) -> InternalClassRef:
+        key: str = value.get("key")
+        fun_typ: str = FunctionType(
+            value["fun_type"]["namespace"],
+            value["fun_type"]["name"],
+            value["fun_type"]["stateful"],
+        )
+
+        return InternalClassRef(key, fun_typ)
+
     def _insert_internal_class_refs(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        # TODO If we switch to a different serializer, this is not necessary...
         for arg_key, value in args.copy().items():
             if isinstance(value, dict) and value.get("_type") == "InternalClassRef":
-                key: str = value.get("key")
-                fun_typ: str = FunctionType(
-                    value["fun_type"]["namespace"],
-                    value["fun_type"]["name"],
-                    value["fun_type"]["stateful"],
+                args[arg_key] = self._to_class_ref(value)
+            elif isinstance(value, list) and all(
+                isinstance(el, dict) and el.get("_type") == "InternalClassRef"
+                for el in value
+            ):
+                print(
+                    f"here transform to class refs {[self._to_class_ref(el) for el in value]}"
                 )
-                args[arg_key] = InternalClassRef(key, fun_typ)
+                args[arg_key] = [self._to_class_ref(el) for el in value]
 
         return args
 
@@ -149,7 +162,7 @@ class EventFlowNode:
                         )
 
                         output[key] = internal_class_ref
-                    else:
+                    elif previous.output[key] is not Null:
                         output[key] = previous.output[key]
 
                     # We found the variable, so we don't need to look for it anymore.
@@ -478,8 +491,11 @@ class InvokeSplitFun(EventFlowNode):
                 return_results[i], InternalClassRef
             ):  # We treat an InternalClassRef a bit differently.
                 self.output[decl] = return_results[i]._to_dict()
+            elif isinstance(return_results[i], list) and all(
+                isinstance(el, InternalClassRef) for el in return_results[i]
+            ):
+                self.output[decl] = [el._to_dict() for el in return_results[i]]
             else:
-
                 self.output[decl] = return_results[i]
 
     def step(
@@ -491,9 +507,7 @@ class InvokeSplitFun(EventFlowNode):
     ) -> Tuple[EventFlowNode, State, Any]:
         # TODO We need to check if the input needs to be transformed to InternalClassRef
         incomplete_input: List[str] = [
-            key
-            for key in self.input.keys()
-            if self.input[key] == Null or key in self.typed_params
+            key for key in self.input.keys() if self.input[key] == Null
         ]
 
         print(
@@ -509,6 +523,8 @@ class InvokeSplitFun(EventFlowNode):
                 **self._collect_incomplete_input(graph, incomplete_input),
             }
         )
+
+        print(f"All input: {all_input}")
 
         fun_arguments = Arguments(all_input)
 

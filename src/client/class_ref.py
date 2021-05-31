@@ -3,7 +3,7 @@ from src.client.future import StateflowFuture
 from src.dataflow.args import Arguments
 from typing import List
 from src.dataflow.event import Event, EventType
-from src.dataflow.event_flow import EventFlowGraph, EventFlowNode
+from src.dataflow.event_flow import EventFlowGraph, EventFlowNode, InternalClassRef
 from src.client.stateflow_client import StateflowClient
 import uuid
 import copy
@@ -119,17 +119,33 @@ class ClassRef(object):
         """
 
         to_assign = list(args.get_keys())
+        # TODO REWORK THIS
         for f in flow:
+            to_remove = []
             for arg in to_assign:
-                if arg in f.input and not isinstance(args[arg], ClassRef):
+                arg_value = args[arg]
+                if (
+                    arg in f.input
+                    and not isinstance(arg_value, ClassRef)
+                    and not isinstance(arg_value, list)
+                ):
                     f.input[arg] = args[arg]
-                    to_assign.remove(arg)
+                    to_remove.append(arg)
                 elif (
-                    isinstance(args[arg], ClassRef)
+                    isinstance(arg_value, ClassRef)
                     and f.typ == EventFlowNode.REQUEST_STATE
                 ):
-                    f.set_request_key(args[arg]._fun_addr.key)
-                    to_assign.remove(arg)
+                    f.set_request_key(arg_value._fun_addr.key)
+                    to_remove.append(arg)
+                elif (
+                    arg in f.input
+                    and isinstance(arg_value, list)
+                    and all(isinstance(el, ClassRef) for el in arg_value)
+                ):
+                    f.input[arg] = [el.to_internal_ref()._to_dict() for el in arg_value]
+                    to_remove.append(arg)
+
+            to_assign = [el for el in to_assign if el not in to_remove]
 
         flow_graph = EventFlowGraph(flow[0], flow)
         flow_graph.step()
@@ -221,3 +237,6 @@ class ClassRef(object):
         :return: string version of this reference.
         """
         return f"Class reference for {self._fun_addr.function_type.name} with key {self._fun_addr.key}."
+
+    def to_internal_ref(self) -> InternalClassRef:
+        return InternalClassRef(self._fun_addr.key, self._fun_addr.function_type)

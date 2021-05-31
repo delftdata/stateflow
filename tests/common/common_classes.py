@@ -109,5 +109,14 @@ class ExperimentalA:
         else:
             self.balance = 1
 
+    def work_with_list(self, x: int, others: List[ExperimentalB]):
+        other_one: ExperimentalB = others[0]
+        other_one.add_balance(10)
+
+        if x > 0:
+            others[-1].add_balance(10)
+        else:
+            other_one.add_balance(-10)
+
     def __key__(self):
         return self.name

@@ -81,6 +81,14 @@ class TestE2E:
             assert final_balance_b == 10
             assert final_balance_a == 0
 
+            a.work_with_list(1, [b]).get(timeout=5)
+            final_balance_b = b.balance.get(timeout=5)
+            assert final_balance_b == 30
+
+            a.work_with_list(0, [b]).get(timeout=5)
+            final_balance_b = b.balance.get(timeout=5)
+            assert final_balance_b == 30
+
             print("All asserts are correct")
         except Exception as exc:
             print(f"Got an exception {exc}")
