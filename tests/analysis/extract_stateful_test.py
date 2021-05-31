@@ -616,6 +616,7 @@ class OtherClass:
     other.link_to_other_classes([fancy, other])
 
     fancy_call: MethodDescriptor = fancy.get_method_by_name("call")
+    assert fancy_call.other_class_links[0].class_name == "OtherClass"
     assert fancy_call._typed_declarations == {
         "others": "List[OtherClass]",
         "str_list": "List[str]",

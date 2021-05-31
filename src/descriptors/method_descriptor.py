@@ -111,32 +111,26 @@ class MethodDescriptor:
     def _is_linked(self, name: str, types: Dict[str, str]) -> Tuple[bool, List[str]]:
         r = re.compile(f"^({name}|List\\[{name}\\])$")
 
-        for name, type in types.items():
-            if r.match(type)
+        linked_vars = []
+        for name, typ in types.items():
+            if r.match(typ):
+                linked_vars.append(name)
 
-        if len(list(filter(r.match, types.items()))) > 0:
-            return True
-        else:
-            return False
+        return len(linked_vars) > 0, linked_vars
 
     def link_to_other_classes(self, descriptors: List):
         for d in descriptors:
             name = d.class_name
 
-            if self._is_linked(name, self._typed_declarations):
-                # These are the declarations with a type equal to a class name.
-                decl_with_type = [
-                    key
-                    for key, value in self._typed_declarations.items()
-                    if value == name
-                ]
-
+            is_linked, links = self._is_linked(name, self._typed_declarations)
+            if is_linked:
                 # We now check if this declaration is also attributed (i.e. get state, update state or invoke method).
-                if len(set(decl_with_type).intersection(self._external_attributes)) > 0:
+                if len(set(links).intersection(self._external_attributes)) > 0:
                     # Now we know this method is linked to another class or class method.
                     self.other_class_links.append(d)
-                elif set(decl_with_type).intersection(set(self.input_desc.keys())):
-                    # We know the type is
+                elif set(links).intersection(set(self.input_desc.keys())):
+                    # The List is given as parameter.
+                    self.other_class_links.append(d)
                 else:
                     # TODO; we have a type decl to another class, but it is not used? Maybe throw a warning/error.
                     pass
