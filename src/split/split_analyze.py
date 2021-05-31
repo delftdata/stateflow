@@ -1,5 +1,6 @@
 import ast
 
+from analysis.ast_utils import extract_types
 from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.wrappers.class_wrapper import ClassWrapper
 from typing import List, Optional, Any, Set, Tuple, Dict, Union
@@ -14,9 +15,11 @@ from src.split.split_block import (
     IntermediateBlockContext,
     InvocationContext,
     Block,
+    Def,
 )
 from src.split.conditional_block import ConditionalBlock, ConditionalBlockContext
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
+import re
 
 
 class HasInteraction(cst.CSTVisitor):
@@ -39,7 +42,9 @@ class HasInteraction(cst.CSTVisitor):
         if m.matches(node.func, m.Attribute(m.Name(), m.Name())):
             attr: cst.Attribute = node.func
 
-            callee: str = attr.value.value
+            callee_expr: cst.Expr = attr.value
+
+            callee: str = callee_expr.value
             method: str = attr.attr.value
 
             # Find callee class in the complete 'context'.
@@ -58,7 +63,11 @@ class HasInteraction(cst.CSTVisitor):
                     )
                 else:
                     self.invocation_context = InvocationContext(
-                        desc, callee, method, desc.get_method_by_name(method), node.args
+                        desc,
+                        callee_expr,
+                        method,
+                        desc.get_method_by_name(method),
+                        node.args,
                     )
                     self.has_interaction = True
 
@@ -77,7 +86,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         unparsed_statements: List[cst.CSTNode],
         block_id_offset: int = 0,
         outer_block: bool = True,
-        latest_block: Optional[Block] = None,
+        annotated_definitions: List[Def] = [],
     ):
         self.class_node: cst.ClassDef = class_node
         self.split_context: SplitContext = split_context
@@ -95,6 +104,9 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.current_block_id: int = block_id_offset
         self.block_id_offset = block_id_offset
         self.blocks: List[Block] = []
+
+        # Definitions so far (including those of the parent block).
+        self.annotated_definitions: List[Def] = annotated_definitions
 
         # Keep track if we're currently processing an if-statement.
         self._processing_if: bool = False
@@ -186,6 +198,16 @@ class SplitAnalyzer(cst.CSTVisitor):
                 f"Expected a function definition but got an {self.split_context.original_method_node}."
             )
 
+        for param in self.split_context.original_method_node.params.params:
+            if m.matches(param, m.Param(name=m.Name(), annotation=m.Annotation())):
+                name: str = param.name.value
+                typ: str = extract_types(
+                    self.split_context.class_desc.module_node, param.annotation
+                )
+
+                # We see parameters also as declarations.
+                self.annotated_definitions.append(Def(name, typ))
+
         self._analyze_statements()
 
         previous_block: Optional[Block] = self._get_previous_block()
@@ -204,38 +226,108 @@ class SplitAnalyzer(cst.CSTVisitor):
         if previous_block:
             previous_block.set_next_block(final_block)
 
+    def need_to_split(self, var: str) -> Tuple[bool, ClassDescriptor]:
+        # We walk reversed through all definitions, so we know its the correct order.
+        for d in reversed(self.annotated_definitions):
+            equal_var: bool = var == d.name
+            if (
+                d.typ  # If the type exists.
+                and equal_var  # If the variable equals the declaration.
+            ):
+                return self._type_is_class(
+                    d.typ
+                )  # If the type is another stateful function.
+            elif (
+                equal_var
+            ):  # Above conditions are not all true, but it is still the correct var name.
+                return False, None
+
+        return False, None
+
+    def _type_is_class(self, typ: str) -> Tuple[bool, ClassDescriptor]:
+        match = re.compile(r"(?<=\[)(.*?)(?=\])").search(typ)
+
+        if not match:
+            match = typ
+        else:
+            match = match.group(0)
+
+        class_desc = self.split_context.class_descriptors.get(match)
+        return class_desc is not None, class_desc
+
     def visit_Call(self, node: cst.Call):
         # Simple case: `item.update_stock()`
         # item is passed as parameter
         if m.matches(node.func, m.Attribute(m.Name(), m.Name())):
             attr: cst.Attribute = node.func
 
-            callee: str = attr.value.value
+            callee_expr: cst.Expr = attr.value
+
+            callee: str = callee_expr.value
             method: str = attr.attr.value
 
-            # Find callee class in the complete 'context'.
-            desc: ClassDescriptor = self.split_context.class_descriptors[
-                self.split_context.original_method_desc.input_desc[callee]
-            ]
+            print(f"Callee {callee}, method {method}")
+
+            need_to_split, desc = self.need_to_split(callee)
+
+            if not need_to_split:
+                raise AttributeError(
+                    f"We do not need to split, please look into this {callee}.{method}"
+                )
+                return False
 
             invocation_context = InvocationContext(
-                desc, callee, method, desc.get_method_by_name(method), node.args
+                desc, callee_expr, method, desc.get_method_by_name(method), node.args
+            )
+
+            self._process_stmt_block_with_invocation(
+                invocation_context, "block with invocation"
+            )
+        # item_list[i].update_stock()
+        elif m.matches(
+            node.func,
+            m.Attribute(
+                m.Subscript(m.Name(), [m.SubscriptElement(m.Index())]), m.Name()
+            ),
+        ):
+            subscript_var: str = node.func.value.value.value
+            subscript_code: str = (
+                self.split_context.class_desc.module_node.code_for_node(node.func.value)
+            )
+
+            method: str = node.func.attr.value
+            need_to_split, desc = self.need_to_split(subscript_var)
+
+            if not need_to_split:
+                raise AttributeError(
+                    f"We do not need to split, please look into this {subscript_code}.{method}"
+                )
+                return False
+
+            invocation_context = InvocationContext(
+                desc,
+                node.func.value,
+                method,
+                desc.get_method_by_name(method),
+                node.args,
             )
 
             self._process_stmt_block_with_invocation(
                 invocation_context, "block with invocation"
             )
 
+    def visit_AnnAssign(self, node: cst.AnnAssign):
+        if m.matches(node, m.AnnAssign(target=m.Name(), annotation=m.Annotation())):
+            typ: str = extract_types(
+                self.split_context.class_desc.module_node, node.annotation
+            )
+            self.annotated_definitions.append(Def(node.target.value, typ))
+
     def visit_If(self, node: cst.If):
         if len(self.blocks) == 0 or len(self.unparsed_statements) > 0:
             self._process_stmt_block_without_invocation("block before if-statement")
 
         self._processing_if = True
-
-        if not self.outer_block:
-            print(
-                f"We're now in an 'inner' block, my current block id is: {self.current_block_id}"
-            )
 
         # The current if statement, we loop through all nested if nodes.
         current_if: Union[cst.If] = node
@@ -299,11 +391,14 @@ class SplitAnalyzer(cst.CSTVisitor):
                 current_if.body.children,
                 block_id_offset=self.current_block_id,
                 outer_block=False,
+                annotated_definitions=self.annotated_definitions,
             )
 
             # These are the blocks inside the if body.
             # Blocks _within_ this list should already be properly linked up.
             if_blocks: List[Block] = analyze_if_body.blocks
+            self.annotated_definitions.extend(analyze_if_body.annotated_definitions)
+
             label = "if body" if if_depth == 0 else "elif body"
             [b.set_label(label) for b in if_blocks]
 
@@ -341,9 +436,11 @@ class SplitAnalyzer(cst.CSTVisitor):
                 else_stmt.body.children,
                 block_id_offset=self.current_block_id,
                 outer_block=False,
+                annotated_definitions=self.annotated_definitions,
             )
 
             else_blocks: List[StatementBlock] = analyze_else_body.blocks
+            self.annotated_definitions.extend(analyze_else_body.annotated_definitions)
             [b.set_label("else body") for b in else_blocks]
 
             # We connect the first block of this else body, to the last conditional.

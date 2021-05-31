@@ -12,6 +12,7 @@ from src.dataflow.event_flow import (
 )
 import libcst.matchers as m
 from dataclasses import dataclass, fields
+from src.analysis.ast_utils import extract_types
 
 
 @dataclass
@@ -19,6 +20,7 @@ class Def:
     """A wrapper for the 'definition' of a variable within a piece of code."""
 
     name: str
+    typ: str = None
 
 
 @dataclass
@@ -74,8 +76,10 @@ class StatementAnalyzer(cst.CSTVisitor):
         self.expression_provider = expression_provider
         self.method_name = method_name
 
+        # Keep track if we're currently _in_ an assignment. If it is annotated, track its type.
         self.in_assign: bool = False
         self.assign_names: List[Def] = []
+
         self.def_use: List[Union[Def, Use]] = []
 
         self.returns = 0
@@ -115,7 +119,6 @@ class StatementAnalyzer(cst.CSTVisitor):
         """
         self.in_assign = False
         self.def_use.extend(self.assign_names)
-
         self.assign_names = []
 
     def visit_Assign(self, node: cst.Assign):
@@ -132,7 +135,7 @@ class StatementAnalyzer(cst.CSTVisitor):
         """
         self._visit_assignment()
 
-    def visit_AnnAssign(self, node: cst.AugAssign):
+    def visit_AnnAssign(self, node: cst.AnnAssign):
         """Visits an assignment.
 
         :param node: the assignment node.
@@ -227,14 +230,14 @@ class InvocationContext:
 
     Attributes:
         :param class_desc: The ClassDescriptor of the (external) class of which a method is invoked.
-        :param call_instance_var: The instance variable of the class of which a method is invoked.
+        :param call_instance_ref: An expression which evaluates to the instance which is invoked.
         :param method_invoked: The name of the invoked method.
         :param method_desc: The descriptor of the invoked method.
         :param call_arguments: The actual parameters/arguments of this invocation.
     """
 
     class_desc: ClassDescriptor
-    call_instance_var: str
+    call_instance_ref: cst.CSTNode
     method_invoked: str
     method_desc: MethodDescriptor
     call_arguments: List[cst.Arg]
@@ -424,6 +427,12 @@ class StatementBlock(Block):
                 arg.visit(arg_analyzer)
             self.def_use_list.append(arg_analyzer.usages)
 
+    def _params_to_defs(self) -> List[Def]:
+        return [
+            Def(name, typ)
+            for name, typ in self.split_context.original_method_desc.input_desc.get().items()
+        ]
+
     def _remove_whitespace(self):
         """ Removes whitespace from statements if it is there. """
         if len(self.statements) > 0 and m.matches(
@@ -433,7 +442,7 @@ class StatementBlock(Block):
 
     def _compute_definitions(self) -> List[str]:
         """Computes the (unique) list of definitions in this block.
-        This list is sorted in the order of declaration. In case, there are multiple
+        This list is sorted in the order of declaration.
 
         :param def_use_list: the list of definitions/usages per statement in the block.
         :return: list of definitions (strings).
@@ -547,19 +556,15 @@ class StatementBlock(Block):
 
         if self.split_context.current_invocation:
             call_arguments_names: str = ",".join([n.value for n in call_arguments])
-            # call_expression: cst.BaseExpression = cst.parse_expression(
-            #     f"'_type': 'InvokeMethodRequest', ('{self.split_context.current_invocation.class_desc.class_name}', "
-            #     f"{self.split_context.current_invocation.call_instance_var}, "
-            #     f"'{self.split_context.current_invocation.method_invoked}', [{call_arguments_names}])"
-            # )
 
-            call_expression: cst.BaseExpression = cst.parse_expression(
+            call_expression: cst.BaseExpression = cst.helpers.parse_template_expression(
                 "{'_type': 'InvokeMethodRequest', "
                 f"'class_name': '{self.split_context.current_invocation.class_desc.class_name}',"
-                f"'call_instance_var': {self.split_context.current_invocation.call_instance_var},"
+                "'call_instance_ref': {ref}._get_key(),"
                 f"'invoked_method': '{self.split_context.current_invocation.method_invoked}',"
                 f"'args': [{call_arguments_names}]"
-                "}"
+                "}",
+                ref=self.split_context.current_invocation.call_instance_ref,
             )
             return_names.append(call_expression)
         else:  # 'Normal split', we encode this in a Dictionary.
@@ -650,10 +655,11 @@ class StatementBlock(Block):
         :return: a new FunctionDefinition.
         """
         # If this block has an invocation to another class. We need to have that instance var as param.
-        if self.split_context.current_invocation:
-            self.dependencies.append(
-                self.split_context.current_invocation.call_instance_var
-            )
+        # if self.split_context.current_invocation:
+        #     self.dependencies.append(
+        #         self.split_context.current_invocation.call_instance_var
+        #     )
+        # TODO SEE IF THIS BREAKS ANYTHING
 
         # Function signature
         fun_name: cst.Name = cst.Name(self.fun_name())
@@ -830,7 +836,6 @@ class StatementBlock(Block):
                         ]
                     ),
                     flow_node_id,
-                    self.split_context.current_invocation.call_instance_var,
                     self.split_context.current_invocation.method_invoked,
                     list(
                         self.split_context.current_invocation.method_desc.input_desc.keys()
@@ -893,7 +898,6 @@ class StatementBlock(Block):
                         ]
                     ),
                     flow_node_id,
-                    self.split_context.current_invocation.call_instance_var,
                     self.split_context.current_invocation.method_invoked,
                     list(
                         self.split_context.current_invocation.method_desc.input_desc.keys()
@@ -956,5 +960,16 @@ class ReplaceCall(cst.CSTTransformer):
             attr: cst.Attribute = original_node.func
             method: str = attr.attr.value
 
+            if method == self.method_name:
+                return self.replace_node
+        # item_list[i].update_stock()
+        elif m.matches(
+            original_node.func,
+            m.Attribute(
+                m.Subscript(m.Name(), [m.SubscriptElement(m.Index())]), m.Name()
+            ),
+        ):
+            attr: cst.Attribute = original_node.func
+            method: str = attr.attr.value
             if method == self.method_name:
                 return self.replace_node

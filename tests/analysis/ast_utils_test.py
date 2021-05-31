@@ -75,6 +75,14 @@ x: List[int]
     parsed = cst.parse_module(stmt)
     assert extract_types(parsed, parsed.body[-1].body[0].annotation) == "List[int]"
 
+    stmt = """
+x: List[OtherClass]
+        """
+    parsed = cst.parse_module(stmt)
+    assert (
+        extract_types(parsed, parsed.body[-1].body[0].annotation) == "List[OtherClass]"
+    )
+
 
 def test_type_unpacking():
     stmt = "x: Tuple[str, int, bytes]"

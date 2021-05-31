@@ -318,11 +318,8 @@ class ReturnNode(EventFlowNode):
 
 
 class InvokeExternal(EventFlowNode):
-    def __init__(
-        self, fun_type, id, ref_variable_name, method_name, args: List[str], key=None
-    ):
+    def __init__(self, fun_type, id, method_name, args: List[str], key=None):
         super().__init__(EventFlowNode.INVOKE_EXTERNAL, fun_type, id)
-        self.ref_variable_name = ref_variable_name
         self.fun_name = method_name
         self.args = args
         self.key = key
@@ -375,7 +372,6 @@ class InvokeExternal(EventFlowNode):
 
     def to_dict(self) -> Dict:
         return_dict = super().to_dict()
-        return_dict["ref_variable_name"] = self.ref_variable_name
         return_dict["fun_name"] = self.fun_name
         return_dict["args"] = self.args
         return_dict["key"] = self.key
@@ -391,7 +387,6 @@ class InvokeExternal(EventFlowNode):
         return InvokeExternal(
             fun_type,
             dict["id"],
-            dict["ref_variable_name"],
             dict["fun_name"],
             dict["args"],
             key,
@@ -539,11 +534,12 @@ class InvokeSplitFun(EventFlowNode):
                 graph, EventFlowNode.INVOKE_EXTERNAL
             )
 
-            # Prepare next node by setting the address key and the arguments.
-            if isinstance(invoke_method_request["call_instance_var"], InternalClassRef):
-                next_node.set_key(invoke_method_request["call_instance_var"]._get_key())
-            else:
-                next_node.set_key(invoke_method_request["call_instance_var"]["key"])
+            # # Prepare next node by setting the address key and the arguments.
+            # if isinstance(invoke_method_request["call_instance_var"], InternalClassRef):
+            #     next_node.set_key(invoke_method_request["call_instance_var"]._get_key())
+            # else:
+            #     next_node.set_key(invoke_method_request["call_instance_var"]["key"])
+            next_node.set_key(invoke_method_request["call_instance_ref"])
 
             # We assume that arguments in the InvokeMethodRequest are in the correct order.
             for i, arg_key in enumerate(next_node.input.keys()):
