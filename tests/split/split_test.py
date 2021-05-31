@@ -810,10 +810,10 @@ def test_list_items():
 
     blocks: List[Block] = analyzer.blocks
 
-    from src.util import dataflow_visualizer
+    # from src.util import dataflow_visualizer
+    #
+    # dataflow_visualizer.visualize(blocks, True)
+    # method_desc.split_function(blocks)
+    # dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
-    dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
-    dataflow_visualizer.visualize_flow(method_desc.flow_list)
-
-    assert len(blocks) == 3
+    assert len(blocks) == 6

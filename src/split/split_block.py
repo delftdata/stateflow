@@ -94,11 +94,28 @@ class StatementAnalyzer(cst.CSTVisitor):
         """
         if m.matches(node.func, m.Attribute(m.Name(), m.Name())):
             attr: cst.Attribute = node.func
+            callee: str = attr.value.value
             method: str = attr.attr.value
 
             # We don't want to visit this node, because it will give LOAD/STORE of unused variables.
             # I.e. we will replace this node later on.
             if method == self.method_name:
+                # However, we need to save the call variable though.
+                self.def_use.append(Use(callee))
+                return False
+        elif m.matches(
+            node.func,
+            m.Attribute(
+                m.Subscript(m.Name(), [m.SubscriptElement(m.Index())]), m.Name()
+            ),
+        ):
+            attr: cst.Attribute = node.func
+            subscript_var: str = attr.value.value.value
+            method: str = attr.attr.value
+
+            if method == self.method_name:
+                # However, we need to save the call variable though.
+                self.def_use.append(Use(subscript_var))
                 return False
 
     def _visit_assignment(self):

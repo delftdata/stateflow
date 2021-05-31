@@ -215,7 +215,10 @@ class ClassWrapper:
                 constructed_class,
             )
         except Exception as e:
-            return FailedInvocation(f"Exception occurred during invocation: {e}.")
+            return (
+                FailedInvocation(f"Exception occurred during invocation: {e}."),
+                constructed_class,
+            )
 
     def __str__(self):
         return f"ClassWrapper for the class {self.class_desc.class_name}."

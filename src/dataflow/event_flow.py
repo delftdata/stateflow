@@ -30,7 +30,9 @@ class InvokeMethodRequest:
 class InternalClassRef:
     """Internal representation of another class."""
 
-    def __init__(self, key: str, fun_type: FunctionType, attributes: Dict[str, Any]):
+    def __init__(
+        self, key: str, fun_type: FunctionType, attributes: Dict[str, Any] = {}
+    ):
         """Initializes an internal class reference.
 
         This is passed as parameter to a stateful function.
@@ -41,7 +43,7 @@ class InternalClassRef:
         """
         self._key: str = key
         self._fun_type: FunctionType = fun_type
-        self.__attributes: Dict[str, Any] = attributes
+        self._attributes: Dict[str, Any] = attributes
 
         for n, attr in attributes.items():
             setattr(self, n, attr)
@@ -50,7 +52,17 @@ class InternalClassRef:
         return self._key
 
     def _to_dict(self) -> Dict:
-        return {"key": self._key, "fun_type": self._fun_type.to_dict()}
+        return {
+            "key": self._key,
+            "fun_type": self._fun_type.to_dict(),
+            "_type": "InternalClassRef",
+        }
+
+    def _clear(self):
+        for n, _ in self._attributes.items():
+            delattr(self, n)
+
+        self._attributes = {}
 
 
 class EventFlowNode:
@@ -93,6 +105,19 @@ class EventFlowNode:
             self.next.extend(next)
         else:
             self.next.extend([next])
+
+    def _insert_internal_class_refs(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        for arg_key, value in args.copy().items():
+            if isinstance(value, dict) and value.get("_type") == "InternalClassRef":
+                key: str = value.get("key")
+                fun_typ: str = FunctionType(
+                    value["fun_type"]["namespace"],
+                    value["fun_type"]["name"],
+                    value["fun_type"]["stateful"],
+                )
+                args[arg_key] = InternalClassRef(key, fun_typ)
+
+        return args
 
     def _collect_incomplete_input(
         self, graph: "EventFlowGraph", input_variables: List[str]
@@ -478,12 +503,14 @@ class InvokeSplitFun(EventFlowNode):
         # Constructs the function arguments.
         # We _copy_ the self.input rather than overriding, this prevents us in sending duplicate
         # information in the event (i.e. it is already stored in output of previous nodes).
-        fun_arguments = Arguments(
+        all_input = self._insert_internal_class_refs(
             {
                 **self.input,
                 **self._collect_incomplete_input(graph, incomplete_input),
             }
         )
+
+        fun_arguments = Arguments(all_input)
 
         # Invocation of the actual 'splitted' method.
         if not instance:

@@ -1,6 +1,6 @@
 import ast
 
-from analysis.ast_utils import extract_types
+from src.analysis.ast_utils import extract_types
 from src.descriptors import ClassDescriptor, MethodDescriptor
 from src.wrappers.class_wrapper import ClassWrapper
 from typing import List, Optional, Any, Set, Tuple, Dict, Union
@@ -265,8 +265,6 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             callee: str = callee_expr.value
             method: str = attr.attr.value
-
-            print(f"Callee {callee}, method {method}")
 
             need_to_split, desc = self.need_to_split(callee)
 
