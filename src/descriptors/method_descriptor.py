@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Set, Optional
+from typing import Dict, Any, List, Set, Optional, Tuple
 
 import libcst as cst
 
@@ -108,10 +108,13 @@ class MethodDescriptor:
 
         return params
 
-    def _is_linked(self, name: str, types: List[str]) -> bool:
+    def _is_linked(self, name: str, types: Dict[str, str]) -> Tuple[bool, List[str]]:
         r = re.compile(f"^({name}|List\\[{name}\\])$")
 
-        if len(list(filter(r.match, types))) > 0:
+        for name, type in types.items():
+            if r.match(type)
+
+        if len(list(filter(r.match, types.items()))) > 0:
             return True
         else:
             return False
@@ -120,7 +123,7 @@ class MethodDescriptor:
         for d in descriptors:
             name = d.class_name
 
-            if self._is_linked(name, self._typed_declarations.items()):
+            if self._is_linked(name, self._typed_declarations):
                 # These are the declarations with a type equal to a class name.
                 decl_with_type = [
                     key
@@ -132,6 +135,8 @@ class MethodDescriptor:
                 if len(set(decl_with_type).intersection(self._external_attributes)) > 0:
                     # Now we know this method is linked to another class or class method.
                     self.other_class_links.append(d)
+                elif set(decl_with_type).intersection(set(self.input_desc.keys())):
+                    # We know the type is
                 else:
                     # TODO; we have a type decl to another class, but it is not used? Maybe throw a warning/error.
                     pass
