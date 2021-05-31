@@ -30,7 +30,7 @@ class Use:
     name: str
 
 
-class ArgumentAnalyzer(cst.CSTVisitor):
+class VarUsageAnalyzer(cst.CSTVisitor):
     def __init__(self, expression_provider):
         self.expression_provider = expression_provider
         self.usages: List[Use] = []
@@ -439,7 +439,7 @@ class StatementBlock(Block):
             not isinstance(self.split_context, LastBlockContext)
             and self.split_context.current_invocation
         ):
-            arg_analyzer = ArgumentAnalyzer(self.split_context.expression_provider)
+            arg_analyzer = VarUsageAnalyzer(self.split_context.expression_provider)
             for arg in self.split_context.current_invocation.call_arguments:
                 arg.visit(arg_analyzer)
             self.def_use_list.append(arg_analyzer.usages)
@@ -672,11 +672,17 @@ class StatementBlock(Block):
         :return: a new FunctionDefinition.
         """
         # If this block has an invocation to another class. We need to have that instance var as param.
-        # if self.split_context.current_invocation:
-        #     self.dependencies.append(
-        #         self.split_context.current_invocation.call_instance_var
-        #     )
-        # TODO SEE IF THIS BREAKS ANYTHING
+        if self.split_context.current_invocation:
+            # If our instance variable is not in the definitions, we need to have it as a dependency.
+            var_usage = VarUsageAnalyzer(self.split_context.expression_provider)
+            self.split_context.current_invocation.call_instance_ref.visit(var_usage)
+
+            for usage in var_usage.usages:
+                if (
+                    usage.name not in self.definitions
+                    and usage.name not in self.dependencies
+                ):
+                    self.dependencies.append(usage.name)
 
         # Function signature
         fun_name: cst.Name = cst.Name(self.fun_name())
@@ -720,9 +726,7 @@ class StatementBlock(Block):
             )
 
         return self.split_context.original_method_node.with_changes(
-            name=fun_name,
-            params=param_node,
-            body=function_body,
+            name=fun_name, params=param_node, body=function_body, returns=None
         )
 
     def _build_last_block(self) -> cst.FunctionDef:

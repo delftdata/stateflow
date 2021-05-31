@@ -319,7 +319,8 @@ class SplitAnalyzer(cst.CSTVisitor):
             typ: str = extract_types(
                 self.split_context.class_desc.module_node, node.annotation
             )
-            self.annotated_definitions.append(Def(node.target.value, typ))
+            definition: Def = Def(node.target.value, typ)
+            self.annotated_definitions.append(definition)
 
     def visit_If(self, node: cst.If):
         if len(self.blocks) == 0 or len(self.unparsed_statements) > 0:
@@ -395,7 +396,6 @@ class SplitAnalyzer(cst.CSTVisitor):
             # These are the blocks inside the if body.
             # Blocks _within_ this list should already be properly linked up.
             if_blocks: List[Block] = analyze_if_body.blocks
-            self.annotated_definitions.extend(analyze_if_body.annotated_definitions)
 
             label = "if body" if if_depth == 0 else "elif body"
             [b.set_label(label) for b in if_blocks]
@@ -438,7 +438,6 @@ class SplitAnalyzer(cst.CSTVisitor):
             )
 
             else_blocks: List[StatementBlock] = analyze_else_body.blocks
-            self.annotated_definitions.extend(analyze_else_body.annotated_definitions)
             [b.set_label("else body") for b in else_blocks]
 
             # We connect the first block of this else body, to the last conditional.
