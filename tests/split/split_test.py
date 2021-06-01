@@ -844,12 +844,16 @@ def test_for_loop_items():
 
         def cool_method(self, others: List[ForOtherClass]):
             for x in range(0, 10):
-                print(x)
+                self.a = 0
 
             self.a = x
 
             for x in others:
+                y: ForOtherClass = x
+                y.set(self.a * 3)
                 self.a = 0
+            else:
+                self.a = 4
 
     stateflow.stateflow(ForClass, parse_file=False)
     stateflow.stateflow(ForOtherClass, parse_file=False)

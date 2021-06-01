@@ -135,6 +135,9 @@ class SplitAnalyzer(cst.CSTVisitor):
         self._unlinked_blocks: List[Block] = []
         self._unlinked_conditional: Optional[ConditionalBlock] = None
 
+        self._processed_for: bool = False
+        self._for_block: Optional[Block] = None
+
         # Analyze this method.
         if isinstance(self.scope, OuterBlockScope):
             self._outer_analyze()
@@ -175,8 +178,14 @@ class SplitAnalyzer(cst.CSTVisitor):
             len(self.blocks) > 0
             and not self._processing_if
             and not isinstance(self.blocks[-1].split_context, LastBlockContext)
+            and not self._processed_for
         ):
             return self.blocks[-1]
+        elif self._processed_for:
+            for_block = self._for_block
+            self._for_block = None
+            self._processed_for = False
+            return for_block
         return None
 
     def _inner_analyze(self):
@@ -346,16 +355,15 @@ class SplitAnalyzer(cst.CSTVisitor):
 
     def visit_For(self, node: cst.For):
         """
-
         We always split a For loop, it just makes life easier.
         Two scenarios:
-        1. Other stateful function in the iter expression, we split.
+        1. Other stateful function in the iter expression, we split and pass the target as annotated variable.
         2. No other stateful function in the iter expression.
 
         :param node:
         :return:
         """
-        for_iter_name = f"iter_{self.current_block_id}"
+        for_iter_name = f"iter_{self.current_block_id + 1}"
 
         # We first process the 'iter' block.
         self._process_for_iter_block(
@@ -371,6 +379,9 @@ class SplitAnalyzer(cst.CSTVisitor):
             previous_block=self.blocks[-1],
             label="for block",
         )
+
+        # Link for block to iter block
+        self.blocks[-1].set_next_block(for_block)
 
         self._add_block(for_block)
         self.current_block_id += 1
@@ -418,8 +429,8 @@ class SplitAnalyzer(cst.CSTVisitor):
             self.blocks.extend(analyze_else_body.blocks)
             self.current_block_id = self.block_id_offset + len(self.blocks)
 
-        # We add at the end, so it gets linked up correctly.
-        self.blocks.append(for_block)
+        self._processed_for = True
+        self._for_block = for_block
 
         return False
 
