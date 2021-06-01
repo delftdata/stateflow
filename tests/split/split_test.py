@@ -821,3 +821,65 @@ def test_list_items():
     # dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
     assert len(blocks) == 6
+
+
+def test_for_loop_items():
+    stateflow.clear()
+
+    class ForOtherClass(object):
+        def __init__(self):
+            self.x = 0
+
+        def set(self, x: int):
+            self.x = x
+            return self.a
+
+        def bigger_than(self, x: int) -> bool:
+            return x > self.x
+
+    class ForClass(object):
+        def __init__(self):
+            self.a = 0
+            self.b = 0
+
+        def cool_method(self, others: List[ForOtherClass]):
+            for x in range(0, 10):
+                print(x)
+
+            self.a = x
+
+            for x in others:
+                self.a = 0
+
+    stateflow.stateflow(ForClass, parse_file=False)
+    stateflow.stateflow(ForOtherClass, parse_file=False)
+
+    wrapper = stateflow.registered_classes[0]
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "cool_method"
+    )
+
+    split = Split(
+        [cls.class_desc for cls in stateflow.registered_classes],
+        stateflow.registered_classes,
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+
+    from src.util import dataflow_visualizer
+
+    dataflow_visualizer.visualize(blocks, True)
+    method_desc.split_function(blocks)
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)

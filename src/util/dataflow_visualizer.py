@@ -12,9 +12,10 @@ def visualize(blocks: List[Block], code=False):
 
     for b in blocks:
         if isinstance(b, ConditionalBlock):
+            block_code = b.code().replace("\n", "\l").replace("\l", "", 1)
             dot_node = dot.node(
                 str(b.block_id),
-                label=f"{b.block_id} - {b.label}" if not code else b.code(),
+                label=f"{b.block_id} - {b.label}" if not code else block_code,
                 _attributes={
                     "shape": "rectangle",
                     "fillcolor": "lightskyblue",
@@ -22,9 +23,10 @@ def visualize(blocks: List[Block], code=False):
                 },
             )
         else:
+            block_code = b.code().replace("\n", "\l").replace("\l", "", 1)
             dot_node = dot.node(
                 str(b.block_id),
-                label=f"{b.block_id} - {b.label}" if not code else b.code(),
+                label=f"{b.block_id} - {b.label}" if not code else block_code,
                 shape="rectangle",
             )
         nodes.append(dot_node)

@@ -16,10 +16,12 @@ from src.split.split_block import (
     InvocationContext,
     Block,
     Def,
+    StatementAnalyzer,
 )
 from src.split.conditional_block import ConditionalBlock, ConditionalBlockContext
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
 import re
+from dataclasses import dataclass
 
 
 class HasInteraction(cst.CSTVisitor):
@@ -71,11 +73,28 @@ class HasInteraction(cst.CSTVisitor):
                     )
                     self.has_interaction = True
 
+        # item_list[i].update_stock()
+
     def get(self) -> bool:
         return self.has_interaction
 
     def get_invocation(self) -> Optional[InvocationContext]:
         return self.invocation_context
+
+
+@dataclass
+class BlockScope:
+    pass
+
+
+@dataclass
+class OuterBlockScope(BlockScope):
+    pass
+
+
+@dataclass
+class InnerBlockScope(BlockScope):
+    pass
 
 
 class SplitAnalyzer(cst.CSTVisitor):
@@ -85,7 +104,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         split_context: SplitContext,
         unparsed_statements: List[cst.CSTNode],
         block_id_offset: int = 0,
-        outer_block: bool = True,
+        scope: BlockScope = OuterBlockScope(),
         annotated_definitions: List[Def] = [],
     ):
         self.class_node: cst.ClassDef = class_node
@@ -95,7 +114,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             for stmt in unparsed_statements
             if not m.matches(stmt, m.TrailingWhitespace())
         ]
-        self.outer_block: bool = outer_block
+        self.scope: BlockScope = scope
 
         # Unparsed blocks
         self.statements: List[cst.BaseStatement] = []
@@ -114,8 +133,13 @@ class SplitAnalyzer(cst.CSTVisitor):
         self._unlinked_blocks: List[Block] = []
         self._unlinked_conditional: Optional[ConditionalBlock] = None
 
+        # Keep track if we're currently processing an for-statement.
+        self._processing_for: bool = False
+        self._for_iter: Optional[cst.BaseExpression] = None
+        self._for_iter_name: Optional[str] = None
+
         # Analyze this method.
-        if self.outer_block:
+        if isinstance(self.scope, OuterBlockScope):
             self._outer_analyze()
         else:
             self._inner_analyze()
@@ -288,6 +312,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 m.Subscript(m.Name(), [m.SubscriptElement(m.Index())]), m.Name()
             ),
         ):
+
             subscript_var: str = node.func.value.value.value
             subscript_code: str = (
                 self.split_context.class_desc.module_node.code_for_node(node.func.value)
@@ -321,6 +346,27 @@ class SplitAnalyzer(cst.CSTVisitor):
             )
             definition: Def = Def(node.target.value, typ)
             self.annotated_definitions.append(definition)
+
+    def visit_For(self, node: cst.For):
+        """
+
+        We always split a For loop, it just makes life easier.
+        Two scenarios:
+        1. Other stateful function in the iter expression, we split.
+        2. No other stateful function in the iter expression.
+
+        :param node:
+        :return:
+        """
+
+        iter: cst.BaseExpression = node.iter
+
+        # Scenario 1; we iterate over a List of stateful instance.
+        # TODO, we need to identify if we iterate over a stateful function in any other way, and throw an exception.
+        if m.matches(iter, m.Name()):
+            need_to_split, class_desc = self.need_to_split(iter.value)
+
+            return False
 
     def visit_If(self, node: cst.If):
         if len(self.blocks) == 0 or len(self.unparsed_statements) > 0:
@@ -389,7 +435,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.split_context,
                 current_if.body.children,
                 block_id_offset=self.current_block_id,
-                outer_block=False,
+                scope=InnerBlockScope(),
                 annotated_definitions=self.annotated_definitions,
             )
 
@@ -433,7 +479,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.split_context,
                 else_stmt.body.children,
                 block_id_offset=self.current_block_id,
-                outer_block=False,
+                scope=InnerBlockScope(),
                 annotated_definitions=self.annotated_definitions,
             )
 
