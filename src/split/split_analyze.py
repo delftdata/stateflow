@@ -12,6 +12,7 @@ from src.split.split_block import (
     SplitContext,
     FirstBlockContext,
     LastBlockContext,
+    ForLoopContext,
     IntermediateBlockContext,
     InvocationContext,
     Block,
@@ -19,6 +20,7 @@ from src.split.split_block import (
     StatementAnalyzer,
 )
 from src.split.conditional_block import ConditionalBlock, ConditionalBlockContext
+from src.split.for_block import ForBlock
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
 import re
 from dataclasses import dataclass
@@ -133,11 +135,6 @@ class SplitAnalyzer(cst.CSTVisitor):
         self._unlinked_blocks: List[Block] = []
         self._unlinked_conditional: Optional[ConditionalBlock] = None
 
-        # Keep track if we're currently processing an for-statement.
-        self._processing_for: bool = False
-        self._for_iter: Optional[cst.BaseExpression] = None
-        self._for_iter_name: Optional[str] = None
-
         # Analyze this method.
         if isinstance(self.scope, OuterBlockScope):
             self._outer_analyze()
@@ -161,7 +158,7 @@ class SplitAnalyzer(cst.CSTVisitor):
     def _analyze_statements(self):
         for stmt in self.unparsed_statements:
             stmt.visit(self)
-            if not (m.matches(stmt, m.If())):
+            if not m.matches(stmt, m.If()) and not m.matches(stmt, m.For()):
                 self.statements.append(stmt)
 
     def _get_previous_invocation(self) -> Optional[InvocationContext]:
@@ -358,15 +355,73 @@ class SplitAnalyzer(cst.CSTVisitor):
         :param node:
         :return:
         """
+        for_iter_name = f"iter_{self.current_block_id}"
 
-        iter: cst.BaseExpression = node.iter
+        # We first process the 'iter' block.
+        self._process_for_iter_block(
+            node.iter, for_iter_name, label="prepare iter block"
+        )
 
-        # Scenario 1; we iterate over a List of stateful instance.
-        # TODO, we need to identify if we iterate over a stateful function in any other way, and throw an exception.
-        if m.matches(iter, m.Name()):
-            need_to_split, class_desc = self.need_to_split(iter.value)
+        # Then we build a block which actually iterates.
+        for_block: ForBlock = ForBlock(
+            self.current_block_id,
+            for_iter_name,
+            node.target,
+            IntermediateBlockContext.from_instance(self.split_context),
+            previous_block=self.blocks[-1],
+            label="for block",
+        )
 
-            return False
+        self._add_block(for_block)
+        self.current_block_id += 1
+
+        # We build the body of the for loop,
+        # We also make sure the 'target' expression from the for block, is in the annotated definition.
+        for_body: SplitAnalyzer = SplitAnalyzer(
+            self.class_node,
+            self.split_context,
+            node.body.children,
+            block_id_offset=self.current_block_id,
+            scope=InnerBlockScope(),
+            annotated_definitions=self.annotated_definitions,
+        )
+
+        # Link up the last block of the for body to the for block.
+        for_block.set_previous_block(for_body.blocks[-1])
+        for_body.blocks[-1].set_next_block(for_block)
+        for_block.set_next_block(for_body.blocks[0])
+        for_body.blocks[0].set_previous_block(for_body.blocks[0])
+
+        # Update outer-scope.
+        self.blocks.extend(for_body.blocks)
+        self.current_block_id = self.block_id_offset + len(self.blocks)
+
+        # We need to know if it has an orelse block.
+        if node.orelse:
+            else_stmt: cst.Else = node.orelse
+            analyze_else_body: SplitAnalyzer = SplitAnalyzer(
+                self.class_node,
+                self.split_context,
+                else_stmt.body.children,
+                block_id_offset=self.current_block_id,
+                scope=InnerBlockScope(),
+                annotated_definitions=self.annotated_definitions,
+            )
+
+            for_block.set_else_block(analyze_else_body.blocks[0])
+            for_block.set_next_block(analyze_else_body.blocks[0])
+            analyze_else_body.blocks[0].set_previous_block(for_block)
+
+            self._unlinked_blocks.append(analyze_else_body.blocks[-1])
+
+            # Update outer-scope.
+            self.blocks.extend(analyze_else_body.blocks)
+            self.current_block_id = self.block_id_offset + len(self.blocks)
+
+        # We add at the end, so it gets linked up correctly.
+        self.blocks.append(for_block)
+
+        return False
 
     def visit_If(self, node: cst.If):
         if len(self.blocks) == 0 or len(self.unparsed_statements) > 0:
@@ -460,13 +515,6 @@ class SplitAnalyzer(cst.CSTVisitor):
             self.blocks.extend(if_blocks)
             self.current_block_id = self.block_id_offset + len(self.blocks)
 
-            print(f"Just investigated conditional {conditional_block.block_id}")
-            print(conditional_block.code())
-            print(f"It has the following statements:")
-            for stmt in if_blocks:
-                print(f"Block: {stmt.block_id}")
-                print(stmt.code())
-
             # Pick next if, else, or None.
             current_if = current_if.orelse
             if_depth += 1
@@ -509,6 +557,25 @@ class SplitAnalyzer(cst.CSTVisitor):
         self._processing_if = False
 
         return False
+
+    def _process_for_iter_block(
+        self, iter_expr: cst.BaseExpression, iter_name: str, label: str = ""
+    ):
+        if self.current_block_id == 0:
+            split_context = FirstBlockContext.from_instance(
+                self.split_context,
+                current_invocation=None,
+                for_context=ForLoopContext(iter_expr, iter_name),
+            )
+        else:
+            split_context = IntermediateBlockContext.from_instance(
+                self.split_context,
+                previous_invocation=self._get_previous_invocation(),
+                current_invocation=None,
+                for_context=ForLoopContext(iter_expr, iter_name),
+            )
+
+        self._process_stmt_block(split_context, label)
 
     def _process_stmt_block_without_invocation(self, label: str = ""):
         if self.current_block_id == 0:
