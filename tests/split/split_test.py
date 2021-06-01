@@ -849,8 +849,7 @@ def test_for_loop_items():
             self.a = x
 
             for x in others:
-                y: ForOtherClass = x
-                y.set(self.a * 3)
+                x.set(self.a * 3)
                 self.a = 0
             else:
                 self.a = 4

@@ -370,6 +370,13 @@ class SplitAnalyzer(cst.CSTVisitor):
             node.iter, for_iter_name, label="prepare iter block"
         )
 
+        if m.matches(node.iter, m.Name()):
+            need_to_split, class_desc = self.need_to_split(node.iter.value)
+            if need_to_split:
+                self.annotated_definitions.append(
+                    Def(node.target.value, class_desc.class_name)
+                )
+
         # Then we build a block which actually iterates.
         for_block: ForBlock = ForBlock(
             self.current_block_id,
