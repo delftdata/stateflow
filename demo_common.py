@@ -46,5 +46,11 @@ class User:
         self.balance -= total_price
         return True
 
+    def simple_for_loop(self, user: "User"):
+        y = 0
+        for x in range(0, 100):
+            y += x
+        return y
+
     def __key__(self):
         return self.username

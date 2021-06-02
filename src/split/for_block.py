@@ -69,7 +69,7 @@ class ForBlock(Block):
 try:
     {iter_target} = next({it})
 except StopIteration:
-    return {iter_target}
+    return {'_type': 'StopIteration'}
 """,
             iter_target=self.target,
             it=cst.Name(self.iter_name),

@@ -152,7 +152,8 @@ class StatementAnalyzer(cst.CSTVisitor):
 
         :param node: the assignment node.
         """
-        self._visit_assignment()
+        if m.matches(node.target, m.Name()):
+            self.def_use.append(Use(node.target.value))
 
     def visit_AnnAssign(self, node: cst.AnnAssign):
         """Visits an assignment.
@@ -168,12 +169,12 @@ class StatementAnalyzer(cst.CSTVisitor):
         """
         self._leave_assignment()
 
-    def leave_AugAssign(self, node: cst.AugAssign):
-        """Leaves an assignment.
-
-        :param node: the assignment node.
-        """
-        self._leave_assignment()
+    # def leave_AugAssign(self, node: cst.AugAssign):
+    #     """Leaves an assignment.
+    #
+    #     :param node: the assignment node.
+    #     """
+    #     self._leave_assignment()
 
     def leave_AnnAssign(self, node: cst.AnnAssign):
         """Leaves an assignment.
@@ -560,6 +561,8 @@ class StatementBlock(Block):
             ],
         )
 
+        self.definitions.append(self.split_context.for_context.iter_name)
+
         return iter_stmt
 
     def _build_argument_assignments(
@@ -643,6 +646,10 @@ class StatementBlock(Block):
             return_names.append(
                 cst.Name(value=self.split_context.for_context.iter_name)
             )
+            for_loop_split: cst.BaseExpression = cst.parse_expression(
+                "{'_type': 'ForLoopSplit'}"
+            )
+            return_names.append(for_loop_split)
         else:  # 'Normal split', we encode this in a Dictionary.
             normal_split_expr: cst.BaseExpression = cst.parse_expression(
                 "{'_type': 'NormalSplit'}"

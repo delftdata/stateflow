@@ -2,7 +2,7 @@ def forx(l):
     try:
         x = next(l)
     except StopIteration:
-        return {"_type": StopIteration}
+        return {"_type": "StopIteration"}
     return x, l
 
 

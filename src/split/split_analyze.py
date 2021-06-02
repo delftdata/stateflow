@@ -712,8 +712,8 @@ class Split:
                     from src.util import dataflow_visualizer
 
                     dataflow_visualizer.visualize(blocks=parsed_stmts, code=True)
-
                     method.split_function(parsed_stmts)
+                    dataflow_visualizer.visualize_flow(method.flow_list)
 
             if len(updated_methods) > 0:
                 remove_after_class_def = RemoveAfterClassDefinition(desc.class_name)

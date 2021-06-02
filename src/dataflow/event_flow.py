@@ -579,11 +579,6 @@ class InvokeSplitFun(EventFlowNode):
                 graph, EventFlowNode.INVOKE_EXTERNAL
             )
 
-            # # Prepare next node by setting the address key and the arguments.
-            # if isinstance(invoke_method_request["call_instance_var"], InternalClassRef):
-            #     next_node.set_key(invoke_method_request["call_instance_var"]._get_key())
-            # else:
-            #     next_node.set_key(invoke_method_request["call_instance_var"]["key"])
             next_node.set_key(invoke_method_request["call_instance_ref"])
 
             # We assume that arguments in the InvokeMethodRequest are in the correct order.
@@ -600,7 +595,28 @@ class InvokeSplitFun(EventFlowNode):
             next_node: EventFlowNode = self._get_next_node_by_not_type(
                 graph, EventFlowNode.RETURN
             )
+        elif (
+            len(return_results) > 0
+            and isinstance(return_results[-1], dict)
+            and (
+                return_results[-1].get("_type") == "Continue"
+                or return_results[-1].get("_type") == "Break"
+            )
+        ):
+            self.output["_type"] = return_results[-1].get("_type")
+            next_node: EventFlowNode = self._get_next_node_by_type(
+                graph, EventFlowNode.INVOKE_FOR
+            )
+        elif (
+            len(return_results) > 0
+            and isinstance(return_results[-1], dict)
+            and (return_results[-1].get("_type") == "ForLoopSplit")
+        ):
+            self._set_definitions(return_results)
 
+            next_node: EventFlowNode = self._get_next_node_by_type(
+                graph, EventFlowNode.INVOKE_FOR
+            )
         else:  # Step 3, we need to go the ReturnNode.
             next_node: ReturnNode = self._get_next_node_by_type(
                 graph, EventFlowNode.RETURN
@@ -711,7 +727,7 @@ class InvokeConditional(EventFlowNode):
         # True path
         if cond:
             next_node = graph.get_node_by_id(self.if_true_node)
-        # True path
+        # False path
         else:
             next_node = graph.get_node_by_id(self.if_false_node)
 
@@ -783,6 +799,15 @@ class InvokeFor(EventFlowNode):
         self.output[iter_target] = Null
         self.output[iter_name] = Null
 
+    def _after_body_node_id(self) -> int:
+        next_nodes = self.next
+
+        for node in next_nodes:
+            if node != self.for_body_node and node != self.else_node:
+                return node
+
+        return -1
+
     def step(
         self,
         graph: EventFlowGraph,
@@ -793,16 +818,55 @@ class InvokeFor(EventFlowNode):
 
         # In this scenario we need to get the iterator from the previous block.
         if self.iteration == 0:
-            iterator = self.previous.output[self.iter_name]
+            iterator = graph.get_node_by_id(self.previous).output[self.iter_name]
         else:  # Otherwise we get it from our 'own' output.
             iterator = self.output[self.iter_name]
 
         # Now we determine if we got here from a break or continue
-        pass
+        previous_node: EventFlowNode = graph.get_node_by_id(self.previous)
+        if "_type" in previous_node.output:
+            output_type = previous_node.output["_type"]
 
-        # Now we actually execute the iterator and put the result in the output
+            if output_type == "Continue":
+                # We don't really care...
+                pass
+            elif output_type == "Break":
+                # We move towards the "next" node which is not the for body
+                return graph.get_node_by_id(self._after_body_node_id()), state, instance
 
-        # TODO: we need to make incomplete input, to go a round trip through the traversed path.
+        # Now we actually execute the iterator and put the result in the output.
+        args = Arguments({self.iter_name: iterator})
+        if instance:
+            invoc_result = class_wrapper.invoke_with_instance(
+                self.fun_name, instance, args
+            )
+        else:
+            invoc_result, instance = class_wrapper.invoke_return_instance(
+                self.fun_name, state, args
+            )
+
+        # If StopIteration is called we either go to the next node or the else node (if it exists)
+        return_results = invoc_result.results_as_list()
+        if isinstance(return_results[-1], dict):
+            print(return_results[-1].get("_type") == "StopIteration")
+        if (
+            len(return_results) > 0
+            and isinstance(return_results[-1], dict)
+            and return_results[-1].get("_type") == "StopIteration"
+        ):
+            print("Am i Here")
+            next_id: int = (
+                self.else_node if self.else_node != -1 else self._after_body_node_id()
+            )
+            next_node = graph.get_node_by_id(next_id)
+        else:
+            self.iteration += 1
+
+            self.output[self.iter_target] = return_results[0]
+            self.output[self.iter_name] = return_results[-1]
+            next_node = graph.get_node_by_id(self.for_body_node)
+
+        return next_node, state, instance
 
     def resolve_next(self, nodes: List[EventFlowNode], block):
         next_node = nodes[0].id

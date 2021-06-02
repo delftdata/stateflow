@@ -52,9 +52,7 @@ def start_and_stop(kafka, request):
             start_runtime(request.param)
 
         print("Started the runtime!")
-        client = StateflowKafkaClient(
-            flow, brokers="localhost:9092", serializer=PickleSerializer()
-        )
+        client = StateflowKafkaClient(flow, brokers="localhost:9092")
         client.wait_until_healthy()
         print("Started client")
 
