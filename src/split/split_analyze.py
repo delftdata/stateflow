@@ -164,6 +164,11 @@ class SplitAnalyzer(cst.CSTVisitor):
             if not m.matches(stmt, m.If()) and not m.matches(stmt, m.For()):
                 self.statements.append(stmt)
 
+            if m.matches(stmt, m.SimpleStatementLine(body=[m.Continue()])) or m.matches(
+                stmt, m.SimpleStatementLine(body=[m.Break()])
+            ):
+                self._process_stmt_block_without_invocation("continue or break block")
+
     def _get_previous_invocation(self) -> Optional[InvocationContext]:
         previous_invocation: Optional[InvocationContext] = None
         if len(self.blocks) > 0 and not isinstance(
@@ -192,6 +197,9 @@ class SplitAnalyzer(cst.CSTVisitor):
         self._analyze_statements()
         previous_block: Optional[Block] = self._get_previous_block()
 
+        if len(self.statements) == 0 and self._get_previous_invocation() is None:
+            return
+
         if len(self.statements) > 0 and m.matches(
             self.statements[-1], m.SimpleStatementLine(body=[m.Return()])
         ):
@@ -217,8 +225,8 @@ class SplitAnalyzer(cst.CSTVisitor):
                 previous_block,
                 "block without invocation",
             )
-        self._add_block(final_block)
 
+        self._add_block(final_block)
         if previous_block:
             previous_block.set_next_block(final_block)
 
@@ -370,6 +378,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             node.iter, for_iter_name, label="prepare iter block"
         )
 
+        # We add an annotation for the iter target.
         if m.matches(node.iter, m.Name()):
             need_to_split, class_desc = self.need_to_split(node.iter.value)
             if need_to_split:
@@ -405,10 +414,24 @@ class SplitAnalyzer(cst.CSTVisitor):
         )
 
         # Link up the last block of the for body to the for block.
-        for_block.set_previous_block(for_body.blocks[-1])
-        for_body.blocks[-1].set_next_block(for_block)
+        last_block_for_body = for_body.blocks[-1]
+        if not (
+            isinstance(last_block_for_body, StatementBlock)
+            and last_block_for_body.returns > 0
+        ):
+            for_block.set_previous_block(last_block_for_body)
+            last_block_for_body.set_next_block(for_block)
+
         for_block.set_next_block(for_body.blocks[0])
         for_body.blocks[0].set_previous_block(for_body.blocks[0])
+
+        for block in for_body.blocks:
+            if (
+                isinstance(block, StatementBlock)
+                and block.ends_with_continue_or_break()
+            ):
+                block.next_block = []
+                block.set_next_block(for_block)
 
         # Update outer-scope.
         self.blocks.extend(for_body.blocks)

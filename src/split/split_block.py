@@ -82,6 +82,8 @@ class StatementAnalyzer(cst.CSTVisitor):
 
         self.def_use: List[Union[Def, Use]] = []
 
+        self.continue_or_break: bool = False
+
         self.returns = 0
 
     def visit_Call(self, node: cst.Call):
@@ -179,6 +181,12 @@ class StatementAnalyzer(cst.CSTVisitor):
         :param node: the assignment node.
         """
         self._leave_assignment()
+
+    def visit_Continue(self, node: cst.Continue):
+        self.continue_or_break = True
+
+    def visit_Break(self, node: cst.Break):
+        self.continue_or_break = True
 
     def visit_Name(self, node: cst.Name):
         """Visits a name node.
@@ -407,6 +415,7 @@ class StatementBlock(Block):
 
         self.arguments_for_call = []
         self.returns = 0
+        self.continue_or_break: bool = False
 
         # A list of Def/Use variables per statement line, in the order that they are declared/used.
         self.def_use_list: List[List[Union[Def, Use]]] = []
@@ -439,8 +448,13 @@ class StatementBlock(Block):
             statement.visit(stmt_analyzer)
 
             self.def_use_list.append(stmt_analyzer.def_use)
-
             self.returns += stmt_analyzer.returns
+
+            if stmt_analyzer.continue_or_break and statement != self.statements[-1]:
+                raise AttributeError(
+                    "We came across a Continue or Break statement, but it's not the last statement of the block."
+                )
+            self.continue_or_break = stmt_analyzer.continue_or_break
 
         # If it has a current invocation, we want LOAD's in the args also as usages.
         if (
@@ -522,6 +536,9 @@ class StatementBlock(Block):
         :return: the (unique) name of this block.
         """
         return f"{self.split_context.original_method_node.name.value}_{self.block_id}"
+
+    def ends_with_continue_or_break(self) -> bool:
+        return self.continue_or_break
 
     def _build_for_loop_iter(self) -> cst.SimpleStatementLine:
         # Build iter expression.
@@ -680,14 +697,21 @@ class StatementBlock(Block):
             iter_stmt = []
 
         # Step 3, build the return statement.
-        return_stmt: cst.Return = self._build_return(self.arguments_for_call)
+        if not self.continue_or_break:
+            return_stmt: List[cst.Return] = [
+                self._build_return(self.arguments_for_call)
+            ]
+        else:
+            for i, stmt in enumerate(self.statements):
+                self.statements[i] = stmt.visit(ReplaceBreakAndContinue())
+            return_stmt = []
 
         if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
             final_body = (  # We build this first block as statements + assignments + return statement.
                 self.statements
                 + [assign for _, assign in argument_assignments]
                 + iter_stmt
-                + [return_stmt]
+                + return_stmt
             )
 
             function_body = self.split_context.original_method_node.body.with_changes(
@@ -762,14 +786,21 @@ class StatementBlock(Block):
             iter_stmt = []
 
         # Step 3/4, build the return statement.
-        return_stmt: cst.Return = self._build_return(self.arguments_for_call)
+        if not self.continue_or_break:
+            return_stmt: List[cst.Return] = [
+                self._build_return(self.arguments_for_call)
+            ]
+        else:
+            for i, stmt in enumerate(self.statements):
+                self.statements[i] = stmt.visit(ReplaceBreakAndContinue())
+            return_stmt = []
 
         if m.matches(self.split_context.original_method_node.body, m.IndentedBlock()):
             final_body = (
                 self.statements
                 + [assign for _, assign in argument_assignments]
                 + iter_stmt
-                + [return_stmt]
+                + return_stmt
             )
 
             function_body = self.split_context.original_method_node.body.with_changes(
@@ -1009,6 +1040,26 @@ class StatementBlock(Block):
             return self._build_last_block()
         else:
             return self._build_intermediate_block()
+
+
+class ReplaceBreakAndContinue(cst.CSTTransformer):
+    def leave_Break(
+        self, original_node: cst.Break, updated_node: cst.Break
+    ) -> cst.SimpleStatementLine:
+        return_expr: cst.SimpleStatementLine = cst.parse_statement(
+            "return {'_type': 'Break'}"
+        )
+
+        return return_expr.body[0]
+
+    def leave_Continue(
+        self, original_node: cst.Continue, updated_node: cst.Continue
+    ) -> cst.SimpleStatementLine:
+        return_expr: cst.SimpleStatementLine = cst.parse_statement(
+            "return {'_type': 'Continue'}"
+        )
+
+        return return_expr.body[0]
 
 
 class ReplaceCall(cst.CSTTransformer):

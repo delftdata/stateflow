@@ -846,13 +846,16 @@ def test_for_loop_items():
             for x in range(0, 10):
                 self.a = 0
 
-            self.a = x
+                if self.a > 0:
+                    continue
 
-            for x in others:
-                x.set(self.a * 3)
-                self.a = 0
-            else:
-                self.a = 4
+                self.a = 10
+
+            self.a = 0
+
+            # for x in others:
+            #     x.set(self.a * 3)
+            #     self.a = 0
 
     stateflow.stateflow(ForClass, parse_file=False)
     stateflow.stateflow(ForOtherClass, parse_file=False)
