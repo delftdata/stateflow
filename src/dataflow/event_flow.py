@@ -761,6 +761,7 @@ class InvokeFor(EventFlowNode):
         iter_target: str,
         for_body_node: int = -1,
         else_node: int = -1,
+        iteration: int = 0,
         for_body_block_id: int = -1,
         else_block_id: int = -1,
     ):
@@ -770,9 +771,11 @@ class InvokeFor(EventFlowNode):
 
         self.iter_name = iter_name
         self.iter_target = iter_target
+        self.iteration: int = iteration
 
         self.for_body_node = for_body_node
         self.else_node = else_node
+
         self.for_body_block_id = for_body_block_id
         self.else_block_id = else_block_id
 
@@ -780,8 +783,28 @@ class InvokeFor(EventFlowNode):
         self.output[iter_target] = Null
         self.output[iter_name] = Null
 
+    def step(
+        self,
+        graph: EventFlowGraph,
+        class_wrapper: ClassWrapper,
+        state: State,
+        instance: Any = None,
+    ) -> Tuple[EventFlowNode, State, Any]:
+
+        # In this scenario we need to get the iterator from the previous block.
+        if self.iteration == 0:
+            iterator = self.previous.output[self.iter_name]
+        else:  # Otherwise we get it from our 'own' output.
+            iterator = self.output[self.iter_name]
+
+        # Now we determine if we got here from a break or continue
+        pass
+
+        # Now we actually execute the iterator and put the result in the output
+
+        # TODO: we need to make incomplete input, to go a round trip through the traversed path.
+
     def resolve_next(self, nodes: List[EventFlowNode], block):
-        print(f"RESOLVING NEXT FOR FOR: {block}")
         next_node = nodes[0].id
         if block.block_id == self.for_body_block_id:
             self.for_body_node = next_node
@@ -789,6 +812,30 @@ class InvokeFor(EventFlowNode):
             self.else_node = next_node
 
         self.set_next(next_node)
+
+    def to_dict(self) -> Dict:
+        return_dict = super().to_dict()
+        return_dict["fun_name"] = self.fun_name
+        return_dict["iter_name"] = self.iter_target
+        return_dict["iter_target"] = self.iter_target
+        return_dict["iteration"] = self.iteration
+        return_dict["for_body_node"] = self.for_body_node
+        return_dict["else_node"] = self.else_node
+
+        return return_dict
+
+    @staticmethod
+    def construct(fun_type: FunctionType, dict: Dict):
+        return InvokeConditional(
+            fun_type,
+            dict["id"],
+            dict["fun_name"],
+            dict["iter_name"],
+            dict["iteration"],
+            dict["iter_target"],
+            dict["for_body_node"],
+            dict["else_node"],
+        )
 
 
 class RequestState(EventFlowNode):

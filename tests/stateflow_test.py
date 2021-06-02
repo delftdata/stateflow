@@ -9,6 +9,8 @@ from tests.common.common_classes import (
 from src.client.kafka_client import StateflowKafkaClient
 from src.runtime.flink_runtime import FlinkRuntime
 from src.runtime.beam_runtime import BeamRuntime
+from src.serialization.pickle_serializer import PickleSerializer
+
 import time
 from multiprocessing import Process
 from threading import Thread
@@ -29,9 +31,11 @@ def kafka():
 def start_runtime(runtime):
     try:
         if runtime == "beam":
-            run_time = BeamRuntime(stateflow.init(), timeout=15)
+            run_time = BeamRuntime(
+                stateflow.init(), timeout=15, serializer=PickleSerializer()
+            )
         else:
-            run_time = FlinkRuntime(stateflow.init())
+            run_time = FlinkRuntime(stateflow.init(), serializer=PickleSerializer())
         run_time.run(async_execution=True)
     except Exception as excp:
         print(f"Got an exception. {excp}", flush=True)
@@ -50,7 +54,9 @@ def start_and_stop(kafka, request):
             start_runtime(request.param)
 
         print("Started the runtime!")
-        client = StateflowKafkaClient(flow, brokers="localhost:9092")
+        client = StateflowKafkaClient(
+            flow, brokers="localhost:9092", serializer=PickleSerializer()
+        )
         client.wait_until_healthy()
         print("Started client")
 
