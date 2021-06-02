@@ -422,6 +422,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             for_block.set_previous_block(last_block_for_body)
             last_block_for_body.set_next_block(for_block)
 
+        for_block.set_body_start_block(for_body.blocks[0])
         for_block.set_next_block(for_body.blocks[0])
         for_body.blocks[0].set_previous_block(for_body.blocks[0])
 

@@ -7,7 +7,9 @@ from src.split.split_block import (
     ReplaceCall,
     EventFlowNode,
 )
+from src.dataflow.event_flow import InvokeFor
 import libcst as cst
+import libcst.matchers as m
 from typing import Optional, List
 
 
@@ -18,20 +20,31 @@ class ForBlock(Block):
         iter_name: str,
         target: cst.BaseAssignTargetExpression,
         split_context: SplitContext,
-        else_block: Optional[Block] = None,
         previous_block: Optional[Block] = None,
         label: str = "",
     ):
         super().__init__(block_id, split_context, previous_block, label)
         self.iter_name: str = iter_name
-        self.target: str = target
-        self.else_block: Optional[Block] = else_block
+        self.target: cst.BaseAssignTargetExpression = target
+        self.else_block: Optional[Block] = None
+        self.body_start_block: Optional[Block] = None
 
         self.dependencies.append(self.iter_name)
         self.new_function: cst.FunctionDef = self.build_definition()
 
+    def _get_target_name(self):
+        if isinstance(self.target, str):
+            return self.target
+        elif m.matches(self.target, m.Name()):
+            return self.target.value
+        else:
+            raise AttributeError(f"Cannot convert target node to string {self.target}.")
+
     def set_else_block(self, block: Block):
         self.else_block = block
+
+    def set_body_start_block(self, block: Block):
+        self.body_start_block = block
 
     def fun_name(self) -> str:
         """Get the name of this function given the block id.
@@ -75,6 +88,30 @@ except StopIteration:
                 )
             ]
         )
+
+    def build_event_flow_nodes(self, node_id: int):
+        # We can only have an else block, a for body block and a next statement block.
+        assert len(self.next_block) <= 3
+
+        # Initialize id.
+        flow_node_id = node_id + 1  # Offset the id.
+
+        # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
+        class_type = self.split_context.class_desc.to_function_type()
+
+        invoke_for: InvokeFor = InvokeFor(
+            class_type,
+            flow_node_id,
+            self.fun_name(),
+            self.iter_name,
+            self._get_target_name(),
+            for_body_block_id=self.body_start_block.block_id,
+            else_block_id=self.else_block.block_id
+            if self.else_block is not None
+            else -1,
+        )
+
+        return [invoke_for]
 
     def build_definition(self) -> cst.FunctionDef:
         fun_name: cst.Name = cst.Name(self.fun_name())

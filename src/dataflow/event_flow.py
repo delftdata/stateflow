@@ -69,7 +69,9 @@ class EventFlowNode:
 
     REQUEST_STATE = "REQUEST_STATE"
     INVOKE_SPLIT_FUN = "INVOKE_SPLIT_FUN"
+
     INVOKE_CONDITIONAL = "INVOKE_CONDITIONAL"
+    INVOKE_FOR = "INVOKE_FOR"
 
     INVOKE_EXTERNAL = "INVOKE_EXTERNAL"
 
@@ -745,6 +747,36 @@ class InvokeConditional(EventFlowNode):
             dict["if_true_node"],
             dict["if_false_node"],
         )
+
+
+class InvokeFor(EventFlowNode):
+    def __init__(
+        self,
+        fun_type: FunctionType,
+        id: int,
+        fun_name: str,
+        iter_name: str,
+        iter_target: str,
+        for_body_node: int = -1,
+        else_node: int = -1,
+        for_body_block_id: int = -1,
+        else_block_id: int = -1,
+    ):
+
+        super().__init__(EventFlowNode.INVOKE_FOR, fun_type, id)
+        self.fun_name = fun_name
+
+        self.iter_name = iter_name
+        self.iter_target = iter_target
+
+        self.for_body_node = for_body_node
+        self.else_node = else_node
+        self.for_body_block_id = for_body_block_id
+        self.else_block_id = else_block_id
+
+        self.input[iter_name] = Null
+        self.output[iter_target] = Null
+        self.output[iter_name] = Null
 
 
 class RequestState(EventFlowNode):
