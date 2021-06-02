@@ -16,6 +16,7 @@ from src.dataflow.event_flow import (
     ReturnNode,
     RequestState,
     InvokeConditional,
+    InvokeFor,
 )
 from typing import List
 import src.stateflow as stateflow
@@ -889,3 +890,11 @@ def test_for_loop_items():
     dataflow_visualizer.visualize(blocks, True)
     method_desc.split_function(blocks)
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
+    invoke_for: InvokeFor = [
+        f for f in method_desc.flow_list if isinstance(f, InvokeFor)
+    ][0]
+
+    print(invoke_for.for_body_node)
+    assert invoke_for.for_body_node != -1
+    assert invoke_for.else_node == -1

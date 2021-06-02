@@ -724,7 +724,9 @@ class InvokeConditional(EventFlowNode):
         elif block.block_id == self.if_false_block_id:
             self.if_false_node = next_node
         else:
-            AttributeError("Next node for conditional is not its True nor False block.")
+            raise AttributeError(
+                "Next node for conditional is not its True nor False block."
+            )
 
         self.set_next(next_node)
 
@@ -777,6 +779,16 @@ class InvokeFor(EventFlowNode):
         self.input[iter_name] = Null
         self.output[iter_target] = Null
         self.output[iter_name] = Null
+
+    def resolve_next(self, nodes: List[EventFlowNode], block):
+        print(f"RESOLVING NEXT FOR FOR: {block}")
+        next_node = nodes[0].id
+        if block.block_id == self.for_body_block_id:
+            self.for_body_node = next_node
+        elif block.block_id == self.else_block_id:
+            self.else_node = next_node
+
+        self.set_next(next_node)
 
 
 class RequestState(EventFlowNode):
