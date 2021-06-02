@@ -94,7 +94,7 @@ class TestE2E:
             print(f"Got an exception {exc}")
             assert False
 
-    @pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
+    @pytest.mark.parametrize("start_and_stop", ["beam"], indirect=True)
     def test_simple_if(self, start_and_stop):
         b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
         a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=5)

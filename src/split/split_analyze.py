@@ -197,7 +197,11 @@ class SplitAnalyzer(cst.CSTVisitor):
         self._analyze_statements()
         previous_block: Optional[Block] = self._get_previous_block()
 
-        if len(self.statements) == 0 and self._get_previous_invocation() is None:
+        if (
+            len(self.statements) == 0
+            and self._get_previous_invocation() is None
+            and len(self._unlinked_blocks) == 0
+        ):
             return
 
         if len(self.statements) > 0 and m.matches(
