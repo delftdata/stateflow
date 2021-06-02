@@ -23,7 +23,7 @@ class JsonSerializer(SerDe):
             "payload": payload,
         }
 
-        return self.serialize_dict(event)
+        return bytes(self.serialize_dict(event), "utf-8")
 
     def deserialize_event(self, event: bytes) -> Event:
         json = self.deserialize_dict(event)

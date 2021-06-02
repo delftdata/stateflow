@@ -2,11 +2,12 @@ from demo_common import User, Item, stateflow
 from src.client.kafka_client import StateflowClient, StateflowKafkaClient
 from src.client.future import StateflowFuture, StateflowFailure
 import time
+from src.serialization.pickle_serializer import PickleSerializer
 
 stateflow.init()
 
 client: StateflowClient = StateflowKafkaClient(
-    stateflow.init(), brokers="localhost:9092"
+    stateflow.init(), brokers="localhost:9092", serializer=PickleSerializer()
 )
 
 client.wait_until_healthy(timeout=10)

@@ -31,11 +31,9 @@ def kafka():
 def start_runtime(runtime):
     try:
         if runtime == "beam":
-            run_time = BeamRuntime(
-                stateflow.init(), timeout=15, serializer=PickleSerializer()
-            )
+            run_time = BeamRuntime(stateflow.init(), timeout=15)
         else:
-            run_time = FlinkRuntime(stateflow.init(), serializer=PickleSerializer())
+            run_time = FlinkRuntime(stateflow.init())
         run_time.run(async_execution=True)
     except Exception as excp:
         print(f"Got an exception. {excp}", flush=True)

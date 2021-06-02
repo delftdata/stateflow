@@ -7,7 +7,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from beam_nuggets.io import kafkaio
 
-from src.runtime.KafkaConsumer import KafkaConsume
+from src.runtime.KafkaConsumer import KafkaConsume, KafkaProduce
 from src.dataflow.stateful_operator import StatefulOperator, Operator
 from typing import List, Tuple, Any, Union, ByteString
 from src.serialization.json_serde import JsonSerializer, SerDe
@@ -148,7 +148,7 @@ class BeamRuntime(Runtime):
         )
 
     def _setup_kafka_producer(self, topic: str) -> kafkaio.KafkaProduce:
-        return kafkaio.KafkaProduce(
+        return KafkaProduce(
             servers="localhost:9092",
             topic=topic,
         )

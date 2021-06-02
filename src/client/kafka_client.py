@@ -83,7 +83,7 @@ class StateflowKafkaClient(StateflowClient):
     def send(self, event: Event, return_type: T = None):
         self.producer.produce(
             self.req_topic,
-            value=bytes(self.serializer.serialize_event(event), "utf-8"),
+            value=self.serializer.serialize_event(event),
             key=bytes(event.event_id, "utf-8"),
         )
 
@@ -115,7 +115,7 @@ class StateflowKafkaClient(StateflowClient):
 
         self.producer.produce(
             self.req_topic,
-            value=bytes(self.serializer.serialize_event(event), "utf-8"),
+            value=self.serializer.serialize_event(event),
             key=bytes(event.event_id, "utf-8"),
         )
 

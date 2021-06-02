@@ -201,7 +201,7 @@ class _ProduceKafkaMessage(DoFn):
     def process(self, element):
         try:
             self._producer.send(
-                self.attributes["topic"], element[1].encode(), key=element[0].encode()
+                self.attributes["topic"], element[1], key=element[0].encode()
             )
             yield element
         except Exception as e:
