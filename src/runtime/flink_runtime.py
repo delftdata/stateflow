@@ -13,7 +13,11 @@ from pyflink.datastream.connectors import (
 from pyflink.common import Configuration
 from pyflink.util.java_utils import get_j_env_configuration
 
-from pyflink.common.serialization import SimpleStringSchema
+from pyflink.common.serialization import (
+    SimpleStringSchema,
+    SerializationSchema,
+    DeserializationSchema,
+)
 from pyflink.datastream.state import ValueStateDescriptor, ValueState
 from pyflink.datastream.data_stream import KeyedProcessFunction, ProcessFunction
 from pyflink.common.typeinfo import Types
@@ -29,6 +33,10 @@ import pyflink.lib
 from src.serialization.json_serde import SerDe, JsonSerializer
 from typing import Tuple, List
 import uuid
+
+
+class ByteSerializer(SerializationSchema, DeserializationSchema):
+    pass
 
 
 class FlinkIngressRouter(MapFunction):

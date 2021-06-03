@@ -59,9 +59,6 @@ class User:
                         r = 1 + a
                     else:
                         z = 1
-
-                    print(y)
-                print(x)
             else:
                 p = 1
 

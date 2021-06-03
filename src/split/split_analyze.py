@@ -156,6 +156,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             self._unlinked_blocks = []
             self._unlinked_conditional = None
+
         self.blocks.append(block)
 
     def _analyze_statements(self):
@@ -186,10 +187,13 @@ class SplitAnalyzer(cst.CSTVisitor):
             and not self._processed_for
         ):
             return self.blocks[-1]
-        elif self._processed_for:
+        elif self._processed_for and not self._processing_if:
             for_block = self._for_block
             self._for_block = None
             self._processed_for = False
+            print(
+                f"Returning the for block with id {for_block.block_id} for block {self.current_block_id}"
+            )
             return for_block
         return None
 
@@ -201,6 +205,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             len(self.statements) == 0
             and self._get_previous_invocation() is None
             and len(self._unlinked_blocks) == 0
+            and previous_block is None
         ):
             return
 
@@ -417,6 +422,9 @@ class SplitAnalyzer(cst.CSTVisitor):
             annotated_definitions=self.annotated_definitions,
         )
 
+        assert not for_body._processed_for
+        assert len(for_body._unlinked_blocks) == 0
+
         # Link up the last block of the for body to the for block.
         last_block_for_body = for_body.blocks[-1]
         if not (
@@ -454,6 +462,9 @@ class SplitAnalyzer(cst.CSTVisitor):
                 annotated_definitions=self.annotated_definitions,
             )
 
+            assert not analyze_else_body._processed_for
+            assert len(analyze_else_body._unlinked_blocks) == 0
+
             for_block.set_else_block(analyze_else_body.blocks[0])
             for_block.set_next_block(analyze_else_body.blocks[0])
             analyze_else_body.blocks[0].set_previous_block(for_block)
@@ -466,6 +477,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
         self._processed_for = True
         self._for_block = for_block
+        print(f"Setting the for block for {self._for_block.block_id}")
 
         return False
 
@@ -540,6 +552,9 @@ class SplitAnalyzer(cst.CSTVisitor):
                 annotated_definitions=self.annotated_definitions,
             )
 
+            assert not analyze_if_body._processed_for
+            assert len(analyze_if_body._unlinked_blocks) == 0
+
             # These are the blocks inside the if body.
             # Blocks _within_ this list should already be properly linked up.
             if_blocks: List[Block] = analyze_if_body.blocks
@@ -550,12 +565,15 @@ class SplitAnalyzer(cst.CSTVisitor):
             # Link up first if_block, to conditional:
             conditional_block.set_next_block(if_blocks[0])
             conditional_block.set_true_block(if_blocks[0])
-            if_blocks[0].set_previous_block(conditional_block)
 
             # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
             # the if statement.
             if not isinstance(if_blocks[-1].split_context, LastBlockContext):
                 last_body_block.append(if_blocks[-1])
+
+            print(
+                f"Just analyzed an if-body, does it still have a for-body? {analyze_if_body._for_block}"
+            )
 
             # Update outer-scope.
             self.blocks.extend(if_blocks)
@@ -577,6 +595,9 @@ class SplitAnalyzer(cst.CSTVisitor):
                 annotated_definitions=self.annotated_definitions,
             )
 
+            assert not analyze_else_body._processed_for
+            assert len(analyze_else_body._unlinked_blocks) == 0
+
             else_blocks: List[StatementBlock] = analyze_else_body.blocks
             [b.set_label("else body") for b in else_blocks]
 
@@ -589,8 +610,8 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
             # the if statement.
-            if not isinstance(if_blocks[-1].split_context, LastBlockContext):
-                last_body_block.append(if_blocks[-1])
+            if not isinstance(else_blocks[-1].split_context, LastBlockContext):
+                last_body_block.append(else_blocks[-1])
 
             # Update outer-scope.
             self.blocks.extend(else_blocks)
@@ -599,7 +620,9 @@ class SplitAnalyzer(cst.CSTVisitor):
             self._unlinked_conditional = conditional_block
 
         print(f"Unlinked blocks: {[b.block_id for b in last_body_block]}")
-        self._unlinked_blocks = last_body_block
+        self._unlinked_blocks = (
+            last_body_block  # [b for b in last_body_block if len(b.next_block) == 0]
+        )
         self._processing_if = False
 
         return False
