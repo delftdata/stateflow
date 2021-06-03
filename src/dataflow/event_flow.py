@@ -171,7 +171,10 @@ class EventFlowNode:
                     input_variables.remove(key)
 
             # We do a step backwards in the state machine.
-            previous = graph.get_node_by_id(previous.previous)
+            if isinstance(previous, InvokeFor):
+                previous = graph.get_node_by_id(previous.before_for_node)
+            else:
+                previous = graph.get_node_by_id(previous.previous)
 
         if len(input_variables) > 0:
             raise AttributeError(
@@ -498,6 +501,7 @@ class InvokeSplitFun(EventFlowNode):
             ):
                 self.output[decl] = [el._to_dict() for el in return_results[i]]
             else:
+                print(f"Now setting {decl} to {return_results[i]}")
                 self.output[decl] = return_results[i]
 
     def step(
@@ -778,6 +782,7 @@ class InvokeFor(EventFlowNode):
         for_body_node: int = -1,
         else_node: int = -1,
         iteration: int = 0,
+        before_for_node: int = -1,
         for_body_block_id: int = -1,
         else_block_id: int = -1,
     ):
@@ -799,6 +804,8 @@ class InvokeFor(EventFlowNode):
         self.output[iter_target] = Null
         self.output[iter_name] = Null
 
+        self.before_for_node: int = before_for_node
+
     def _after_body_node_id(self) -> int:
         next_nodes = self.next
 
@@ -819,8 +826,27 @@ class InvokeFor(EventFlowNode):
         # In this scenario we need to get the iterator from the previous block.
         if self.iteration == 0:
             iterator = graph.get_node_by_id(self.previous).output[self.iter_name]
+            self.before_for_node = self.previous
         else:  # Otherwise we get it from our 'own' output.
             iterator = self.output[self.iter_name]
+
+            # We're now going to get the output of all previous blocks until this block,
+            # and set it as output for this block.
+            # This is some sort of 'scope' dict, with all declared variables.
+            current: EventFlowNode = graph.get_node_by_id(self.previous)
+            already_found: List[str] = []
+            while current.id != self.id:
+                for k, v in current.output.items():
+                    if k not in already_found:
+                        self.output[k] = v
+                        already_found.append(k)
+
+                if isinstance(current, InvokeFor):
+                    current = graph.get_node_by_id(current.before_for_node)
+                elif isinstance(current, StartNode):
+                    break
+                else:
+                    current = graph.get_node_by_id(current.previous)
 
         # Now we determine if we got here from a break or continue
         previous_node: EventFlowNode = graph.get_node_by_id(self.previous)
@@ -829,6 +855,7 @@ class InvokeFor(EventFlowNode):
 
             if output_type == "Continue":
                 # We don't really care...
+                print("Time to continue?!")
                 pass
             elif output_type == "Break":
                 # We move towards the "next" node which is not the for body
@@ -847,20 +874,19 @@ class InvokeFor(EventFlowNode):
 
         # If StopIteration is called we either go to the next node or the else node (if it exists)
         return_results = invoc_result.results_as_list()
-        if isinstance(return_results[-1], dict):
-            print(return_results[-1].get("_type") == "StopIteration")
         if (
             len(return_results) > 0
             and isinstance(return_results[-1], dict)
             and return_results[-1].get("_type") == "StopIteration"
         ):
-            print("Am i Here")
             next_id: int = (
                 self.else_node if self.else_node != -1 else self._after_body_node_id()
             )
             next_node = graph.get_node_by_id(next_id)
+            self.iteration = 0
         else:
             self.iteration += 1
+            print(f"Going to the next iteration {self.iteration}")
 
             self.output[self.iter_target] = return_results[0]
             self.output[self.iter_name] = return_results[-1]
@@ -883,6 +909,7 @@ class InvokeFor(EventFlowNode):
         return_dict["iter_name"] = self.iter_target
         return_dict["iter_target"] = self.iter_target
         return_dict["iteration"] = self.iteration
+        return_dict["before_for_node"] = self.before_for_node
         return_dict["for_body_node"] = self.for_body_node
         return_dict["else_node"] = self.else_node
 
@@ -890,15 +917,16 @@ class InvokeFor(EventFlowNode):
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict):
-        return InvokeConditional(
+        return InvokeFor(
             fun_type,
             dict["id"],
             dict["fun_name"],
             dict["iter_name"],
-            dict["iteration"],
             dict["iter_target"],
             dict["for_body_node"],
             dict["else_node"],
+            dict["iteration"],
+            dict["before_for_node"],
         )
 
 

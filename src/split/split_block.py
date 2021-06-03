@@ -46,10 +46,7 @@ class VarUsageAnalyzer(cst.CSTVisitor):
             expression_context = self.expression_provider[node]
             if (
                 expression_context == cst.metadata.ExpressionContext.LOAD
-                and node.value != "self"
-                and node.value != "True"
-                and node.value != "False"
-                and node.value != "print"
+                and node.value not in ["self", "True", "False", "print", "range"]
             ):
                 self.usages.append(Use(node.value))
 
@@ -209,10 +206,7 @@ class StatementAnalyzer(cst.CSTVisitor):
                     self.assign_names.append(Def(node.value))
             elif (
                 expression_context == cst.metadata.ExpressionContext.LOAD
-                and node.value != "self"
-                and node.value != "True"
-                and node.value != "False"
-                and node.value != "print"
+                and node.value not in ["self", "True", "False", "print", "range"]
             ):
                 self.def_use.append(Use(node.value))
 
@@ -643,9 +637,6 @@ class StatementBlock(Block):
             )
             return_names.append(call_expression)
         elif self.split_context.for_context:
-            return_names.append(
-                cst.Name(value=self.split_context.for_context.iter_name)
-            )
             for_loop_split: cst.BaseExpression = cst.parse_expression(
                 "{'_type': 'ForLoopSplit'}"
             )

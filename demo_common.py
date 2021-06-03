@@ -25,11 +25,14 @@ class Item:
 class User:
     def __init__(self, username: str):
         self.username: str = username
-        self.balance: int = 0
+        self.balance: int = 1
         self.items: List[Item] = []
 
     def update_balance(self, x: int):
         self.balance += x
+
+    def get_balance(self):
+        return self.balance
 
     def buy_item(self, amount: int, item: Item) -> bool:
         total_price = amount * item.price
@@ -47,10 +50,22 @@ class User:
         return True
 
     def simple_for_loop(self, user: "User"):
-        y = 0
-        for x in range(0, 100):
-            y += x
-        return y
+        a = 3
+        for x in [1, 2]:
+            if x == 1:
+                k = 1
+                for y in [1, 2]:
+                    if y == 1:
+                        r = 1 + a
+                    else:
+                        z = 1
+
+                    print(y)
+                print(x)
+            else:
+                p = 1
+
+        return a, k, r, z, p
 
     def __key__(self):
         return self.username

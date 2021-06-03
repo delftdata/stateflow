@@ -21,7 +21,7 @@ except StateflowFailure:
     user: User = client.find(User, "wouter-user").get()
 
 print("Done!")
-for_loop: int = user.simple_for_loop(user).get()
+for_loop: int = user.simple_for_loop(user).get(timeout=5)
 print(for_loop)
 # print("")
 # print("Creating an item: ")
