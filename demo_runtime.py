@@ -6,5 +6,5 @@ from src.serialization.pickle_serializer import PickleSerializer
 # Initialize stateflow
 flow = stateflow.init()
 
-runtime: Runtime = BeamRuntime(flow, serializer=PickleSerializer())
+runtime: Runtime = FlinkRuntime(flow, serializer=PickleSerializer())
 runtime.run()

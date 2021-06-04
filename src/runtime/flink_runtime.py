@@ -11,7 +11,7 @@ from pyflink.datastream.connectors import (
     FlinkKafkaProducer,
 )
 from pyflink.common import Configuration
-from pyflink.util.java_utils import get_j_env_configuration
+from pyflink.util.java_utils import get_j_env_configuration, get_gateway
 
 from pyflink.common.serialization import (
     SimpleStringSchema,
@@ -36,7 +36,17 @@ import uuid
 
 
 class ByteSerializer(SerializationSchema, DeserializationSchema):
-    pass
+    def __init__(self, execution_environment):
+        gate_way = get_gateway()
+
+        j_byte_string_schema = gate_way.jvm.org.apache.flink.api.common.serialization.TypeInformationSerializationSchema(
+            Types.BYTE().get_java_type_info(),
+            get_j_env_configuration(execution_environment),
+        )
+        SerializationSchema.__init__(self, j_serialization_schema=j_byte_string_schema)
+        DeserializationSchema.__init__(
+            self, j_deserialization_schema=j_byte_string_schema
+        )
 
 
 class FlinkIngressRouter(MapFunction):
@@ -132,7 +142,7 @@ class FlinkRuntime(Runtime):
     def _setup_kafka_client(self) -> FlinkKafkaConsumer:
         return FlinkKafkaConsumer(
             ["client_request", "internal"],
-            SimpleStringSchema(),
+            ByteSerializer(self.env._j_stream_execution_environment),
             {
                 "bootstrap.servers": "localhost:9092",
                 "auto.offset.reset": "latest",
@@ -144,7 +154,7 @@ class FlinkRuntime(Runtime):
         kafka_props = {"bootstrap.servers": "localhost:9092"}
         return FlinkKafkaProducer(
             topic,
-            SimpleStringSchema(),
+            ByteSerializer(self.env._j_stream_execution_environment),
             kafka_props,
         )
 
