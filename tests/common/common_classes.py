@@ -124,6 +124,8 @@ class ExperimentalA:
 
             if x > 0:
                 z = x
+            else:
+                z = -1
 
         return z
 

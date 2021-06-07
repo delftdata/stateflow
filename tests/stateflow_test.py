@@ -190,13 +190,30 @@ class TestE2E:
         except Exception as exc:
             print(f"Got an exception {exc}")
             assert False
-    #
-    # @pytest.mark.parametrize("start_and_stop", ["beam"], indirect=True)
-    # def test_for_loop(self, start_and_stop):
-    #     try:
-    #
-    #         assert True
-    #         print("Finished all asserts :)")
-    #     except Exception as exc:
-    #         print(f"Got an exception {exc}")
-    #         assert False
+
+    @pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
+    def test_for_loop(self, start_and_stop):
+        try:
+            b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
+            b_2: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
+            a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=10)
+
+            return_a = a.for_loops(0, [b, b_2]).get(timeout=10)
+            b_balance = b.balance
+            b2_balance = b_2.balance
+
+            assert return_a == -1
+            assert b_balance == 5
+            assert b2_balance == 5
+
+            return_a = a.for_loops(4, [b, b_2]).get(timeout=10)
+            b_balance = b.balance.get(timeout=10)
+            b2_balance = b_2.balance.get(timeout=10)
+
+            assert return_a == 4
+            assert b_balance == 10
+            assert b2_balance == 10
+            print("Finished all asserts :)")
+        except Exception as exc:
+            print(f"Got an exception {exc}")
+            assert False
