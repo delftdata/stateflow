@@ -20,8 +20,19 @@ try:
 except StateflowFailure:
     user: User = client.find(User, "wouter-user").get()
 
+future_user2: StateflowFuture[User] = User("wouter-user2")
+
+try:
+    user2: User = future_user2.get()
+except StateflowFailure:
+    user2: User = client.find(User, "wouter-user2").get()
+
+
+
 print("Done!")
-# for_loop: int = user.simple_for_loop(user).get(timeout=5)
+for_loop: int = user.simple_for_loop([user, user2]).get(timeout=5)
+print(user.balance.get())
+print(user2.balance.get())
 # print(for_loop)
 # print("")
 print("Creating an item: ")

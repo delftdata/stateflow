@@ -823,6 +823,23 @@ def test_list_items():
 
     assert len(blocks) == 6
 
+def test_request_state():
+    stateflow.clear()
+
+    class StateClass(object):
+        def __init__(self):
+            self.x = 5
+            self.y = 5
+
+        def dummy_call(self):
+            self.x = 0
+            return
+
+        def request_state_simple(self, state: "StateClass"):
+            pass
+
+
+
 
 def test_for_loop_items():
     stateflow.clear()

@@ -224,7 +224,7 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
                     and m.matches(element.value.attr, m.Name())
                 ):
                     self.self_attributes.append((element.value.attr.value, NoType))
-                    self.write_to_self_attribute.add(node.target.attr.value)
+                    self.write_to_self_attribute.add(element.value.attr.value)
                     self.read_only = False
 
     @staticmethod

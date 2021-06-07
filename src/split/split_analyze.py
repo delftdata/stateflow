@@ -131,6 +131,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
         # Keep track if we're currently processing an if-statement.
         self._processing_if: bool = False
+
         # The body of each if-statement is an unlinked block, which we need to link to the 'latest block'.
         self._unlinked_blocks: List[Block] = []
         self._unlinked_conditional: Optional[ConditionalBlock] = None
@@ -627,6 +628,13 @@ class SplitAnalyzer(cst.CSTVisitor):
         self._processing_if = False
 
         return False
+
+    def visit_Attribute(self, node: cst.Attribute):
+        if m.matches(node, m.Attribute(m.Name(), m.Name())):
+            variable: str = node.value.value
+            attribute: str = node.attr.value
+
+            print(f"Calling {variable}.{attribute}")
 
     def _process_for_iter_block(
         self, iter_expr: cst.BaseExpression, iter_name: str, label: str = ""
