@@ -38,7 +38,7 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
         self.read_only = True
 
         # We keep a list of all self attributes which this functions writes to.
-        self.write_to_self_attribute: List[str] = []
+        self.write_to_self_attribute: Set[str] = set()
 
         # We use this set to verify if a method has one or more external invocations.
         # The set stores names of all the attributes.
@@ -182,7 +182,7 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
         if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
             annotation = ast_utils.extract_types(self.class_node, node.annotation)
             self.self_attributes.append((node.target.attr.value, annotation))
-
+            self.write_to_self_attribute.add(node.target.attr.value)
             self.read_only = False
         elif m.matches(node.target, m.Name()):
             annotation = ast_utils.extract_types(self.class_node, node.annotation)
@@ -198,7 +198,7 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
         """
         if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
             self.self_attributes.append((node.target.attr.value, NoType))
-
+            self.write_to_self_attribute.add(node.target.attr.value)
             self.read_only = False
 
     def visit_AssignTarget(self, node: cst.AssignTarget) -> None:
@@ -212,7 +212,7 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
         if not m.matches(node, m.AssignTarget(target=m.Tuple())):
             if ast_utils.is_self(node.target) and m.matches(node.target.attr, m.Name()):
                 self.self_attributes.append((node.target.attr.value, NoType))
-
+                self.write_to_self_attribute.add(node.target.attr.value)
                 self.read_only = False
 
         # We assume it is a Tuple now.
@@ -224,7 +224,7 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
                     and m.matches(element.value.attr, m.Name())
                 ):
                     self.self_attributes.append((element.value.attr.value, NoType))
-
+                    self.write_to_self_attribute.add(node.target.attr.value)
                     self.read_only = False
 
     @staticmethod
@@ -263,4 +263,5 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
             output_desc,
             analyzed_method.external_attributes,
             analyzed_method.typed_declarations,
+            analyzed_method.write_to_self_attribute
         )

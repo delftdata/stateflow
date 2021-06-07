@@ -489,6 +489,7 @@ def test_method_extraction_return_argument_extraction():
 class FancyClass:
     def __init__(self):
         self.x : int = 4
+        self.z = 0
 
     def fun(self):
         self.x = 3
@@ -511,6 +512,11 @@ class FancyClass:
         if y:
             return y, y, y
         return x, x, x
+        
+    def fun_5(self, x):
+        y = x
+        z = self.z
+        return x, y, z
         """
 
     # Get the function.
@@ -522,6 +528,8 @@ class FancyClass:
     code_tree.visit(visitor)
 
     assert visitor.method_descriptors[1].output_desc.output_desc == [["NoType"]]
+    assert "x" in visitor.method_descriptors[1].write_to_self_attributes
+    assert "z" not in visitor.method_descriptors[1].write_to_self_attributes
     assert visitor.method_descriptors[2].output_desc.output_desc == [["int"]]
     assert visitor.method_descriptors[3].output_desc.output_desc == [
         ["str", "int", "List[int]"]
@@ -530,6 +538,7 @@ class FancyClass:
         ["str", "int", "List[int]"],
         ["str", "int", "List[int]"],
     ]
+    assert visitor.method_descriptors[5].write_to_self_attributes == set()
 
 
 def test_method_extraction_return_len_mismatch():
