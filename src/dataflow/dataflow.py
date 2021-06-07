@@ -47,42 +47,54 @@ class Route:
 
 
 class EgressRouter:
-    def __init__(self, serializer: SerDe):
+    def __init__(self, serializer: SerDe, serialize_on_return=True):
         self.serializer = serializer
+        self.serialize_on_return = serialize_on_return
 
     def _route_event_flow(self, event: Event) -> Route:
         flow_graph: EventFlowGraph = event.payload["flow"]
         current_node = flow_graph.current_node
 
         if current_node.typ == EventFlowNode.RETURN:
-            return Route(
-                RouteDirection.CLIENT,
-                "",
-                event.event_id,
-                self.serializer.serialize_event(
-                    event.copy(
+            event_id = event.event_id
+            event = event.copy(
                         event_type=EventType.Reply.SuccessfulInvocation,
                         payload={"return_results": current_node.get_results()},
                     )
-                ),
+            if self.serialize_on_return:
+                event = self.serializer.serialize_event(event)
+
+            return Route(
+                RouteDirection.CLIENT,
+                "",
+                event_id,
+                event,
             )
         else:
+            event_id = event.event_id
+            if self.serialize_on_return:
+                event = self.serializer.serialize_event(event)
+
             return Route(
                 RouteDirection.INTERNAL,
                 "",
-                event.event_id,
-                self.serializer.serialize_event(event),
+                event_id,
+                event,
             )
 
     def route_and_serialize(self, event: Event) -> Route:
         if event.event_type == EventType.Request.EventFlow:
             return self._route_event_flow(event)
         elif isinstance(event.event_type, EventType.Reply):
+            event_id = event.event_id
+            if self.serialize_on_return:
+                event = self.serializer.serialize_event(event)
+
             return Route(
                 RouteDirection.CLIENT,
                 "",
-                event.event_id,
-                self.serializer.serialize_event(event),
+                event_id,
+                event,
             )
         else:
             raise AttributeError(

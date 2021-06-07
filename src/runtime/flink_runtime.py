@@ -36,13 +36,15 @@ import uuid
 
 
 class ByteSerializer(SerializationSchema, DeserializationSchema):
-    def __init__(self, execution_environment):
+    def __init__(self):
         gate_way = get_gateway()
 
-        j_byte_string_schema = gate_way.jvm.org.apache.flink.api.common.serialization.TypeInformationSerializationSchema(
-            Types.BYTE().get_java_type_info(),
-            get_j_env_configuration(execution_environment),
-        )
+        # j_type_info= Types.PICKLED_BYTE_ARRAY().get_java_type_info()
+        # j_type_serializer= j_type_info.createSerializer(gate_way.jvm.org.apache.flink.api.common.ExecutionConfig())
+        # j_byte_string_schema = gate_way.jvm.org.apache.flink.api.common.serialization.TypeInformationSerializationSchema(j_type_info, j_type_serializer)
+
+        j_byte_string_schema = gate_way.jvm.nl.tudelft.stateflow.KafkaBytesSerializer()
+
         SerializationSchema.__init__(self, j_serialization_schema=j_byte_string_schema)
         DeserializationSchema.__init__(
             self, j_deserialization_schema=j_byte_string_schema
@@ -136,13 +138,16 @@ class FlinkRuntime(Runtime):
         import os
 
         jar_path = os.path.abspath("bin/flink-sql-connector-kafka_2.11-1.13.0.jar")
+        jar_path_serial = os.path.abspath("bin/flink-kafka-bytes-serializer.jar")
         print(f"Found jar path {jar_path}")
+        print(f"Found jar path {jar_path_serial}")
         self.env.add_jars(f"file://{jar_path}")
+        self.env.add_jars(f"file://{jar_path_serial}")
 
     def _setup_kafka_client(self) -> FlinkKafkaConsumer:
         return FlinkKafkaConsumer(
             ["client_request", "internal"],
-            ByteSerializer(self.env._j_stream_execution_environment),
+            ByteSerializer(),
             {
                 "bootstrap.servers": "localhost:9092",
                 "auto.offset.reset": "latest",
@@ -154,7 +159,7 @@ class FlinkRuntime(Runtime):
         kafka_props = {"bootstrap.servers": "localhost:9092"}
         return FlinkKafkaProducer(
             topic,
-            ByteSerializer(self.env._j_stream_execution_environment),
+            ByteSerializer(),
             kafka_props,
         )
 
@@ -173,7 +178,7 @@ class FlinkRuntime(Runtime):
             IngressRouter(self.serializer)
         )
         egress_router: FlinkEgressRouter = FlinkEgressRouter(
-            EgressRouter(self.serializer)
+            EgressRouter(self.serializer, False)
         )
 
         # Reading all Kafka messages here
@@ -233,12 +238,12 @@ class FlinkRuntime(Runtime):
 
         # Reply output
         egress_stream.filter(lambda r: r.direction is RouteDirection.CLIENT).map(
-            lambda r: r.value, output_type=Types.STRING()
+            lambda r: r.value
         ).name(f"Kafka-To-Client").add_sink(kafka_producer_reply)
 
         # Internal output
         egress_stream.filter(lambda r: r.direction is RouteDirection.INTERNAL).map(
-            lambda r: r.value, output_type=Types.STRING()
+            lambda r: r.value
         ).name(f"Kafka-To-Internal").add_sink(kafka_producer_internal)
 
         self.pipeline_initialized = True

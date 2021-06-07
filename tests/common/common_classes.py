@@ -118,5 +118,14 @@ class ExperimentalA:
         else:
             other_one.add_balance(-10)
 
+    def for_loops(self, x: int, others: List[ExperimentalB]):
+        for y in others:
+            y.add_balance(5)
+
+            if x > 0:
+                z = x
+
+        return z
+
     def __key__(self):
         return self.name

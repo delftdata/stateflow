@@ -31,9 +31,9 @@ def kafka():
 def start_runtime(runtime):
     try:
         if runtime == "beam":
-            run_time = BeamRuntime(stateflow.init(), timeout=15)
+            run_time = BeamRuntime(stateflow.init(), timeout=15, serializer=PickleSerializer())
         else:
-            run_time = FlinkRuntime(stateflow.init())
+            run_time = FlinkRuntime(stateflow.init(), serializer=PickleSerializer())
         run_time.run(async_execution=True)
     except Exception as excp:
         print(f"Got an exception. {excp}", flush=True)
@@ -52,7 +52,7 @@ def start_and_stop(kafka, request):
             start_runtime(request.param)
 
         print("Started the runtime!")
-        client = StateflowKafkaClient(flow, brokers="localhost:9092")
+        client = StateflowKafkaClient(flow, brokers="localhost:9092", serializer=PickleSerializer())
         client.wait_until_healthy()
         print("Started client")
 
@@ -186,6 +186,16 @@ class TestE2E:
             assert final_balance == 5
             assert final_stock == 1
 
+            print("Finished all asserts :)")
+        except Exception as exc:
+            print(f"Got an exception {exc}")
+            assert False
+
+    @pytest.mark.parametrize("start_and_stop", ["beam"], indirect=True)
+    def test_for_loop(self, start_and_stop):
+        try:
+
+            assert True
             print("Finished all asserts :)")
         except Exception as exc:
             print(f"Got an exception {exc}")
