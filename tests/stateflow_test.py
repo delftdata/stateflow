@@ -73,22 +73,22 @@ class TestE2E:
     def test_full_e2e_multiple_splits(self, start_and_stop):
         try:
             b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
-            a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=5)
+            a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=10)
 
-            outcome = a.complex_method(10, b).get(timeout=5)
-            final_balance_b = b.balance.get(timeout=5)
-            final_balance_a = a.balance.get(timeout=5)
+            outcome = a.complex_method(10, b).get(timeout=10)
+            final_balance_b = b.balance.get(timeout=10)
+            final_balance_a = a.balance.get(timeout=10)
 
             assert outcome is True
             assert final_balance_b == 10
             assert final_balance_a == 0
 
-            a.work_with_list(1, [b]).get(timeout=5)
-            final_balance_b = b.balance.get(timeout=5)
+            a.work_with_list(1, [b]).get(timeout=10)
+            final_balance_b = b.balance.get(timeout=10)
             assert final_balance_b == 30
 
-            a.work_with_list(0, [b]).get(timeout=5)
-            final_balance_b = b.balance.get(timeout=5)
+            a.work_with_list(0, [b]).get(timeout=10)
+            final_balance_b = b.balance.get(timeout=10)
             assert final_balance_b == 30
 
             print("All asserts are correct")
@@ -99,9 +99,9 @@ class TestE2E:
     @pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
     def test_simple_if(self, start_and_stop):
         b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
-        a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=5)
+        a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=10)
 
-        outcome_0 = a.complex_if(11, b).get(timeout=5)
+        outcome_0 = a.complex_if(11, b).get(timeout=10)
         b_balance = b.balance.get()
 
         assert outcome_0 == 0
@@ -109,47 +109,47 @@ class TestE2E:
 
         # 2nd scenario
         b.balance = 5
-        b_balance = b.balance.get(timeout=5)
-        outcome_1 = a.complex_if(9, b).get(timeout=5)
+        b_balance = b.balance.get(timeout=10)
+        outcome_1 = a.complex_if(9, b).get(timeout=10)
 
         assert outcome_1 == 1
         assert b_balance == 5
 
         b.balance = 0
-        b_balance = b.balance.get(timeout=5)
-        outcome_2 = a.complex_if(9, b).get(timeout=5)
+        b_balance = b.balance.get(timeout=10)
+        outcome_2 = a.complex_if(9, b).get(timeout=10)
 
         assert outcome_2 == 2
         assert b_balance == 0
 
         b.balance = 0
-        b_balance = b.balance.get(timeout=5)
-        outcome_3 = a.more_complex_if(-3, b).get(timeout=5)
+        b_balance = b.balance.get(timeout=10)
+        outcome_3 = a.more_complex_if(-3, b).get(timeout=10)
 
         assert outcome_3 == -3
         assert b_balance == 0
 
         b.balance = 4
-        b_balance = b.balance.get(timeout=5)
-        outcome_4 = a.more_complex_if(2, b).get(timeout=5)
+        b_balance = b.balance.get(timeout=10)
+        outcome_4 = a.more_complex_if(2, b).get(timeout=10)
 
         assert b_balance == 4
         assert outcome_4 == 1
 
         b.balance = 4
-        b_balance = b.balance.get(timeout=5)
-        outcome_5 = a.more_complex_if(3, b).get(timeout=5)
+        b_balance = b.balance.get(timeout=10)
+        outcome_5 = a.more_complex_if(3, b).get(timeout=10)
 
         assert outcome_5 == -1
         assert b_balance == 4
 
         b.balance = 0
-        b.balance.get(timeout=5)
+        b.balance.get(timeout=10)
         a.balance = 0
-        a.balance.get(timeout=5)
-        outcome_6 = a.test_no_return(6, b).get(timeout=5)
-        b_balance = b.balance.get(timeout=5)
-        a_balance = a.balance.get(timeout=5)
+        a.balance.get(timeout=10)
+        outcome_6 = a.test_no_return(6, b).get(timeout=10)
+        b_balance = b.balance.get(timeout=10)
+        a_balance = a.balance.get(timeout=10)
 
         assert b_balance == 6
         assert outcome_6 is None
@@ -167,18 +167,18 @@ class TestE2E:
             )
 
             user: User = User(str(uuid.uuid4())).get(timeout=25)
-            item: Item = Item(str(uuid.uuid4()), 5).get(timeout=5)
+            item: Item = Item(str(uuid.uuid4()), 5).get(timeout=10)
 
-            user.update_balance(20).get(timeout=5)
-            item.update_stock(4).get(timeout=5)
+            user.update_balance(20).get(timeout=10)
+            item.update_stock(4).get(timeout=10)
 
-            initial_balance = user.balance.get(timeout=5)
-            initial_stock = item.stock.get(timeout=5)
+            initial_balance = user.balance.get(timeout=10)
+            initial_stock = item.stock.get(timeout=10)
 
-            buy = user.buy_item(3, item).get(timeout=5)
+            buy = user.buy_item(3, item).get(timeout=10)
 
-            final_balance = user.balance.get(timeout=5)
-            final_stock = item.stock.get(timeout=5)
+            final_balance = user.balance.get(timeout=10)
+            final_stock = item.stock.get(timeout=10)
 
             assert buy is True
             assert initial_stock == 4
@@ -190,13 +190,13 @@ class TestE2E:
         except Exception as exc:
             print(f"Got an exception {exc}")
             assert False
-
-    @pytest.mark.parametrize("start_and_stop", ["beam"], indirect=True)
-    def test_for_loop(self, start_and_stop):
-        try:
-
-            assert True
-            print("Finished all asserts :)")
-        except Exception as exc:
-            print(f"Got an exception {exc}")
-            assert False
+    #
+    # @pytest.mark.parametrize("start_and_stop", ["beam"], indirect=True)
+    # def test_for_loop(self, start_and_stop):
+    #     try:
+    #
+    #         assert True
+    #         print("Finished all asserts :)")
+    #     except Exception as exc:
+    #         print(f"Got an exception {exc}")
+    #         assert False

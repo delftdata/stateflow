@@ -565,6 +565,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             # Link up first if_block, to conditional:
             conditional_block.set_next_block(if_blocks[0])
             conditional_block.set_true_block(if_blocks[0])
+            if_blocks[0].set_previous_block(conditional_block)
 
             # We track a list of the latest block of each if-body, so that we can link it up to the block _after_
             # the if statement.

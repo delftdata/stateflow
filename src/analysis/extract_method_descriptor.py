@@ -37,6 +37,9 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
         # We assume a method is read-only until we find a 'self' assignment.
         self.read_only = True
 
+        # We keep a list of all self attributes which this functions writes to.
+        self.write_to_self_attribute: List[str] = []
+
         # We use this set to verify if a method has one or more external invocations.
         # The set stores names of all the attributes.
         self.external_attributes: Set[str] = set()
