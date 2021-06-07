@@ -199,8 +199,8 @@ class TestE2E:
             a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=10)
 
             return_a = a.for_loops(0, [b, b_2]).get(timeout=10)
-            b_balance = b.balance
-            b2_balance = b_2.balance
+            b_balance = b.balance.get(timeout=10)
+            b2_balance = b_2.balance.get(timeout=10)
 
             assert return_a == -1
             assert b_balance == 5
