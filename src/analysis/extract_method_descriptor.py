@@ -263,5 +263,5 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
             output_desc,
             analyzed_method.external_attributes,
             analyzed_method.typed_declarations,
-            analyzed_method.write_to_self_attribute
+            analyzed_method.write_to_self_attribute,
         )

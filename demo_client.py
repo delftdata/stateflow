@@ -28,7 +28,6 @@ except StateflowFailure:
     user2: User = client.find(User, "wouter-user2").get()
 
 
-
 print("Done!")
 for_loop: int = user.simple_for_loop([user, user2]).get(timeout=5)
 print(user.balance.get())

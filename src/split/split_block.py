@@ -219,7 +219,7 @@ class StatementAnalyzer(cst.CSTVisitor):
 
 @dataclass
 class SplitContext:
-    """ We keep a SplitContext as context for parsing a set of statements into a StatementBlock."""
+    """We keep a SplitContext as context for parsing a set of statements into a StatementBlock."""
 
     # Mapping from class name to its descriptor, this is useful for some lookups.
     class_descriptors: Dict[str, ClassDescriptor]
@@ -319,6 +319,7 @@ class Block:
         split_context: SplitContext,
         previous_block: Optional["Block"] = None,
         label: str = "",
+        state_request: List[Tuple[str, ClassDescriptor]] = [],
     ):
         self.block_id = block_id
         self.split_context = split_context
@@ -333,6 +334,9 @@ class Block:
         # Dependencies and definitions
         self.dependencies: List[str] = []
         self.definitions: List[str] = []
+
+        # Keep track if we need to do any state requests for this block.
+        self.state_request: List[Tuple[str, ClassDescriptor]] = state_request.copy()
 
         # Labels are used for debugging and visualization.
         self.label = label
@@ -379,7 +383,22 @@ class Block:
         raise NotImplementedError("Should be implemented by subclasses.")
 
     def build_event_flow_nodes(self, node_id: int) -> List[EventFlowNode]:
-        raise NotImplementedError("Should be implemented by subclasses.")
+        flow_node_id = node_id + 1
+        nodes: List[EventFlowNode] = []
+
+        for el in self.state_request:
+            var_name, class_desc = el
+            request_node = RequestState(
+                FunctionType.create(class_desc), flow_node_id, var_name
+            )
+
+            if len(nodes) > 0:
+                nodes[-1].set_next(request_node.id)
+
+            nodes.append(request_node)
+            flow_node_id += 1
+
+        return nodes
 
     def code(self) -> str:
         return self.split_context.class_desc.module_node.code_for_node(
@@ -403,8 +422,9 @@ class StatementBlock(Block):
         ],
         previous_block: Optional["StatementBlock"] = None,
         label: str = "",
+        state_request: List[Tuple[str, ClassDescriptor]] = [],
     ):
-        super().__init__(block_id, split_context, previous_block, label)
+        super().__init__(block_id, split_context, previous_block, label, state_request)
         self.statements = statements
         self.split_context = split_context
 
@@ -476,7 +496,7 @@ class StatementBlock(Block):
         ]
 
     def _remove_whitespace(self):
-        """ Removes whitespace from statements if it is there. """
+        """Removes whitespace from statements if it is there."""
         if len(self.statements) > 0 and m.matches(
             self.statements[0], m.TrailingWhitespace()
         ):
@@ -865,9 +885,13 @@ class StatementBlock(Block):
         )
 
     def build_event_flow_nodes(self, node_id: int) -> List[EventFlowNode]:
+        nodes_block = super().build_event_flow_nodes(node_id)
+
         # Initialize id and latest flow node.
-        flow_node_id = node_id + 1  # Offset the id with start_node.
-        latest_node: Optional[EventFlowNode] = None
+        flow_node_id = node_id + len(nodes_block) + 1  # Offset the id with start_node.
+        latest_node: Optional[EventFlowNode] = (
+            None if len(nodes_block) == 0 else nodes_block[-1]
+        )
 
         # Initialize list of flow nodes for this StatementBlock.
         flow_nodes: List[EventFlowNode] = []
@@ -900,19 +924,19 @@ class StatementBlock(Block):
             """
 
             # Step 1, build the RequestState nodes; We match the input parameters to the correct.
-            for (
-                input_name,
-                input_type,
-            ) in self.split_context.original_method_desc.input_desc.get().items():
-                matched_class = self.split_context.class_descriptors.get(input_type)
-
-                if matched_class:
-                    request_node = RequestState(
-                        FunctionType.create(matched_class), flow_node_id, input_name
-                    )
-
-                    # Update the flow graph.
-                    update_flow_graph(request_node)
+            # for (
+            #     input_name,
+            #     input_type,
+            # ) in self.split_context.original_method_desc.input_desc.get().items():
+            #     matched_class = self.split_context.class_descriptors.get(input_type)
+            #
+            #     if matched_class:
+            #         request_node = RequestState(
+            #             FunctionType.create(matched_class), flow_node_id, input_name
+            #         )
+            #
+            #         # Update the flow graph.
+            #         update_flow_graph(request_node)
 
             # Step 2, invoke the first part of the splitted function.
             split_node = InvokeSplitFun(
@@ -1012,7 +1036,7 @@ class StatementBlock(Block):
 
                 update_flow_graph(invoke_node)
 
-        return flow_nodes
+        return nodes_block + flow_nodes
 
     def is_first(self) -> bool:
         """Returns if this StatementBlock is the first block.

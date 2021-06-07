@@ -823,6 +823,7 @@ def test_list_items():
 
     assert len(blocks) == 6
 
+
 def test_request_state():
     stateflow.clear()
 
@@ -832,13 +833,43 @@ def test_request_state():
             self.y = 5
 
         def dummy_call(self):
-            self.x = 0
             return
 
         def request_state_simple(self, state: "StateClass"):
-            pass
+            x1 = state.x
+            state.dummy_call()
+            x2 = state.x
 
+    stateflow.stateflow(StateClass, parse_file=False)
+    wrapper = stateflow.registered_classes[0]
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "request_state_simple"
+    )
 
+    split = Split(
+        [cls.class_desc for cls in stateflow.registered_classes],
+        stateflow.registered_classes,
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+
+    from src.util import dataflow_visualizer
+
+    dataflow_visualizer.visualize(blocks, True)
+    method_desc.split_function(blocks)
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
 
 def test_for_loop_items():

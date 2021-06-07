@@ -6,11 +6,12 @@ from src.split.split_block import (
     InvocationContext,
     ReplaceCall,
     EventFlowNode,
+    ClassDescriptor,
 )
 from src.dataflow.event_flow import InvokeFor
 import libcst as cst
 import libcst.matchers as m
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 
 class ForBlock(Block):
@@ -22,8 +23,9 @@ class ForBlock(Block):
         split_context: SplitContext,
         previous_block: Optional[Block] = None,
         label: str = "",
+        state_request: List[Tuple[str, ClassDescriptor]] = [],
     ):
-        super().__init__(block_id, split_context, previous_block, label)
+        super().__init__(block_id, split_context, previous_block, label, state_request)
         self.iter_name: str = iter_name
         self.target: cst.BaseAssignTargetExpression = target
         self.else_block: Optional[Block] = None
@@ -93,8 +95,10 @@ except StopIteration:
         # We can only have an else block, a for body block and a next statement block.
         assert len(self.next_block) <= 3
 
+        nodes_block = super().build_event_flow_nodes(node_id)
+
         # Initialize id.
-        flow_node_id = node_id + 1  # Offset the id.
+        flow_node_id = node_id + len(nodes_block) + 1  # Offset the id.
 
         # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
         class_type = self.split_context.class_desc.to_function_type()
@@ -111,7 +115,7 @@ except StopIteration:
             else -1,
         )
 
-        return [invoke_for]
+        return nodes_block + [invoke_for]
 
     def build_definition(self) -> cst.FunctionDef:
         fun_name: cst.Name = cst.Name(self.fun_name())

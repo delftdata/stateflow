@@ -139,6 +139,8 @@ class SplitAnalyzer(cst.CSTVisitor):
         self._processed_for: bool = False
         self._for_block: Optional[Block] = None
 
+        self.state_request: List[Tuple[str, ClassDescriptor]] = []
+
         # Analyze this method.
         if isinstance(self.scope, OuterBlockScope):
             self._outer_analyze()
@@ -159,6 +161,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             self._unlinked_conditional = None
 
         self.blocks.append(block)
+        self.state_request.clear()
 
     def _analyze_statements(self):
         for stmt in self.unparsed_statements:
@@ -180,7 +183,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
         return previous_invocation
 
-    def _get_previous_block(self) -> Optional[Block]:
+    def _get_previous_block(self, remove=True) -> Optional[Block]:
         if (
             len(self.blocks) > 0
             and not self._processing_if
@@ -190,12 +193,12 @@ class SplitAnalyzer(cst.CSTVisitor):
             return self.blocks[-1]
         elif self._processed_for and not self._processing_if:
             for_block = self._for_block
-            self._for_block = None
-            self._processed_for = False
-            print(
-                f"Returning the for block with id {for_block.block_id} for block {self.current_block_id}"
-            )
+
+            if remove:
+                self._for_block = None
+                self._processed_for = False
             return for_block
+
         return None
 
     def _inner_analyze(self):
@@ -317,8 +320,8 @@ class SplitAnalyzer(cst.CSTVisitor):
             need_to_split, desc = self.need_to_split(callee)
 
             if not need_to_split:
-                raise AttributeError(
-                    f"We do not need to split, please look into this {callee}.{method}"
+                print(
+                    f"We came across a call which we did not need to split: {callee}.{method}."
                 )
                 return False
 
@@ -371,6 +374,18 @@ class SplitAnalyzer(cst.CSTVisitor):
             definition: Def = Def(node.target.value, typ)
             self.annotated_definitions.append(definition)
 
+    def visit_AssignTarget(self, node: cst.AssignTarget):
+        is_tuple: bool = m.matches(node, m.AssignTarget(target=m.Tuple()))
+
+        if is_tuple:
+            for element in node.target.elements:
+                if m.matches(element, m.Element()) and m.matches(
+                    element.value, m.Name()
+                ):
+                    self.annotated_definitions.append(Def(element.value.value))
+        else:
+            self.annotated_definitions.append(Def(node.target.value))
+
     def visit_For(self, node: cst.For):
         """
         We always split a For loop, it just makes life easier.
@@ -404,6 +419,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             IntermediateBlockContext.from_instance(self.split_context),
             previous_block=self.blocks[-1],
             label="for block",
+            state_request=self.state_request,
         )
 
         # Link for block to iter block
@@ -528,6 +544,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 previous_block=invocation_block,
                 invocation_block=invocation_block,
                 label="if" if if_depth == 0 else "elif",
+                state_request=self.state_request,
             )
 
             # Connect to conditionals to each other.
@@ -634,7 +651,71 @@ class SplitAnalyzer(cst.CSTVisitor):
             variable: str = node.value.value
             attribute: str = node.attr.value
 
-            print(f"Calling {variable}.{attribute}")
+            # First, we find out if this variable actually has a type.
+            is_other_function, class_desc = self.need_to_split(variable)
+
+            if (
+                not is_other_function
+                or attribute not in class_desc.state_desc.get_keys()
+            ):
+                return True
+
+            print(f"{variable}.{attribute}")
+
+            # Now we're gonna find the first block, which already has this variable as dependency.
+            previous_block: Block = self._get_previous_block(remove=False)
+
+            if not previous_block:
+                self.state_request.append((variable, class_desc))
+                return True
+
+            def add_request(block: Block):
+                if block:
+                    block.state_request.append((variable, class_desc))
+                else:
+                    self.state_request.append((variable, class_desc))
+                    self._process_stmt_block_without_invocation("request state")
+
+            latest_valid_block: Block = None
+
+            while previous_block:
+                # Check if the previous block has an invocation which invalidates the state.
+                previous_context: SplitContext = previous_block.split_context
+                if (
+                    isinstance(previous_context, IntermediateBlockContext)
+                    or isinstance(previous_context, FirstBlockContext)
+                ) and previous_context.current_invocation:
+                    previous_invocation: InvocationContext = (
+                        previous_context.current_invocation
+                    )
+
+                    if (
+                        m.matches(previous_invocation.call_instance_ref, m.Name())
+                        and previous_invocation.call_instance_ref.value == variable
+                        and attribute
+                        in previous_invocation.method_desc.write_to_self_attributes
+                    ):
+                        # Invalidate it!
+                        print("INVALIDATED")
+                        add_request(latest_valid_block)
+                        return True
+
+                # It is already declared and not the first block.
+                if variable in previous_block.definitions and previous_block.block_id != 0:
+                    add_request(latest_valid_block)
+                    return True
+
+                # It is already requested before.
+                if (variable, class_desc) in previous_block.state_request:
+                    return True
+
+                if variable in previous_block.dependencies:
+                    latest_valid_block = previous_block
+
+                previous_block = previous_block.previous_block
+
+            print("I'm here!")
+            add_request(latest_valid_block)
 
     def _process_for_iter_block(
         self, iter_expr: cst.BaseExpression, iter_name: str, label: str = ""
@@ -696,6 +777,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             split_context,
             previous_block=previous_block,
             label=label,
+            state_request=self.state_request,
         )
 
         # Set previous block.

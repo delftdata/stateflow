@@ -31,7 +31,9 @@ def kafka():
 def start_runtime(runtime):
     try:
         if runtime == "beam":
-            run_time = BeamRuntime(stateflow.init(), timeout=15, serializer=PickleSerializer())
+            run_time = BeamRuntime(
+                stateflow.init(), timeout=15, serializer=PickleSerializer()
+            )
         else:
             run_time = FlinkRuntime(stateflow.init(), serializer=PickleSerializer())
         run_time.run(async_execution=True)
@@ -52,7 +54,9 @@ def start_and_stop(kafka, request):
             start_runtime(request.param)
 
         print("Started the runtime!")
-        client = StateflowKafkaClient(flow, brokers="localhost:9092", serializer=PickleSerializer())
+        client = StateflowKafkaClient(
+            flow, brokers="localhost:9092", serializer=PickleSerializer()
+        )
         client.wait_until_healthy()
         print("Started client")
 
@@ -69,7 +73,7 @@ def start_and_stop(kafka, request):
 @pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
 class TestE2E:
     # @pytest.mark.skip(reason="let's see if this fixes pytest problems")
-    #@pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
+    # @pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
     def test_full_e2e_multiple_splits(self, start_and_stop):
         try:
             b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
@@ -96,7 +100,7 @@ class TestE2E:
             print(f"Got an exception {exc}")
             assert False
 
-    #@pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
+    # @pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
     def test_simple_if(self, start_and_stop):
         b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
         a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=10)
@@ -155,7 +159,7 @@ class TestE2E:
         assert outcome_6 is None
         assert a_balance == 0
 
-    #@pytest.mark.parametrize("start_and_stop", ["flink", "beam"], indirect=True)
+    # @pytest.mark.parametrize("start_and_stop", ["flink", "beam"], indirect=True)
     def test_full_e2e(self, start_and_stop):
         try:
             import src.util.dataflow_visualizer as viz
@@ -191,7 +195,7 @@ class TestE2E:
             print(f"Got an exception {exc}")
             assert False
 
-    #@pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
+    # @pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
     def test_for_loop(self, start_and_stop):
         try:
             b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)

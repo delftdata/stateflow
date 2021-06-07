@@ -10,7 +10,7 @@ from src.split.split_block import (
     EventFlowNode,
 )
 from src.dataflow.event_flow import InvokeConditional
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from src.descriptors.class_descriptor import ClassDescriptor
 from dataclasses import dataclass
 
@@ -54,8 +54,9 @@ class ConditionalBlock(Block):
         previous_block: Optional[Block] = None,
         invocation_block: Optional[Block] = None,
         label: str = "",
+        state_request: List[Tuple[str, ClassDescriptor]] = [],
     ):
-        super().__init__(block_id, split_context, previous_block, label)
+        super().__init__(block_id, split_context, previous_block, label, state_request)
         self.test_expr: cst.BaseExpression = test
         self.invocation_block: Optional[Block] = invocation_block
 
@@ -110,8 +111,10 @@ class ConditionalBlock(Block):
         return cst.SimpleStatementLine(body=[cst.Return(self.test_expr)])
 
     def build_event_flow_nodes(self, node_id: int) -> List[EventFlowNode]:
+        nodes_block = super().build_event_flow_nodes(node_id)
+
         # Initialize id.
-        flow_node_id = node_id + 1  # Offset the id.
+        flow_node_id = node_id + len(nodes_block) + 1  # Offset the id.
 
         # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
         class_type = self.split_context.class_desc.to_function_type()
@@ -134,7 +137,7 @@ class ConditionalBlock(Block):
         # The 'true' and 'false' block are updated later on.
         # We don't know their id's yet.
 
-        return [invoke_conditional]
+        return nodes_block + [invoke_conditional]
 
     def build_definition(self) -> cst.FunctionDef:
         fun_name: cst.Name = cst.Name(self.fun_name())

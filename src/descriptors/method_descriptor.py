@@ -18,7 +18,7 @@ class MethodDescriptor:
         output_desc: "OutputDescriptor",
         external_attributes: Set[str],
         typed_declarations: Dict[str, str],
-            write_to_self_attributes: Set[str]
+        write_to_self_attributes: Set[str],
     ):
         self.method_name: str = method_name
         self.read_only: bool = read_only
