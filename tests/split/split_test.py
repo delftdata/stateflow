@@ -879,6 +879,8 @@ def test_request_state():
             if x > 3:
                 print(x)
             else:
+                if x > 4:
+                    state.x
                 print(x)
 
             x3 = state.x
@@ -944,8 +946,57 @@ def test_request_state():
 
     flow = method_desc.flow_list
     request_blocks = [block for block in flow if isinstance(block, RequestState)]
-    # assert len(flow) == 7
     assert len(request_blocks) == 3
+
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "request_state_invalidate_2"
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+    dataflow_visualizer.visualize(blocks, True)
+    method_desc.split_function(blocks)
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
+    flow = method_desc.flow_list
+    request_blocks = [block for block in flow if isinstance(block, RequestState)]
+    assert len(request_blocks) == 2
+
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "request_state_not_invalidate"
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+    dataflow_visualizer.visualize(blocks, True)
+    method_desc.split_function(blocks)
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
+    flow = method_desc.flow_list
+    request_blocks = [block for block in flow if isinstance(block, RequestState)]
+    assert len(request_blocks) == 1
 
 
 def test_for_loop_items():

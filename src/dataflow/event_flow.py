@@ -386,6 +386,7 @@ class InvokeExternal(EventFlowNode):
         args: Arguments = Arguments(self.input)
 
         # Invoke the method.
+        print(f"Now invoking external method {self.fun_name} with args {args}")
         if not instance:
             invocation, instance = class_wrapper.invoke_return_instance(
                 self.fun_name,
@@ -495,7 +496,7 @@ class InvokeSplitFun(EventFlowNode):
             if isinstance(
                 return_results[i], InternalClassRef
             ):  # We treat an InternalClassRef a bit differently.
-                self.output[decl] = return_results[i]._to_dict()
+                self.output[decl] = return_results[i]
             elif isinstance(return_results[i], list) and all(
                 isinstance(el, InternalClassRef) for el in return_results[i]
             ):
@@ -586,6 +587,8 @@ class InvokeSplitFun(EventFlowNode):
             next_node.set_key(invoke_method_request["call_instance_ref"])
 
             # We assume that arguments in the InvokeMethodRequest are in the correct order.
+            print(f"Next node {next_node.id} {next_node.fun_name} { next_node}")
+            print(f"Next node keys {next_node.input.keys()}")
             for i, arg_key in enumerate(next_node.input.keys()):
                 next_node.input[arg_key] = invoke_method_request["args"][i]
         elif (

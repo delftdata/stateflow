@@ -439,7 +439,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             self.split_context,
             node.body.children,
             block_id_offset=self.current_block_id,
-            scope=InnerBlockScope(self.blocks),
+            scope=InnerBlockScope(self._get_blocks()),
             annotated_definitions=self.annotated_definitions,
         )
 
@@ -479,7 +479,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.split_context,
                 else_stmt.body.children,
                 block_id_offset=self.current_block_id,
-                scope=InnerBlockScope(self.blocks),
+                scope=InnerBlockScope(self._get_blocks()),
                 annotated_definitions=self.annotated_definitions,
             )
 
@@ -570,7 +570,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.split_context,
                 current_if.body.children,
                 block_id_offset=self.current_block_id,
-                scope=InnerBlockScope(self.blocks),
+                scope=InnerBlockScope(self._get_blocks()),
                 annotated_definitions=self.annotated_definitions,
             )
 
@@ -614,7 +614,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.split_context,
                 else_stmt.body.children,
                 block_id_offset=self.current_block_id,
-                scope=InnerBlockScope(self.blocks),
+                scope=InnerBlockScope(self._get_blocks()),
                 annotated_definitions=self.annotated_definitions,
             )
 
@@ -736,6 +736,9 @@ class SplitAnalyzer(cst.CSTVisitor):
                     previous_block = blocks[block_index]
                     block_index -= 1
             add_request(latest_valid_block)
+
+    def _get_blocks(self):
+        return self.scope.blocks + self.blocks
 
     def _process_for_iter_block(
         self, iter_expr: cst.BaseExpression, iter_name: str, label: str = ""

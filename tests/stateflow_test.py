@@ -38,6 +38,9 @@ def start_runtime(runtime):
             run_time = FlinkRuntime(stateflow.init(), serializer=PickleSerializer())
         run_time.run(async_execution=True)
     except Exception as excp:
+        import traceback
+
+        traceback.print_exc()
         print(f"Got an exception. {excp}", flush=True)
         raise RuntimeError("Exception!")
 
@@ -97,7 +100,7 @@ class TestE2E:
 
             print("All asserts are correct")
         except Exception as exc:
-            print(f"Got an exception {exc}")
+            raise exc
             assert False
 
     # @pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
@@ -192,7 +195,7 @@ class TestE2E:
 
             print("Finished all asserts :)")
         except Exception as exc:
-            print(f"Got an exception {exc}")
+            raise exc
             assert False
 
     # @pytest.mark.parametrize("start_and_stop", ["beam", "flink"], indirect=True)
@@ -219,5 +222,5 @@ class TestE2E:
             assert b2_balance == 10
             print("Finished all asserts :)")
         except Exception as exc:
-            print(f"Got an exception {exc}")
+            raise exc
             assert False

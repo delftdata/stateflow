@@ -137,6 +137,9 @@ class ClassRef(object):
                 ):
                     f.set_request_key(arg_value._fun_addr.key)
                     to_remove.append(arg)
+                elif arg in f.input and isinstance(arg_value, ClassRef):
+                    f.input[arg] = arg_value.to_internal_ref()
+                    to_remove.append(arg)
                 elif (
                     arg in f.input
                     and isinstance(arg_value, list)
