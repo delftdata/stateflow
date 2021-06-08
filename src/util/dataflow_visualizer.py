@@ -1,6 +1,6 @@
 from src.split.split_block import Block
 from src.split.conditional_block import ConditionalBlock
-from src.dataflow.event_flow import EventFlowNode, InvokeConditional
+from src.dataflow.event_flow import EventFlowNode, InvokeConditional, InvokeExternal
 from typing import List
 from graphviz import Digraph
 
@@ -70,6 +70,16 @@ def visualize_flow(flow: List[EventFlowNode]):
                         "fillcolor": "lightskyblue",
                         "style": "filled",
                     },
+                )
+            )
+        elif isinstance(n, InvokeExternal):
+            nodes.append(
+                dot.node(
+                    str(n.id),
+                    label=str(n.typ),
+                    style="filled",
+                    shape="box",
+                    fillcolor="darkseagreen3",
                 )
             )
         else:

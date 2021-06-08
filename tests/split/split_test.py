@@ -197,7 +197,7 @@ def test_multiple_splits():
             self.b = 0
 
         def cool_method(self, b: BB, c: CC):
-            a = self.a + self.b
+            a = self.a + self.b + b.a + c.x
 
             b_result = b.get(a * 9)
             new_a = b_result * a
@@ -245,7 +245,7 @@ def test_multiple_splits():
     assert len(stmts) == 3
 
     # We check the dependencies and definitions of the blocks.
-    assert stmts[0].dependencies == []
+    assert stmts[0].dependencies == ["b", "c"]
     assert stmts[0].definitions == ["a", "b", "c"]
 
     remove_after_class_def = RemoveAfterClassDefinition(wrapper.class_desc.class_name)
@@ -265,7 +265,7 @@ def test_multiple_splits():
     assert stmts[2].dependencies == ["b_result", "a", "set_return"]
     assert stmts[2].definitions == ["c_result"]
 
-    # GET STATE -> GET STATE -> INVOKE SPLIT FUN -> INVOKE EXTERNAL
+    # INVOKE SPLIT FUN -> INVOKE EXTERNAL
     node_one = stmts[0].build_event_flow_nodes(0)
 
     assert len(node_one) == 4
@@ -331,7 +331,7 @@ def test_multiple_splits_with_returns():
             self.b = 0
 
         def cool_method(self, b: BBB, c: CCC):
-            a = self.a + self.b
+            a = self.a + self.b + b.a + c.x
 
             if a > 10:
                 return a
@@ -835,10 +835,53 @@ def test_request_state():
         def dummy_call(self):
             return
 
+        def invalidate(self):
+            self.x = 0
+
         def request_state_simple(self, state: "StateClass"):
             x1 = state.x
             state.dummy_call()
             x2 = state.x
+
+        def request_state_invalidate(self, state: "StateClass"):
+            x1 = state.x
+            if x1 > 0:
+                if x1 > 1:
+                    print(x1)
+                elif state.invalidate():
+                    x2 = state.x
+            else:
+                x2 = 3
+
+            x3 = state.x
+
+        def request_state_invalidate_2(self, state: "StateClass"):
+            x1 = state.x
+            state.invalidate()
+
+            for x in range(0, 10):
+                print(x)
+
+            if x > 3:
+                print(x)
+            else:
+                print(x)
+
+            x3 = state.x
+
+        def request_state_not_invalidate(self, state: "StateClass"):
+            x1 = state.x
+            state.dummy_call()
+
+            for x in range(0, 10):
+                print(x)
+
+            if x > 3:
+                print(x)
+            else:
+                print(x)
+
+            x3 = state.x
 
     stateflow.stateflow(StateClass, parse_file=False)
     wrapper = stateflow.registered_classes[0]
@@ -870,6 +913,39 @@ def test_request_state():
     dataflow_visualizer.visualize(blocks, True)
     method_desc.split_function(blocks)
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
+    flow = method_desc.flow_list
+    request_blocks = [block for block in flow if isinstance(block, RequestState)]
+    assert len(flow) == 6
+    assert isinstance(flow[1], RequestState)
+    assert flow[1].var_name == "state"
+    assert len(request_blocks) == 1
+
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "request_state_invalidate"
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+    dataflow_visualizer.visualize(blocks, True)
+    method_desc.split_function(blocks)
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
+    flow = method_desc.flow_list
+    request_blocks = [block for block in flow if isinstance(block, RequestState)]
+    # assert len(flow) == 7
+    assert len(request_blocks) == 3
 
 
 def test_for_loop_items():

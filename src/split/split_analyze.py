@@ -23,7 +23,7 @@ from src.split.conditional_block import ConditionalBlock, ConditionalBlockContex
 from src.split.for_block import ForBlock
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 class HasInteraction(cst.CSTVisitor):
@@ -86,7 +86,7 @@ class HasInteraction(cst.CSTVisitor):
 
 @dataclass
 class BlockScope:
-    pass
+    blocks: List[Block] = field(default_factory=lambda: [])
 
 
 @dataclass
@@ -126,6 +126,9 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.block_id_offset = block_id_offset
         self.blocks: List[Block] = []
 
+        # All blocks excluding the bodies of forloops and if statements.
+        self.sequential_blocks: List[Block] = []
+
         # Definitions so far (including those of the parent block).
         self.annotated_definitions: List[Def] = annotated_definitions
 
@@ -161,6 +164,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             self._unlinked_conditional = None
 
         self.blocks.append(block)
+        self.sequential_blocks.append(block)
         self.state_request.clear()
 
     def _analyze_statements(self):
@@ -435,7 +439,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             self.split_context,
             node.body.children,
             block_id_offset=self.current_block_id,
-            scope=InnerBlockScope(),
+            scope=InnerBlockScope(self.blocks),
             annotated_definitions=self.annotated_definitions,
         )
 
@@ -475,7 +479,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.split_context,
                 else_stmt.body.children,
                 block_id_offset=self.current_block_id,
-                scope=InnerBlockScope(),
+                scope=InnerBlockScope(self.blocks),
                 annotated_definitions=self.annotated_definitions,
             )
 
@@ -566,7 +570,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.split_context,
                 current_if.body.children,
                 block_id_offset=self.current_block_id,
-                scope=InnerBlockScope(),
+                scope=InnerBlockScope(self.blocks),
                 annotated_definitions=self.annotated_definitions,
             )
 
@@ -610,7 +614,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 self.split_context,
                 else_stmt.body.children,
                 block_id_offset=self.current_block_id,
-                scope=InnerBlockScope(),
+                scope=InnerBlockScope(self.blocks),
                 annotated_definitions=self.annotated_definitions,
             )
 
@@ -663,7 +667,16 @@ class SplitAnalyzer(cst.CSTVisitor):
             print(f"{variable}.{attribute}")
 
             # Now we're gonna find the first block, which already has this variable as dependency.
-            previous_block: Block = self._get_previous_block(remove=False)
+            blocks: List[Block] = self.scope.blocks + self.blocks
+            block_index: int = len(blocks) - 1
+            if block_index < 0:
+                print("No previous block.")
+                print(blocks)
+
+                previous_block = None
+            else:
+                previous_block: Block = blocks[block_index]  # Get last block.
+                block_index -= 1
 
             if not previous_block:
                 self.state_request.append((variable, class_desc))
@@ -677,44 +690,51 @@ class SplitAnalyzer(cst.CSTVisitor):
                     self._process_stmt_block_without_invocation("request state")
 
             latest_valid_block: Block = None
-
             while previous_block:
+                print(f"Previous block {previous_block.block_id}")
                 # Check if the previous block has an invocation which invalidates the state.
                 previous_context: SplitContext = previous_block.split_context
-                if (
-                    isinstance(previous_context, IntermediateBlockContext)
-                    or isinstance(previous_context, FirstBlockContext)
-                ) and previous_context.current_invocation:
-                    previous_invocation: InvocationContext = (
-                        previous_context.current_invocation
+                if hasattr(previous_context, "previous_invocation"):
+
+                    invocation: InvocationContext = getattr(
+                        previous_context, "previous_invocation", None
                     )
+                    print(f"Found an invocation! {invocation}")
 
                     if (
-                        m.matches(previous_invocation.call_instance_ref, m.Name())
-                        and previous_invocation.call_instance_ref.value == variable
+                        invocation
+                        and m.matches(invocation.call_instance_ref, m.Name())
+                        and invocation.call_instance_ref.value == variable
                         and attribute
-                        in previous_invocation.method_desc.write_to_self_attributes
+                        in invocation.method_desc.write_to_self_attributes
                     ):
                         # Invalidate it!
-                        print("INVALIDATED")
+                        if isinstance(self.scope, InnerBlockScope):
+                            latest_valid_block = previous_block
                         add_request(latest_valid_block)
                         return True
 
                 # It is already declared and not the first block.
-                if variable in previous_block.definitions and previous_block.block_id != 0:
+                if (
+                    variable in previous_block.definitions
+                    and previous_block.block_id != 0
+                ):
                     add_request(latest_valid_block)
                     return True
 
-                # It is already requested before.
-                if (variable, class_desc) in previous_block.state_request:
-                    return True
+                if previous_block in self.sequential_blocks or isinstance(self.scope, InnerBlockScope):
+                    # It is already requested before and has not been invalidated by a call.
+                    if (variable, class_desc) in previous_block.state_request:
+                        return True
 
-                if variable in previous_block.dependencies:
-                    latest_valid_block = previous_block
-
-                previous_block = previous_block.previous_block
-
-            print("I'm here!")
+                    # Occurrence of where we could put the request.
+                    if variable in previous_block.dependencies:
+                        latest_valid_block = previous_block
+                if block_index < 0:
+                    previous_block = None
+                else:
+                    previous_block = blocks[block_index]
+                    block_index -= 1
             add_request(latest_valid_block)
 
     def _process_for_iter_block(

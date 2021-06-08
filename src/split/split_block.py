@@ -393,6 +393,7 @@ class Block:
             )
 
             if len(nodes) > 0:
+                request_node.set_previous(nodes[-1].id)
                 nodes[-1].set_next(request_node.id)
 
             nodes.append(request_node)
