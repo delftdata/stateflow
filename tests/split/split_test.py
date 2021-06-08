@@ -885,6 +885,16 @@ def test_request_state():
 
             x3 = state.x
 
+        def request_for(self, state: List["StateClass"]):
+            y: "StateClass" = state[0]
+            x1 = y.x
+
+            for x in state:
+                print(x.x)
+                state.dummy_call()
+
+            x2 = y.x
+
     stateflow.stateflow(StateClass, parse_file=False)
     wrapper = stateflow.registered_classes[0]
     method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
@@ -997,6 +1007,31 @@ def test_request_state():
     flow = method_desc.flow_list
     request_blocks = [block for block in flow if isinstance(block, RequestState)]
     assert len(request_blocks) == 1
+
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "request_for"
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+    dataflow_visualizer.visualize(blocks, True)
+    method_desc.split_function(blocks)
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
+    flow = method_desc.flow_list
+    request_blocks = [block for block in flow if isinstance(block, RequestState)]
+    assert len(request_blocks) == 3
 
 
 def test_for_loop_items():
