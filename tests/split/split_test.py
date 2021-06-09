@@ -838,17 +838,17 @@ def test_request_state():
         def invalidate(self):
             self.x = 0
 
-        def request_state_simple(self, state: "StateClass"):  # noqa: E731
+        def request_state_simple(self, state: "StateClass"):  # noqa: F821
             x1 = state.x
             state.dummy_call()
             x2 = state.x
 
-        def request_state_simple_invalidate(self, state: "StateClass"):  # noqa: E731
+        def request_state_simple_invalidate(self, state: "StateClass"):  # noqa: F821
             x1 = state.x
             state.invalidate()
             x2 = state.x
 
-        def request_state_invalidate(self, state: "StateClass"):  # noqa: E731
+        def request_state_invalidate(self, state: "StateClass"):  # noqa: F821
             x1 = state.x
             if x1 > 0:
                 if x1 > 1:
@@ -860,7 +860,7 @@ def test_request_state():
 
             x3 = state.x
 
-        def request_state_invalidate_2(self, state: "StateClass"):  # noqa: E731
+        def request_state_invalidate_2(self, state: "StateClass"):  # noqa: F821
             x1 = state.x
             state.invalidate()
 
@@ -874,7 +874,7 @@ def test_request_state():
 
             x3 = state.x
 
-        def request_state_not_invalidate(self, state: "StateClass"):  # noqa: E731
+        def request_state_not_invalidate(self, state: "StateClass"):  # noqa: F821
             x1 = state.x
             state.dummy_call()
 
@@ -890,7 +890,7 @@ def test_request_state():
 
             x3 = state.x
 
-        def request_for(self, state: List["StateClass"]):  # noqa: E731
+        def request_for(self, state: List["StateClass"]):  # noqa: F821
             y: "StateClass" = state[0]
             x1 = y.x
             y.invalidate()
@@ -900,7 +900,7 @@ def test_request_state():
 
             x2 = y.x
 
-        def request_rename(self, state: List["StateClass"]):  # noqa: E731
+        def request_rename(self, state: List["StateClass"]):  # noqa: F821
             x: StateClass = state[0]
             y: StateClass = x
             x.x
