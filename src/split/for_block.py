@@ -97,6 +97,10 @@ except StopIteration:
 
         nodes_block = super().build_event_flow_nodes(node_id)
 
+        latest_node: Optional[EventFlowNode] = (
+            None if len(nodes_block) == 0 else nodes_block[-1]
+        )
+
         # Initialize id.
         flow_node_id = node_id + len(nodes_block) + 1  # Offset the id.
 
@@ -114,6 +118,10 @@ except StopIteration:
             if self.else_block is not None
             else -1,
         )
+
+        if latest_node:
+            latest_node.set_next(invoke_for.id)
+            invoke_for.set_previous(latest_node.id)
 
         return nodes_block + [invoke_for]
 

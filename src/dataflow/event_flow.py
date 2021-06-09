@@ -58,12 +58,6 @@ class InternalClassRef:
             "_type": "InternalClassRef",
         }
 
-    def _clear(self):
-        for n, _ in self._attributes.items():
-            delattr(self, n)
-
-        self._attributes = {}
-
 
 class EventFlowNode:
 
@@ -155,16 +149,17 @@ class EventFlowNode:
                         then we set this as input for this node.
                     TODO: Consider just passing a InternalClassRef around.
                     """
-                    if previous.typ == EventFlowNode.REQUEST_STATE:
-                        request_state_output: Dict[str, Any] = previous.output[key]
-                        key_of_state: str = request_state_output.pop("__key")
-
-                        internal_class_ref = InternalClassRef(
-                            key_of_state, previous.fun_type, request_state_output
-                        )
-
-                        output[key] = internal_class_ref
-                    elif previous.output[key] is not Null:
+                    # if previous.typ == EventFlowNode.REQUEST_STATE:
+                    #     request_state_output: Dict[str, Any] = previous.output[key]
+                    #     print(request_state_output)
+                    #     key_of_state: str = request_state_output.get("__key")
+                    #
+                    #     internal_class_ref = InternalClassRef(
+                    #         key_of_state, previous.fun_type, request_state_output
+                    #     )
+                    #
+                    #     output[key] = internal_class_ref
+                    if previous.output[key] is not Null:
                         output[key] = previous.output[key]
 
                     # We found the variable, so we don't need to look for it anymore.
@@ -386,7 +381,7 @@ class InvokeExternal(EventFlowNode):
         args: Arguments = Arguments(self.input)
 
         # Invoke the method.
-        print(f"Now invoking external method {self.fun_name} with args {args}")
+        print(f"Now invoking external method {self.fun_name} with args {args.get()}")
         if not instance:
             invocation, instance = class_wrapper.invoke_return_instance(
                 self.fun_name,
@@ -402,12 +397,21 @@ class InvokeExternal(EventFlowNode):
 
         """ Two scenarios:
         1. TODO Invocation has failed, we need to handle this somehow.
-        2. Invocation is successful and we go to the next node. We assume the next node is always a InvokeSplitFun.
+        2. Invocation is successful and we go to the next node. We assume the next node is always a InvokeSplitFun or RequestState.
         """
 
         # We assume there is always only one next node for this EventFlowNode type.
-        next_node: InvokeSplitFun = graph.get_node_by_id(self.next[0])
-        self._set_return_result(invocation.return_results)
+        next_node: EventFlowNode = graph.get_node_by_id(self.next[0])
+        if isinstance(next_node, InvokeSplitFun):
+            self._set_return_result(invocation.return_results)
+        elif isinstance(next_node, RequestState):
+            print(next_node.to_dict())
+            instance_var = self._collect_incomplete_input(graph, [next_node.var_name])[
+                next_node.var_name
+            ]
+            next_node.set_request_key(instance_var._get_key())
+        else:
+            raise AttributeError(f"Unknown next node {next_node}.")
 
         return next_node, invocation.updated_state, instance
 
@@ -461,7 +465,7 @@ class InvokeSplitFun(EventFlowNode):
 
     def _get_next_node_by_type(
         self, graph: EventFlowGraph, node_type: str
-    ) -> EventFlowNode:
+    ) -> Optional[EventFlowNode]:
         """Returns the next node by a certain type.
         Assumes there is only one next node _per_ type.
 
@@ -469,11 +473,18 @@ class InvokeSplitFun(EventFlowNode):
         :param node_type: the type to look for.
         :return: the corresponding EventFlowNode.
         """
-        return [
+        nodes = [
             graph.get_node_by_id(i)
             for i in self.next
             if graph.get_node_by_id(i).typ == node_type
-        ][0]
+        ]
+
+        if len(nodes) == 1:
+            return nodes[0]
+        elif len(nodes) == 0:
+            return None
+
+        raise AttributeError(f"Did not expect next nodes of the same type {nodes}.")
 
     def _get_next_node_by_not_type(
         self, graph: EventFlowGraph, node_type: str
@@ -598,10 +609,24 @@ class InvokeSplitFun(EventFlowNode):
         ):
             self._set_definitions(return_results)
 
-            # Come up with a better
-            next_node: EventFlowNode = self._get_next_node_by_not_type(
-                graph, EventFlowNode.RETURN
-            )
+            if self._get_next_node_by_type(graph, EventFlowNode.REQUEST_STATE):
+                next_node: RequestState = self._get_next_node_by_type(
+                    graph, EventFlowNode.REQUEST_STATE
+                )
+                if next_node.var_name in self.output:
+                    next_node.set_request_key(
+                        self.output[next_node.var_name]._get_key()
+                    )
+                else:
+                    instance_var = self._collect_incomplete_input(
+                        graph, [next_node.var_name]
+                    )[next_node.var_name]
+                    next_node.set_request_key(instance_var._get_key())
+            else:
+                next_node: EventFlowNode = self._get_next_node_by_not_type(
+                    graph, EventFlowNode.RETURN
+                )
+
         elif (
             len(return_results) > 0
             and isinstance(return_results[-1], dict)
@@ -948,10 +973,10 @@ class RequestState(EventFlowNode):
         self.var_name: str = var_name
 
         # Inputs for this node.
-        self.input["__key"] = None
+        self.input["__key"] = Null
 
         # Outputs for this node.
-        self.output[self.var_name] = None
+        self.output[self.var_name] = Null
 
     def set_request_key(self, key: str):
         self.input["__key"] = key
@@ -972,8 +997,9 @@ class RequestState(EventFlowNode):
         state_get = state.get()
 
         # We copy the key, so that subsequent nodes can use it.
-        state_get["__key"] = self.input["__key"]
-        self.set_state_result(state_get)
+        ref = InternalClassRef(self.input["__key"], self.fun_type, state_get)
+
+        self.output[self.var_name] = ref
 
         # We kind of assume that for GetState, it is is 'sequential' flow. So there is only 1 node next.
         next_node = graph.get_node_by_id(self.next[0])

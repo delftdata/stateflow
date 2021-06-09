@@ -229,6 +229,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 ),
                 previous_block,
                 "block without invocation",
+                state_request=self.state_request,
             )
         else:
             final_block: Block = StatementBlock(
@@ -241,6 +242,7 @@ class SplitAnalyzer(cst.CSTVisitor):
                 ),
                 previous_block,
                 "block without invocation",
+                state_request=self.state_request,
             )
 
         self._add_block(final_block)
@@ -275,6 +277,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             ),
             previous_block,
             "block without invocation",
+            state_request=self.state_request,
         )
         self._add_block(final_block)
 
@@ -658,6 +661,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             # First, we find out if this variable actually has a type.
             is_other_function, class_desc = self.need_to_split(variable)
 
+            # We don't need to split.
             if (
                 not is_other_function
                 or attribute not in class_desc.state_desc.get_keys()
@@ -666,70 +670,97 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             print(f"{variable}.{attribute}")
 
-            # Now we're gonna find the first block, which already has this variable as dependency.
+            # We get all blocks so far.
             blocks: List[Block] = self.scope.blocks + self.blocks
             block_index: int = len(blocks) - 1
-            if block_index < 0:
-                print("No previous block.")
-                print(blocks)
 
+            # Get the previous block.
+            if block_index < 0:
                 previous_block = None
             else:
                 previous_block: Block = blocks[block_index]  # Get last block.
                 block_index -= 1
 
-            if not previous_block:
-                self.state_request.append((variable, class_desc))
-                return True
-
             def add_request(block: Block):
+                print(
+                    f"Now appending state request for {variable} with class {class_desc.class_name}"
+                )
                 if block:
+                    print(f"Added to {block.block_id}")
                     block.state_request.append((variable, class_desc))
+                elif self.current_block_id == 0:
+                    print(f"Added to 0")
+                    self.state_request.append((variable, class_desc))
                 else:
                     self.state_request.append((variable, class_desc))
-                    self._process_stmt_block_without_invocation("request state")
+                    if len(self.statements) > 0:
+                        self._process_stmt_block_without_invocation("request state")
+                    print(f"Added to self {self.current_block_id}, {self}")
+                    print(self.state_request)
+
+            # If there is _no_ previous block, then we have to split now and add the request.
+            if not previous_block:
+                add_request(previous_block)
+                return True
+
+            # Already requested in this block.
+            if (variable, class_desc) in self.state_request:
+                return True
 
             latest_valid_block: Block = None
             while previous_block:
                 print(f"Previous block {previous_block.block_id}")
+
                 # Check if the previous block has an invocation which invalidates the state.
                 previous_context: SplitContext = previous_block.split_context
                 if hasattr(previous_context, "previous_invocation"):
-
                     invocation: InvocationContext = getattr(
                         previous_context, "previous_invocation", None
-                    )
+                    )  # or getattr(previous_context, "current_invocation", None)
                     print(f"Found an invocation! {invocation}")
+                    print(
+                        f"{hasattr(previous_context, 'previous_invocation') } and {hasattr(previous_context, 'current_invocation')}"
+                    )
 
                     if (
                         invocation
-                        and m.matches(invocation.call_instance_ref, m.Name())
-                        and invocation.call_instance_ref.value == variable
-                        and attribute
-                        in invocation.method_desc.write_to_self_attributes
+                        # and m.matches(invocation.call_instance_ref, m.Name())
+                        # and invocation.call_instance_ref.value == variable
+                        and invocation.method_desc
+                        in class_desc.methods_dec  # Check if method belongs to same class desc.
+                        and attribute in invocation.method_desc.write_to_self_attributes
                     ):
+                        print(
+                            f"INVALIDATED {isinstance(self.scope, InnerBlockScope)} {self.scope}"
+                        )
                         # Invalidate it!
-                        if isinstance(self.scope, InnerBlockScope):
+                        if (
+                            isinstance(self.scope, InnerBlockScope)
+                            and previous_block not in self.scope.blocks
+                        ):
                             latest_valid_block = previous_block
                         add_request(latest_valid_block)
                         return True
 
-                # It is already declared and not the first block.
-                if (
-                    variable in previous_block.definitions
-                    and previous_block.block_id != 0
-                ):
-                    add_request(latest_valid_block)
-                    return True
+                elif self._get_previous_invocation():
+                    invocation = self._get_previous_invocation()
 
-                if previous_block in self.sequential_blocks or isinstance(self.scope, InnerBlockScope):
+                    if (
+                        invocation
+                        and invocation.method_desc
+                        in class_desc.methods_dec  # Check if method belongs to same class desc.
+                        and attribute in invocation.method_desc.write_to_self_attributes
+                    ):
+                        add_request(latest_valid_block)
+                        return True
+
+                if previous_block in self.sequential_blocks or isinstance(
+                    self.scope, InnerBlockScope
+                ):
                     # It is already requested before and has not been invalidated by a call.
                     if (variable, class_desc) in previous_block.state_request:
                         return True
 
-                    # Occurrence of where we could put the request.
-                    if variable in previous_block.dependencies:
-                        latest_valid_block = previous_block
                 if block_index < 0:
                     previous_block = None
                 else:

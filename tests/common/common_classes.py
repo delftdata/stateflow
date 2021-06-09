@@ -56,6 +56,9 @@ class ExperimentalB:
     def add_balance(self, balance: int):
         self.balance += balance
 
+    def set_balance(self, balance: int):
+        self.balance = balance
+
     def balance_equal_to(self, equal_balance: int) -> bool:
         return self.balance == equal_balance
 
@@ -128,6 +131,29 @@ class ExperimentalA:
                 z = -1
 
         return z
+
+    def state_requests(self, items: List[ExperimentalB]):
+        total: int = 0
+        first_item: ExperimentalB = items[0]
+        print(f"Total is now {total}.")
+        total += first_item.balance  # Total = 0
+        first_item.set_balance(10)
+        total += first_item.balance  # total = 10
+        first_item.set_balance(0)
+        for x in items:
+            total += x.balance  # total = 10
+            x.set_balance(5)
+            total += x.balance  # total = 10 + 5 + 5 = 20
+
+        print(f"Total is now {total}.")
+        total += first_item.balance  # total = 25
+        if total > 0:
+            first_item.set_balance(1)
+
+        print(f"Total is now {total}.")
+
+        total += first_item.balanace  # total = 26
+        return total
 
     def __key__(self):
         return self.name

@@ -160,6 +160,8 @@ class ClassRef(object):
             event_id, self._fun_addr, EventType.Request.EventFlow, payload
         )
 
+        print(f"Now sending event flow to {self._fun_addr.key}.")
+
         return self._client.send(invoke_flow_event)
 
     def get_attribute(self, attr: str) -> StateflowFuture:

@@ -224,3 +224,19 @@ class TestE2E:
         except Exception as exc:
             raise exc
             assert False
+
+    def test_state_requests(self, start_and_stop):
+        try:
+            b: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
+            b_2: ExperimentalB = ExperimentalB(str(uuid.uuid4())).get(timeout=25)
+            a: ExperimentalA = ExperimentalA(str(uuid.uuid4())).get(timeout=10)
+
+            print("HERE!")
+
+            a_return = a.state_requests([b, b_2]).get(timeout=10)
+
+            assert a_return == 26
+            print("Asserts are done!")
+        except Exception as exc:
+            raise exc
+            assert False

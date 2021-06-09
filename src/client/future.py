@@ -67,6 +67,8 @@ class StateflowFuture(Generic[T]):
             self.result = self.return_type(__key=event.fun_address.key)
         elif event.event_type == EventType.Reply.Pong:
             self.result = None
+        elif event.event_type == EventType.Reply.KeyNotFound:
+            self.result = StateflowFailure(event.payload["error_message"])
         else:
             raise AttributeError(
                 f"Can't complete unknown even type: {event.event_type}"

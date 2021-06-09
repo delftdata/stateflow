@@ -111,7 +111,7 @@ class IngressRouter:
         current_node = flow_graph.current_node
         route_name: str = current_node.fun_type.get_full_name()
 
-        if current_node.typ == EventFlowNode.RETURN:
+        if current_node.typ == EventFlowNode.RETURN and current_node.next == -1:
             return Route(
                 RouteDirection.EGRESS,
                 route_name,
@@ -122,6 +122,7 @@ class IngressRouter:
                 ),
             )
         elif current_node.typ == EventFlowNode.REQUEST_STATE:
+            print(f"Now requesting state for {current_node.get_request_key()}.")
             key = current_node.get_request_key()
             return Route(RouteDirection.INTERNAL, route_name, key, event)
         elif current_node.typ == EventFlowNode.INVOKE_SPLIT_FUN:

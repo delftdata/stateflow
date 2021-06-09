@@ -336,7 +336,11 @@ class Block:
         self.definitions: List[str] = []
 
         # Keep track if we need to do any state requests for this block.
-        self.state_request: List[Tuple[str, ClassDescriptor]] = state_request.copy()
+        self.state_request: List[Tuple[str, ClassDescriptor]] = [
+            (x, y) for x, y in state_request
+        ]
+
+        print(f"Just created block {block_id} with {self.state_request}")
 
         # Labels are used for debugging and visualization.
         self.label = label
@@ -386,10 +390,18 @@ class Block:
         flow_node_id = node_id + 1
         nodes: List[EventFlowNode] = []
 
+        print(
+            f"My id is {self.block_id} and I'm adding {len(self.state_request)} requests."
+        )
+
         for el in self.state_request:
             var_name, class_desc = el
             request_node = RequestState(
                 FunctionType.create(class_desc), flow_node_id, var_name
+            )
+
+            print(
+                f"Now building request node with id {flow_node_id} and var name {var_name}"
             )
 
             if len(nodes) > 0:
@@ -697,6 +709,13 @@ class StatementBlock(Block):
         self.definitions.extend(
             list(self.split_context.original_method_desc.input_desc.keys())
         )
+        # We also add it as dependency.
+        non_dependency_param = [
+            key
+            for key in list(self.split_context.original_method_desc.input_desc.keys())
+            if key not in self.dependencies
+        ]
+        self.dependencies.extend(non_dependency_param)
 
         # Step 1, copy original parameters.
         fun_name: cst.Name = cst.Name(self.fun_name())

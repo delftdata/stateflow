@@ -17,6 +17,9 @@ class Item:
         self.stock += amount
         return True
 
+    def set_stock(self, amount: int):
+        self.stock = amount
+
     def __key__(self):
         return self.item_name
 
@@ -57,6 +60,30 @@ class User:
             else:
                 user.update_balance(4)
             i += 1
+
+    def state_requests(self, items: List[Item]):
+        total: int = 0
+        first_item: Item = items[0]
+        print(f"Total is now {total}.")
+        total += first_item.stock  # Total = 0
+        first_item.set_stock(10)
+        total += first_item.stock  # total = 10
+        first_item.set_stock(0)
+        for x in items:
+            print(f"Item key is {x._key}")
+            total += x.stock  # total = 10
+            x.set_stock(5)
+            total += x.stock  # total = 10 + 5 + 5 = 20
+
+        print(f"Total is now {total}.")
+        total += first_item.stock  # total = 25
+        if total > 0:
+            first_item.set_stock(1)
+
+        print(f"Total is now {total}.")
+
+        total += first_item.stock  # total = 26
+        return total
 
     def __key__(self):
         return self.username

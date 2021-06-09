@@ -116,6 +116,10 @@ class ConditionalBlock(Block):
         # Initialize id.
         flow_node_id = node_id + len(nodes_block) + 1  # Offset the id.
 
+        latest_node: Optional[EventFlowNode] = (
+            None if len(nodes_block) == 0 else nodes_block[-1]
+        )
+
         # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
         class_type = self.split_context.class_desc.to_function_type()
 
@@ -133,6 +137,10 @@ class ConditionalBlock(Block):
             if_true_block_id=self.true_block.block_id,
             if_false_block_id=self.false_block.block_id,
         )
+
+        if latest_node:
+            latest_node.set_next(invoke_conditional.id)
+            invoke_conditional.set_previous(latest_node.id)
 
         # The 'true' and 'false' block are updated later on.
         # We don't know their id's yet.

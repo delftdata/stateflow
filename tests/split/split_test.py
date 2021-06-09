@@ -74,7 +74,7 @@ def test_split_dependencies():
     visualize(stmts, code=True)
 
     assert len(stmts) == 2
-    assert stmts[0].dependencies == ["c", "d"]
+    assert stmts[0].dependencies == ["c", "d", "b"]
     assert stmts[1].dependencies == ["d", "get_a_return"]
 
 
@@ -126,7 +126,7 @@ def test_split_dependencies_more():
     stmts = analyzer.blocks
 
     assert len(stmts) == 2
-    assert stmts[0].dependencies == ["c", "d", "e"]
+    assert stmts[0].dependencies == ["c", "d", "e", "b"]
     assert stmts[1].dependencies == ["e", "g", "d", "get_a_return"]
 
 
@@ -543,9 +543,9 @@ def test_if_statements():
     a = self.a + self.b
     """
     assert isinstance(blocks[0], StatementBlock)
-    assert (
-        blocks[0].dependencies == []
-    )  # Actually it has dependencies, but those are in the parameters we assume.
+    assert blocks[0].dependencies == [
+        "other"
+    ]  # Actually it has dependencies, but those are in the parameters we assume.
     assert blocks[0].definitions == ["a", "other"]  # We add parameters as definitions.
     assert blocks[0].previous_block is None
     assert blocks[0].next_block == [blocks[1]]
@@ -843,6 +843,11 @@ def test_request_state():
             state.dummy_call()
             x2 = state.x
 
+        def request_state_simple_invalidate(self, state: "StateClass"):
+            x1 = state.x
+            state.invalidate()
+            x2 = state.x
+
         def request_state_invalidate(self, state: "StateClass"):
             x1 = state.x
             if x1 > 0:
@@ -888,12 +893,19 @@ def test_request_state():
         def request_for(self, state: List["StateClass"]):
             y: "StateClass" = state[0]
             x1 = y.x
-
+            y.invalidate()
             for x in state:
                 print(x.x)
-                state.dummy_call()
+                x.dummy_call()
 
             x2 = y.x
+
+        def request_rename(self, state: List["StateClass"]):
+            x: StateClass = state[0]
+            y: StateClass = x
+            x.x
+            y.invalidate()
+            x.x
 
     stateflow.stateflow(StateClass, parse_file=False)
     wrapper = stateflow.registered_classes[0]
@@ -931,6 +943,7 @@ def test_request_state():
     assert len(flow) == 6
     assert isinstance(flow[1], RequestState)
     assert flow[1].var_name == "state"
+    assert flow[1].fun_type.name == "StateClass"
     assert len(request_blocks) == 1
 
     method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
@@ -957,6 +970,14 @@ def test_request_state():
     flow = method_desc.flow_list
     request_blocks = [block for block in flow if isinstance(block, RequestState)]
     assert len(request_blocks) == 3
+    assert isinstance(flow[1], RequestState)
+    assert flow[1].var_name == "state"
+
+    assert isinstance(flow[10], RequestState)
+    assert flow[10].var_name == "state"
+
+    assert isinstance(flow[14], RequestState)
+    assert flow[14].var_name == "state"
 
     method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
         "request_state_invalidate_2"
@@ -982,6 +1003,11 @@ def test_request_state():
     flow = method_desc.flow_list
     request_blocks = [block for block in flow if isinstance(block, RequestState)]
     assert len(request_blocks) == 2
+    assert isinstance(flow[1], RequestState)
+    assert flow[1].var_name == "state"
+
+    assert isinstance(flow[11], RequestState)
+    assert flow[11].var_name == "state"
 
     method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
         "request_state_not_invalidate"
@@ -1007,6 +1033,8 @@ def test_request_state():
     flow = method_desc.flow_list
     request_blocks = [block for block in flow if isinstance(block, RequestState)]
     assert len(request_blocks) == 1
+    assert isinstance(flow[1], RequestState)
+    assert flow[1].var_name == "state"
 
     method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
         "request_for"
@@ -1032,6 +1060,65 @@ def test_request_state():
     flow = method_desc.flow_list
     request_blocks = [block for block in flow if isinstance(block, RequestState)]
     assert len(request_blocks) == 3
+
+    assert request_blocks[0].id == 1
+    assert request_blocks[0].var_name == "y"
+    assert request_blocks[1].id == 6
+    assert request_blocks[1].var_name == "x"
+    assert request_blocks[2].id == 10
+    assert request_blocks[2].var_name == "y"
+
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "request_state_simple_invalidate"
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+    dataflow_visualizer.visualize(blocks, True)
+    method_desc.split_function(blocks)
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
+    flow = method_desc.flow_list
+    request_blocks = [block for block in flow if isinstance(block, RequestState)]
+    assert len(request_blocks) == 2
+
+    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+        "request_rename"
+    )
+
+    analyzer = SplitAnalyzer(
+        wrapper.class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            wrapper.class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            stateflow.registered_classes[0].class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    blocks: List[Block] = analyzer.blocks
+    dataflow_visualizer.visualize(blocks, True)
+    method_desc.split_function(blocks)
+    dataflow_visualizer.visualize_flow(method_desc.flow_list)
+
+    flow = method_desc.flow_list
+    request_blocks = [block for block in flow if isinstance(block, RequestState)]
+    assert len(request_blocks) == 2
+    assert request_blocks[0].id == 1
+    assert request_blocks[1].id == 4
 
 
 def test_for_loop_items():
