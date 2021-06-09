@@ -1061,11 +1061,11 @@ def test_request_state():
     request_blocks = [block for block in flow if isinstance(block, RequestState)]
     assert len(request_blocks) == 3
 
-    assert request_blocks[0].id == 1
+    assert request_blocks[0].id == 2
     assert request_blocks[0].var_name == "y"
-    assert request_blocks[1].id == 6
+    assert request_blocks[1].id == 7
     assert request_blocks[1].var_name == "x"
-    assert request_blocks[2].id == 10
+    assert request_blocks[2].id == 11
     assert request_blocks[2].var_name == "y"
 
     method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
@@ -1117,8 +1117,8 @@ def test_request_state():
     flow = method_desc.flow_list
     request_blocks = [block for block in flow if isinstance(block, RequestState)]
     assert len(request_blocks) == 2
-    assert request_blocks[0].id == 1
-    assert request_blocks[1].id == 4
+    assert request_blocks[0].id == 2
+    assert request_blocks[1].id == 5
 
 
 def test_for_loop_items():
