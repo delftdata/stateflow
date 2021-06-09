@@ -402,7 +402,9 @@ class InvokeExternal(EventFlowNode):
 
         # We assume there is always only one next node for this EventFlowNode type.
         next_node: EventFlowNode = graph.get_node_by_id(self.next[0])
-        if isinstance(next_node, InvokeSplitFun):
+        if isinstance(next_node, InvokeSplitFun) or isinstance(
+            next_node, InvokeConditional
+        ):
             self._set_return_result(invocation.return_results)
         elif isinstance(next_node, RequestState):
             print(next_node.to_dict())
@@ -763,6 +765,15 @@ class InvokeConditional(EventFlowNode):
         else:
             next_node = graph.get_node_by_id(self.if_false_node)
 
+        if next_node.typ == EventFlowNode.REQUEST_STATE:
+            if next_node.var_name in self.output:
+                next_node.set_request_key(self.output[next_node.var_name]._get_key())
+            else:
+                instance_var = self._collect_incomplete_input(
+                    graph, [next_node.var_name]
+                )[next_node.var_name]
+                next_node.set_request_key(instance_var._get_key())
+
         return next_node, invocation.updated_state, instance
 
     def resolve_next(self, nodes: List[EventFlowNode], block):
@@ -919,7 +930,16 @@ class InvokeFor(EventFlowNode):
             self.output[self.iter_target] = return_results[0]
             self.output[self.iter_name] = return_results[-1]
             next_node = graph.get_node_by_id(self.for_body_node)
+            print(f"Iteration type {next_node.typ}")
 
+        if next_node.typ == EventFlowNode.REQUEST_STATE:
+            if next_node.var_name in self.output:
+                next_node.set_request_key(self.output[next_node.var_name]._get_key())
+            else:
+                instance_var = self._collect_incomplete_input(
+                    graph, [next_node.var_name]
+                )[next_node.var_name]
+                next_node.set_request_key(instance_var._get_key())
         return next_node, state, instance
 
     def resolve_next(self, nodes: List[EventFlowNode], block):

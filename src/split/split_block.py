@@ -159,6 +159,9 @@ class StatementAnalyzer(cst.CSTVisitor):
         """
         self._visit_assignment()
 
+    def visit_Annotation(self, node: cst.Annotation):
+        return False
+
     def leave_Assign(self, node: cst.Assign):
         """Leaves an assignment.
 

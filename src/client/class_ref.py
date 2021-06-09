@@ -119,35 +119,35 @@ class ClassRef(object):
         """
 
         to_assign = list(args.get_keys())
-        # TODO REWORK THIS
+        flow_for_params: List = []
+
+        # Get the first nodes up and until the first InvokeSplitFun.
+        # For example: RequestState, RequestState, InvokeSplitFun.
         for f in flow:
+            flow_for_params.append(f)
+            if f.typ == EventFlowNode.INVOKE_SPLIT_FUN:
+                break
+
+        for f in flow_for_params:
             to_remove = []
             for arg in to_assign:
                 arg_value = args[arg]
-                if (
-                    arg in f.input
-                    and not isinstance(arg_value, ClassRef)
-                    and not isinstance(arg_value, list)
-                ):
-                    f.input[arg] = args[arg]
-                    to_remove.append(arg)
-                elif (
-                    isinstance(arg_value, ClassRef)
-                    and f.typ == EventFlowNode.REQUEST_STATE
-                ):
-                    f.set_request_key(arg_value._fun_addr.key)
-                    to_remove.append(arg)
-                elif arg in f.input and isinstance(arg_value, ClassRef):
-                    f.input[arg] = arg_value.to_internal_ref()
-                    to_remove.append(arg)
-                elif (
-                    arg in f.input
-                    and isinstance(arg_value, list)
-                    and all(isinstance(el, ClassRef) for el in arg_value)
-                ):
-                    f.input[arg] = [el.to_internal_ref()._to_dict() for el in arg_value]
-                    to_remove.append(arg)
 
+                if isinstance(arg_value, ClassRef):
+                    arg_value = arg_value.to_internal_ref()
+                elif isinstance(arg_value, list) and all(
+                    isinstance(el, ClassRef) for el in arg_value
+                ):
+                    arg_value = [el.to_internal_ref() for el in arg_value]
+
+                print(arg_value)
+
+                if f.typ == EventFlowNode.REQUEST_STATE and f.var_name == arg:
+                    f.set_request_key(arg_value._get_key())
+                    to_remove.append(arg)
+                elif arg in f.input:
+                    f.input[arg] = arg_value
+                    to_remove.append(arg)
             to_assign = [el for el in to_assign if el not in to_remove]
 
         flow_graph = EventFlowGraph(flow[0], flow)

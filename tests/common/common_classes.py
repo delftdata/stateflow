@@ -152,7 +152,7 @@ class ExperimentalA:
 
         print(f"Total is now {total}.")
 
-        total += first_item.balanace  # total = 26
+        total += first_item.balance  # total = 26
         return total
 
     def __key__(self):

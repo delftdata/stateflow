@@ -82,6 +82,7 @@ class User:
 
         print(f"Total is now {total}.")
 
+        first_item: Item = first_item
         total += first_item.stock  # total = 26
         return total
 

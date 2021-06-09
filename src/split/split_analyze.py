@@ -131,6 +131,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
         # Definitions so far (including those of the parent block).
         self.annotated_definitions: List[Def] = annotated_definitions
+        self.unprocessed_annotated_definitions: List[Def] = []
 
         # Keep track if we're currently processing an if-statement.
         self._processing_if: bool = False
@@ -166,6 +167,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         self.blocks.append(block)
         self.sequential_blocks.append(block)
         self.state_request.clear()
+        self.unprocessed_annotated_definitions.clear()
 
     def _analyze_statements(self):
         for stmt in self.unparsed_statements:
@@ -380,6 +382,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             )
             definition: Def = Def(node.target.value, typ)
             self.annotated_definitions.append(definition)
+            self.unprocessed_annotated_definitions.append(definition)
 
     def visit_AssignTarget(self, node: cst.AssignTarget):
         is_tuple: bool = m.matches(node, m.AssignTarget(target=m.Tuple()))
@@ -390,8 +393,12 @@ class SplitAnalyzer(cst.CSTVisitor):
                     element.value, m.Name()
                 ):
                     self.annotated_definitions.append(Def(element.value.value))
+                    self.unprocessed_annotated_definitions.append(
+                        Def(element.value.value)
+                    )
         else:
             self.annotated_definitions.append(Def(node.target.value))
+            self.unprocessed_annotated_definitions.append(Def(node.target.value))
 
     def visit_For(self, node: cst.For):
         """
@@ -688,13 +695,12 @@ class SplitAnalyzer(cst.CSTVisitor):
                 if block:
                     print(f"Added to {block.block_id}")
                     block.state_request.append((variable, class_desc))
-                elif self.current_block_id == 0:
-                    print(f"Added to 0")
-                    self.state_request.append((variable, class_desc))
                 else:
-                    self.state_request.append((variable, class_desc))
-                    if len(self.statements) > 0:
+                    if variable in [
+                        d.name for d in self.unprocessed_annotated_definitions
+                    ]:
                         self._process_stmt_block_without_invocation("request state")
+                    self.state_request.append((variable, class_desc))
                     print(f"Added to self {self.current_block_id}, {self}")
                     print(self.state_request)
 
@@ -713,9 +719,12 @@ class SplitAnalyzer(cst.CSTVisitor):
 
                 # Check if the previous block has an invocation which invalidates the state.
                 previous_context: SplitContext = previous_block.split_context
-                if hasattr(previous_context, "previous_invocation"):
+                if (
+                    hasattr(previous_context, "previous_invocation")
+                    and getattr(previous_context, "previous_invocation") is not None
+                ):
                     invocation: InvocationContext = getattr(
-                        previous_context, "previous_invocation", None
+                        previous_context, "previous_invocation"
                     )  # or getattr(previous_context, "current_invocation", None)
                     print(f"Found an invocation! {invocation}")
                     print(
@@ -744,7 +753,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
                 elif self._get_previous_invocation():
                     invocation = self._get_previous_invocation()
-
+                    print("Found previous invocation for this block!")
                     if (
                         invocation
                         and invocation.method_desc

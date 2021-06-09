@@ -38,7 +38,7 @@ def test_split_dependencies():
             self.b = 0
 
         def get_a(self, b: B, c: int, d: int):
-            a = 3
+            a: B = 3
             d = c + 1 + a + d
             b_new = b.get_a()
             return self.a + b_new + d
