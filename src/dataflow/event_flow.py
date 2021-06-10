@@ -417,6 +417,12 @@ class InvokeExternal(EventFlowNode):
 
         return next_node, invocation.updated_state, instance
 
+    def __eq__(self, other):
+        if not isinstance(other, InvokeExternal):
+            return False
+        else:
+            return self.to_dict() == other.to_dict()
+
     def set_key(self, key: str):
         self.key = key
 

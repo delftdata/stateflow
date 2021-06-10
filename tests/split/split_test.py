@@ -1274,6 +1274,9 @@ def test_nested_execution():
         split, stateflow.registered_classes[1].class_desc, "is_really_true"
     )
 
+    # We don't need to split it!
+    is_really_true_method.flow_list = []
+
     from split.execution_plan_merging import ExecutionPlanMerger
 
     merger = ExecutionPlanMerger(
@@ -1284,10 +1287,19 @@ def test_nested_execution():
     assert len(replace) == 0
 
     replace = merger.mark_replacement_nodes(is_true_method.flow_list)
-    assert len(replace) == 1
+    assert len(replace) == 0
 
     replace = merger.mark_replacement_nodes(nest_other_method.flow_list)
-    assert len(replace) == 2
+    assert len(replace) == 1
 
     replace = merger.mark_replacement_nodes(nest_method.flow_list)
-    assert len(replace) == 6
+    assert len(replace) == 4
+
+    assert [x.id for x in is_true_method.flow_list] == [
+        x.id for x in merger.replace_and_merge(is_true_method.flow_list)
+    ]
+
+    from src.util.dataflow_visualizer import visualize_flow
+
+    print("lets go")
+    visualize_flow(merger.replace_and_merge(nest_other_method.flow_list))
