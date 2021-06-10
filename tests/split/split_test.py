@@ -1195,3 +1195,99 @@ def test_for_loop_items():
     print(invoke_for.for_body_node)
     assert invoke_for.for_body_node != -1
     assert invoke_for.else_node == -1
+
+
+def do_split(split, class_desc, method_name: str):
+    method_desc = class_desc.get_method_by_name(method_name)
+
+    analyzer = SplitAnalyzer(
+        class_desc.class_node,
+        SplitContext(
+            split.name_to_descriptor,
+            class_desc.expression_provider,
+            method_desc.method_node,
+            method_desc,
+            class_desc,
+        ),
+        method_desc.method_node.body.children,
+    )
+
+    method_desc.split_function(analyzer.blocks)
+
+    return analyzer, method_desc
+
+
+def test_nested_execution():
+    stateflow.clear()
+
+    class OtherNestClass:
+        def __init__(self, x: int):
+            self.x = x
+
+        def is_really_true(self):
+            return True
+
+        def is_true(self, other: "OtherNestClass"):
+            is_really_true: bool = other.is_really_true()
+            return is_really_true
+
+        def nest_call(self, other: "OtherNestClass") -> bool:
+            z = 0
+            is_true = other.is_true()
+            return is_true
+
+    class NestClass:
+        def __init__(self, x: int):
+            self.x = x
+
+        def nest_call(self, other: OtherNestClass):
+            y = other.x
+            z = 3
+
+            if other.nest_call():
+                p = 3
+
+            other.nest_call()
+
+            return y, z, p
+
+    stateflow.stateflow(NestClass, parse_file=False)
+    stateflow.stateflow(OtherNestClass, parse_file=False)
+
+    split = Split(
+        [cls.class_desc for cls in stateflow.registered_classes],
+        stateflow.registered_classes,
+    )
+
+    nest_analyzer, nest_method = do_split(
+        split, stateflow.registered_classes[0].class_desc, "nest_call"
+    )
+    nest_other, nest_other_method = do_split(
+        split, stateflow.registered_classes[1].class_desc, "nest_call"
+    )
+
+    is_true, is_true_method = do_split(
+        split, stateflow.registered_classes[1].class_desc, "is_true"
+    )
+
+    is_really_true, is_really_true_method = do_split(
+        split, stateflow.registered_classes[1].class_desc, "is_really_true"
+    )
+
+    from split.execution_plan_merging import ExecutionPlanMerger
+
+    merger = ExecutionPlanMerger(
+        [cls.class_desc for cls in stateflow.registered_classes]
+    )
+
+    replace = merger.mark_replacement_nodes(is_really_true_method.flow_list)
+    assert len(replace) == 0
+
+    replace = merger.mark_replacement_nodes(is_true_method.flow_list)
+    assert len(replace) == 1
+
+    replace = merger.mark_replacement_nodes(nest_other_method.flow_list)
+    assert len(replace) == 2
+
+    replace = merger.mark_replacement_nodes(nest_method.flow_list)
+    assert len(replace) == 6
