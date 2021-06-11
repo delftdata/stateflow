@@ -142,29 +142,31 @@ class EventFlowNode:
         output: Dict[str, Any] = {}
 
         while len(input_variables) > 0 and previous is not None:
-            for key in previous.output.keys():
-                if key in input_variables:
-                    """We cover two cases here:
-                    1. Previous node is a REQUEST_STATE one. We create an InternalClassRef and set that input variable.
-                    2. It is any other node, now if the variable name is _in_ the output of this node
-                        then we set this as input for this node.
-                    TODO: Consider just passing a InternalClassRef around.
-                    """
-                    # if previous.typ == EventFlowNode.REQUEST_STATE:
-                    #     request_state_output: Dict[str, Any] = previous.output[key]
-                    #     print(request_state_output)
-                    #     key_of_state: str = request_state_output.get("__key")
-                    #
-                    #     internal_class_ref = InternalClassRef(
-                    #         key_of_state, previous.fun_type, request_state_output
-                    #     )
-                    #
-                    #     output[key] = internal_class_ref
-                    if previous.output[key] is not Null:
-                        output[key] = previous.output[key]
+            # We skip scopes of other method calls.
+            if previous.method_id == self.method_id:
+                for key in previous.output.keys():
+                    if key in input_variables:
+                        """We cover two cases here:
+                        1. Previous node is a REQUEST_STATE one. We create an InternalClassRef and set that input variable.
+                        2. It is any other node, now if the variable name is _in_ the output of this node
+                            then we set this as input for this node.
+                        TODO: Consider just passing a InternalClassRef around.
+                        """
+                        # if previous.typ == EventFlowNode.REQUEST_STATE:
+                        #     request_state_output: Dict[str, Any] = previous.output[key]
+                        #     print(request_state_output)
+                        #     key_of_state: str = request_state_output.get("__key")
+                        #
+                        #     internal_class_ref = InternalClassRef(
+                        #         key_of_state, previous.fun_type, request_state_output
+                        #     )
+                        #
+                        #     output[key] = internal_class_ref
+                        if previous.output[key] is not Null:
+                            output[key] = previous.output[key]
 
-                    # We found the variable, so we don't need to look for it anymore.
-                    input_variables.remove(key)
+                        # We found the variable, so we don't need to look for it anymore.
+                        input_variables.remove(key)
 
             # We do a step backwards in the state machine.
             if isinstance(previous, InvokeFor):
@@ -305,14 +307,19 @@ class EventFlowGraph:
 
 
 class StartNode(EventFlowNode):
-    def __init__(self, id: int):
-        super().__init__(EventFlowNode.START, None, id)
+    def __init__(self, id: int, fun_type: FunctionType, key: str = ""):
+        super().__init__(EventFlowNode.START, fun_type, id)
+
+        self.key: str = key
 
         # There is no previous.
         self.previous = -1
 
     def to_dict(self):
-        return super().to_dict()
+        return_dict = super().to_dict()
+        return_dict["key"] = self.key
+
+        return return_dict
 
     def step(
         self,
@@ -326,15 +333,19 @@ class StartNode(EventFlowNode):
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
-        return StartNode(dict["id"])
+        return StartNode(dict["id"], fun_type, dict["key"])
 
 
 class ReturnNode(EventFlowNode):
-    def __init__(self, id: int):
+    def __init__(self, id: int, return_name: str = ""):
         super().__init__(EventFlowNode.RETURN, None, id)
+        self.return_name = return_name
 
     def to_dict(self):
-        return super().to_dict()
+        return_dict = super().to_dict()
+        return_dict["return_name"] = self.return_name
+
+        return return_dict
 
     def step(
         self,
@@ -353,7 +364,7 @@ class ReturnNode(EventFlowNode):
 
     @staticmethod
     def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
-        return ReturnNode(dict["id"])
+        return ReturnNode(dict["id"], dict["return_name"])
 
 
 class InvokeExternal(EventFlowNode):
@@ -369,7 +380,10 @@ class InvokeExternal(EventFlowNode):
         self.output[f"{self.fun_name}_return"] = Null
 
     def _set_return_result(self, output: Any):
-        self.output[f"{self.fun_name}_return"] = output
+        self.output[self.get_output_name()] = output
+
+    def get_output_name(self) -> str:
+        return f"{self.fun_name}_return"
 
     def step(
         self,
@@ -576,7 +590,7 @@ class InvokeSplitFun(EventFlowNode):
             In this scenario, we traverse towards the return node.
         """
 
-        # Step 1, a failed invocation. TODO: needs proper handling.
+        # Step 1, a failed invocation. TODO: needs proper self._get_output_name()handling.
         if isinstance(invocation, FailedInvocation):
             raise AttributeError(
                 f"Expected a successful invocation but got a failed one: {invocation.message}."
@@ -604,13 +618,26 @@ class InvokeSplitFun(EventFlowNode):
                 graph, EventFlowNode.INVOKE_EXTERNAL
             )
 
-            next_node.set_key(invoke_method_request["call_instance_ref"])
+            if next_node:
+                next_node.set_key(invoke_method_request["call_instance_ref"])
 
-            # We assume that arguments in the InvokeMethodRequest are in the correct order.
-            print(f"Next node {next_node.id} {next_node.fun_name} { next_node}")
-            print(f"Next node keys {next_node.input.keys()}")
-            for i, arg_key in enumerate(next_node.input.keys()):
-                next_node.input[arg_key] = invoke_method_request["args"][i]
+                # We assume that arguments in the InvokeMethodRequest are in the correct order.
+                print(f"Next node {next_node.id} {next_node.fun_name} { next_node}")
+                print(f"Next node keys {next_node.input.keys()}")
+                for i, arg_key in enumerate(next_node.input.keys()):
+                    next_node.input[arg_key] = invoke_method_request["args"][i]
+            else:
+                # Next node is StartNode
+                next_node: StartNode = self._get_next_node_by_type(
+                    graph, EventFlowNode.START
+                )
+
+                next_node.key = invoke_method_request["call_instance_ref"]
+
+                # TODO FIND FIX IF FIRST NODE IS REQUEST STATE!
+                for i, arg_key in enumerate(next_node.input.keys()):
+                    next_node.input[arg_key] = invoke_method_request["args"][i]
+
         elif (
             len(return_results) > 0
             and isinstance(return_results[-1], dict)

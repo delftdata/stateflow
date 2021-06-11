@@ -157,3 +157,46 @@ class ExperimentalA:
 
     def __key__(self):
         return self.name
+
+
+@stateflow.stateflow
+class OtherNestClass:
+    def __init__(self, x: int):
+        self.id = str(uuid.uuid4())
+        self.x = x
+
+    def is_really_true(self):
+        return True
+
+    def is_true(self, other: "OtherNestClass"):
+        is_really_true: bool = other.is_really_true()
+        return is_really_true
+
+    def nest_call(self, other: "OtherNestClass") -> bool:
+        z = 0
+        is_true = other.is_true()
+        return is_true
+
+    def __key__(self):
+        return self.id
+
+
+@stateflow.stateflow
+class NestClass:
+    def __init__(self, x: int):
+        self.id = str(uuid.uuid4())
+        self.x = x
+
+    def nest_call(self, other: OtherNestClass):
+        y = other.x
+        z = 3
+
+        if other.nest_call():
+            p = 3
+
+        other.nest_call()
+
+        return y, z, p
+
+    def __key__(self):
+        return self.id

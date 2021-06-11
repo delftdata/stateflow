@@ -19,6 +19,7 @@ from src.split.split_block import (
     Def,
     StatementAnalyzer,
 )
+from src.split.execution_plan_merging import ExecutionPlanMerger
 from src.split.conditional_block import ConditionalBlock, ConditionalBlockContext
 from src.split.for_block import ForBlock
 from src.split.split_transform import RemoveAfterClassDefinition, SplitTransformer
@@ -905,3 +906,6 @@ class Split:
                 exec(compile(modified_tree.code, "", mode="exec"), globals(), globals())
                 # self.wrappers[i].cls = globals()[desc.class_name]
                 self.wrappers[i].cls = modified_tree.code
+
+        plan_merger = ExecutionPlanMerger(self.descriptors)
+        plan_merger.execute_merge()

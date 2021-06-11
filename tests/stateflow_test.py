@@ -5,6 +5,8 @@ from tests.common.common_classes import (
     Item,
     ExperimentalB,
     ExperimentalA,
+    NestClass,
+    OtherNestClass,
 )
 from src.client.kafka_client import StateflowKafkaClient
 from src.runtime.flink_runtime import FlinkRuntime
@@ -236,6 +238,21 @@ class TestE2E:
             a_return = a.state_requests([b, b_2]).get(timeout=10)
 
             assert a_return == 26
+            print("Asserts are done!")
+        except Exception as exc:
+            raise exc
+            assert False
+
+    def test_nested_calls(self, start_and_stop):
+        try:
+            nest_other: OtherNestClass = OtherNestClass(11).get(timeout=25)
+            nest: OtherNestClass = OtherNestClass(3).get(timeout=25)
+
+            y, z, p = nest.nest_call(nest_other).get(timeout=10)
+
+            assert y == 0
+            assert z == 0
+            assert p == 0
             print("Asserts are done!")
         except Exception as exc:
             raise exc

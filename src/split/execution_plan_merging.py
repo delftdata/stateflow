@@ -30,6 +30,15 @@ class ExecutionPlanMerger:
                 self.method_descriptors.append(m_desc)
                 self.method_to_fun_type[m_desc] = c_desc.to_function_type()
 
+    def execute_merge(self):
+        updates: Dict[MethodDescriptor, List[EventFlowNode]] = {}
+        for method in self.method_descriptors:
+            if method.is_splitted_function():
+                updates[method] = self.replace_and_merge(method.flow_list)
+
+        for method, flow_list in updates.items():
+            method.flow_list = flow_list
+
     def _is_match(self, flow_node: EventFlowNode) -> Optional[MethodDescriptor]:
         """Matches an InvokeExternal flow node to the correct method descriptor.
 
@@ -116,6 +125,7 @@ class ExecutionPlanMerger:
             # We already visited this node.
             if current_node in discovered:
                 continue
+
             discovered.append(current_node)
 
             # Find if we need to 'replace' this node.
@@ -166,6 +176,7 @@ class ExecutionPlanMerger:
                 ]
 
                 for return_node in to_link_return:
+                    return_node.return_name = current_node.get_output_name()
                     return_node.next = current_node.next
                     nodes_to_relink.append(return_node)
 

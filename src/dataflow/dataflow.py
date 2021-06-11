@@ -56,20 +56,38 @@ class EgressRouter:
         current_node = flow_graph.current_node
 
         if current_node.typ == EventFlowNode.RETURN:
-            event_id = event.event_id
-            event = event.copy(
-                event_type=EventType.Reply.SuccessfulInvocation,
-                payload={"return_results": current_node.get_results()},
-            )
-            if self.serialize_on_return:
-                event = self.serializer.serialize_event(event)
+            if current_node.next == []:
+                event_id = event.event_id
+                event = event.copy(
+                    event_type=EventType.Reply.SuccessfulInvocation,
+                    payload={"return_results": current_node.get_results()},
+                )
+                if self.serialize_on_return:
+                    event = self.serializer.serialize_event(event)
 
-            return Route(
-                RouteDirection.CLIENT,
-                "",
-                event_id,
-                event,
-            )
+                return Route(
+                    RouteDirection.CLIENT,
+                    "",
+                    event_id,
+                    event,
+                )
+            else:
+                event_id = event.event_id
+                for next_node_id in current_node.next:
+                    next_node = flow_graph.get_node_by_id(next_node_id)
+
+                    # Get next node and set proper input.
+                    next_node[current_node.return_name] = current_node.get_results()
+
+                if self.serialize_on_return:
+                    event = self.serializer.serialize_event(event)
+
+                return Route(
+                    RouteDirection.INTERNAL,
+                    "",
+                    event_id,
+                    event,
+                )
         else:
             event_id = event.event_id
             if self.serialize_on_return:
@@ -129,6 +147,8 @@ class IngressRouter:
             return Route(
                 RouteDirection.INTERNAL, route_name, event.fun_address.key, event
             )
+        elif current_node.typ == EventFlowNode.START:
+            return Route(RouteDirection.INTERNAL, route_name, current_node.key, event)
         elif current_node.typ == EventFlowNode.INVOKE_EXTERNAL:
             return Route(RouteDirection.INTERNAL, route_name, current_node.key, event)
         elif current_node.typ == EventFlowNode.INVOKE_CONDITIONAL:
