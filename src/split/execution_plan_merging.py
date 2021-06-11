@@ -5,6 +5,7 @@ from src.dataflow.event_flow import (
     EventFlowNode,
     InvokeExternal,
     FunctionType,
+    InvokeConditional,
     StartNode,
 )
 from typing import List, Optional, Tuple, Dict
@@ -66,9 +67,15 @@ class ExecutionPlanMerger:
             if n.id == node_id:
                 return n
 
-    def replace_and_merge(self, flow_list: List[EventFlowNode]):
-        flow_list, lookup_table = self.replace_nested_invoke(flow_list)
-
+    def replace_and_merge(
+        self,
+        flow_list: List[EventFlowNode],
+        current_block_id: int = 0,
+        current_method_id: int = 0,
+    ) -> EventFlowNode:
+        flow_list, lookup_table = self.replace_nested_invoke(
+            flow_list, current_block_id, current_method_id
+        )
         return self.flatten(lookup_table)
 
     def flatten(self, t):
@@ -86,12 +93,12 @@ class ExecutionPlanMerger:
         flow_list: List[EventFlowNode] = copy.deepcopy(flow_list)
         replacement_nodes: List[ReplaceRequest] = self.mark_replacement_nodes(flow_list)
 
-        original_node_lookup: Dict[int, List[EventFlowNode]] = {}
-
         for node in flow_list:
-            original_node_lookup[node.id] = list(
-                filter(None, [self._node_by_id(n, flow_list) for n in node.next])
-            )
+            node.next = [self._node_by_id(n, flow_list) for n in node.next]
+
+            if isinstance(node, InvokeConditional):  # True and False
+                node.if_true_node = self._node_by_id(node.if_true_node, flow_list)
+                node.if_false_node = self._node_by_id(node.if_false_node, flow_list)
 
         # For each method_id we have a lookup table for which we can find the original node id's and the new node id's.
         lookup_table: List[List[EventFlowNode]] = [flow_list]
@@ -99,84 +106,92 @@ class ExecutionPlanMerger:
         stack: List[EventFlowNode] = [flow_list[0]]
         discovered: List[EventFlowNode] = []
 
-        id_to_node: Dict[int, EventFlowNode] = {}
-        unlinked_next_nodes: Dict[int, List[EventFlowNode]] = {}
-
+        nodes_to_relink: List[EventFlowNode] = []
         replaced: int = 0
 
         while len(stack) > 0:
             current_node: EventFlowNode = stack.pop()
             current_node.method_id = current_method_id
-            print(f"Current node with id {current_node.id}")
 
             # We already visited this node.
             if current_node in discovered:
                 continue
-
-            original_node_id: int = current_node.id
-            next_nodes: List[EventFlowNode] = original_node_lookup[original_node_id]
+            discovered.append(current_node)
 
             # Find if we need to 'replace' this node.
             replace_request: Optional[ReplaceRequest] = self._find_replace_request(
                 current_node, replacement_nodes
             )
             if replace_request:
+                print("IF CLAUSE")
                 replaced += 1
-                event_flow_nodes, nested_lookup_table = self.replace_nested_invoke(
+                new_nodes = self.replace_and_merge(
                     replace_request.method_to_insert.flow_list,
                     current_block_id,
-                    current_method_id + replaced,
+                    current_method_id + replaced + 1,
                 )
 
-                assert len(event_flow_nodes) > 0
-                assert len(nested_lookup_table) > 0
+                from src.util.dataflow_visualizer import visualize_flow
+
+                print(f"Now replaced {current_node} at level {current_method_id}")
+                visualize_flow(new_nodes)
+
+                assert len(new_nodes) > 0
+                assert new_nodes[0].id == current_block_id
 
                 # Update state.
-                current_block_id += len(self.flatten(nested_lookup_table))
-                lookup_table.extend(nested_lookup_table)
+                current_block_id += len(new_nodes)
+                lookup_table.append(new_nodes)
 
                 # Now we 'replace' the InvokeExternal with the resulting flow.
 
                 # We stitch the start node of this flow, to the incoming edges of the InvokeExternal.
-                start_node: StartNode = event_flow_nodes[0]
+                start_node: StartNode = new_nodes[0]
+                assert isinstance(start_node, StartNode)
 
                 to_link_to_start: List[EventFlowNode] = [
-                    node for node in discovered if original_node_id in node.next
+                    node for node in discovered if current_node in node.next
                 ]
 
                 # These can already be linked.
                 for node in to_link_to_start:
-                    node.set_next(start_node.id)
+                    node.set_next(start_node)
+                    node.next = [n for n in node.next if n != current_node]
 
                 # Now we have to link the return nodes of the nested flow, to the 'next' node.
                 to_link_return: List[EventFlowNode] = [
                     node
-                    for node in event_flow_nodes
-                    if node.typ == EventFlowNode.RETURN
+                    for node in new_nodes
+                    if node.typ == EventFlowNode.RETURN and node.next == []
                 ]
+
                 for return_node in to_link_return:
-                    unlinked_next_nodes[return_node.id] = next_nodes
-                    id_to_node[return_node.id] = return_node
+                    return_node.next = current_node.next
+                    nodes_to_relink.append(return_node)
 
                 flow_list.remove(current_node)
 
                 # Add next nodes to the stack
-                stack.extend(next_nodes)
+                stack.extend(current_node.next)
             else:
                 current_node.id = current_block_id
                 current_block_id += 1
 
-                unlinked_next_nodes[current_node.id] = next_nodes
-                id_to_node[current_node.id] = current_node
+                stack.extend(current_node.next)
 
-                stack.extend(next_nodes)
+        for node in flow_list:
+            if isinstance(node, InvokeConditional):
+                node.if_true_node = node.next[0].id
+                node.if_false_node = node.next[1].id
 
-        # Link 'unlinked' nodes.
-        for node_id, next_nodes in unlinked_next_nodes.items():
-            node: EventFlowNode = id_to_node[node_id]
+            node.next = [n.id for n in node.next]
 
-            node.next = []
-            node.set_next([n.id for n in next_nodes])
+        for node in nodes_to_relink:
+            if isinstance(node, InvokeConditional):
+                node.if_true_node = node.next[0].id
+                node.if_false_node = node.next[1].id
+
+            node.next = [n.id for n in node.next]
 
         return flow_list, lookup_table
 

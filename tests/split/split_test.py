@@ -1299,14 +1299,10 @@ def test_nested_execution():
         x.id for x in merger.replace_and_merge(is_true_method.flow_list)
     ]
 
+    # Very shallow tests
     from src.util.dataflow_visualizer import visualize_flow
 
-    print("lets go")
-    # visualize_flow(is_true_method.flow_list)
-    # visualize_flow(nest_other_method.flow_list)
     visualize_flow(merger.replace_and_merge(nest_other_method.flow_list))
 
-    print("lets go")
-    # visualize_flow(is_true_method.flow_list)
-    # visualize_flow(nest_other_method.flow_list)
-    visualize_flow(merger.replace_and_merge(nest_method.flow_list))
+    merged = merger.replace_and_merge(nest_method.flow_list)
+    assert len(merged) == 27
