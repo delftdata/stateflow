@@ -1302,4 +1302,11 @@ def test_nested_execution():
     from src.util.dataflow_visualizer import visualize_flow
 
     print("lets go")
+    # visualize_flow(is_true_method.flow_list)
+    # visualize_flow(nest_other_method.flow_list)
     visualize_flow(merger.replace_and_merge(nest_other_method.flow_list))
+
+    print("lets go")
+    # visualize_flow(is_true_method.flow_list)
+    # visualize_flow(nest_other_method.flow_list)
+    visualize_flow(merger.replace_and_merge(nest_method.flow_list))

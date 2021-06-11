@@ -58,6 +58,15 @@ def visualize_flow(flow: List[EventFlowNode]):
     dot = Digraph(comment="Visualized dataflow")
 
     nodes = []
+    colors = [
+        "black",
+        "purple3",
+        "seagreen",
+        "royalblue4",
+        "orangered3",
+        "yellow4",
+        "webmaroon",
+    ]
 
     for n in flow:
         if isinstance(n, InvokeConditional):
@@ -70,6 +79,7 @@ def visualize_flow(flow: List[EventFlowNode]):
                         "fillcolor": "lightskyblue",
                         "style": "filled",
                     },
+                    fontcolor=colors[n.method_id],
                 )
             )
         elif isinstance(n, InvokeExternal):
@@ -80,14 +90,12 @@ def visualize_flow(flow: List[EventFlowNode]):
                     style="filled",
                     shape="box",
                     fillcolor="darkseagreen3",
+                    fontcolor=colors[n.method_id],
                 )
             )
         else:
             nodes.append(
-                dot.node(
-                    str(n.id),
-                    label=str(n.typ),
-                )
+                dot.node(str(n.id), label=str(n.typ), fontcolor=colors[n.method_id])
             )
 
     for n in flow:

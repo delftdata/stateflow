@@ -75,13 +75,23 @@ class ExecutionPlanMerger:
         return [item for sublist in t for item in sublist]
 
     def replace_nested_invoke(
-        self, flow_list: List[EventFlowNode], current_block_id: int = 0
+        self,
+        flow_list: List[EventFlowNode],
+        current_block_id: int = 0,
+        current_method_id: int = 0,
     ) -> Tuple[List[EventFlowNode], List[List[EventFlowNode]]]:
         if len(flow_list) == 0:
             return flow_list, []
 
         flow_list: List[EventFlowNode] = copy.deepcopy(flow_list)
         replacement_nodes: List[ReplaceRequest] = self.mark_replacement_nodes(flow_list)
+
+        original_node_lookup: Dict[int, List[EventFlowNode]] = {}
+
+        for node in flow_list:
+            original_node_lookup[node.id] = list(
+                filter(None, [self._node_by_id(n, flow_list) for n in node.next])
+            )
 
         # For each method_id we have a lookup table for which we can find the original node id's and the new node id's.
         lookup_table: List[List[EventFlowNode]] = [flow_list]
@@ -92,38 +102,34 @@ class ExecutionPlanMerger:
         id_to_node: Dict[int, EventFlowNode] = {}
         unlinked_next_nodes: Dict[int, List[EventFlowNode]] = {}
 
+        replaced: int = 0
+
         while len(stack) > 0:
             current_node: EventFlowNode = stack.pop()
+            current_node.method_id = current_method_id
             print(f"Current node with id {current_node.id}")
 
             # We already visited this node.
             if current_node in discovered:
                 continue
 
-            print(current_node)
             original_node_id: int = current_node.id
-            next_nodes: List[EventFlowNode] = list(
-                filter(
-                    None, [self._node_by_id(n, flow_list) for n in current_node.next]
-                )
-            )
+            next_nodes: List[EventFlowNode] = original_node_lookup[original_node_id]
 
             # Find if we need to 'replace' this node.
             replace_request: Optional[ReplaceRequest] = self._find_replace_request(
                 current_node, replacement_nodes
             )
             if replace_request:
+                replaced += 1
                 event_flow_nodes, nested_lookup_table = self.replace_nested_invoke(
-                    replace_request.method_to_insert.flow_list, current_block_id
+                    replace_request.method_to_insert.flow_list,
+                    current_block_id,
+                    current_method_id + replaced,
                 )
 
                 assert len(event_flow_nodes) > 0
                 assert len(nested_lookup_table) > 0
-
-                from src.util.dataflow_visualizer import visualize_flow
-
-                print("JOE")
-                visualize_flow(event_flow_nodes)
 
                 # Update state.
                 current_block_id += len(self.flatten(nested_lookup_table))
@@ -133,7 +139,6 @@ class ExecutionPlanMerger:
 
                 # We stitch the start node of this flow, to the incoming edges of the InvokeExternal.
                 start_node: StartNode = event_flow_nodes[0]
-                print(f"StartNode == {isinstance(start_node, StartNode)}")
 
                 to_link_to_start: List[EventFlowNode] = [
                     node for node in discovered if original_node_id in node.next

@@ -72,10 +72,11 @@ class EventFlowNode:
     RETURN = "RETURN"
     START = "START"
 
-    def __init__(self, typ: str, fun_type: FunctionType, id: int):
+    def __init__(self, typ: str, fun_type: FunctionType, id: int, method_id: int = 0):
         self.id = id
         self.typ = typ
         self.fun_type = fun_type
+        self.method_id = method_id
 
         self.input = {}
         self.output = {}
