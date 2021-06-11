@@ -1277,7 +1277,7 @@ def test_nested_execution():
     # We don't need to split it!
     is_really_true_method.flow_list = []
 
-    from split.execution_plan_merging import ExecutionPlanMerger
+    from src.split.execution_plan_merging import ExecutionPlanMerger
 
     merger = ExecutionPlanMerger(
         [cls.class_desc for cls in stateflow.registered_classes]

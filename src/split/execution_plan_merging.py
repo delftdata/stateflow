@@ -153,6 +153,8 @@ class ExecutionPlanMerger:
                     unlinked_next_nodes[return_node.id] = next_nodes
                     id_to_node[return_node.id] = return_node
 
+                flow_list.remove(current_node)
+
                 # Add next nodes to the stack
                 stack.extend(next_nodes)
             else:
