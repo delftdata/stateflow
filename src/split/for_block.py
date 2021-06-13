@@ -105,7 +105,7 @@ except StopIteration:
         flow_node_id = node_id + len(nodes_block) + 1  # Offset the id.
 
         # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
-        class_type = self.split_context.class_desc.to_function_type()
+        class_type = self.split_context.class_desc.to_function_type().to_address()
 
         invoke_for: InvokeFor = InvokeFor(
             class_type,

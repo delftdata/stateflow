@@ -890,7 +890,9 @@ class Split:
                     from src.util import dataflow_visualizer
 
                     dataflow_visualizer.visualize(blocks=parsed_stmts, code=True)
-                    method.split_function(parsed_stmts)
+                    method.split_function(
+                        parsed_stmts, desc.to_function_type().to_address()
+                    )
                     dataflow_visualizer.visualize_flow(method.flow_list)
 
             if len(updated_methods) > 0:

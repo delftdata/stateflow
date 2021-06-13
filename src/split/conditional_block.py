@@ -121,7 +121,7 @@ class ConditionalBlock(Block):
         )
 
         # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
-        class_type = self.split_context.class_desc.to_function_type()
+        class_type = self.split_context.class_desc.to_function_type().to_address()
 
         """ For an conditional node, we assume the following scenario:
             1. We assume that if the conditional relies on an external function,

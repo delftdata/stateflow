@@ -254,19 +254,28 @@ class StatefulOperator(Operator):
 
     def _handle_event_flow(self, event: Event, state: State) -> Tuple[Event, State]:
         flow_graph: EventFlowGraph = event.payload["flow"]
+        current_address: FunctionAddress = flow_graph.current_node.fun_addr
+
         updated_state, instance = flow_graph.step(self.class_wrapper, state)
 
-        # Keep stepping!
-        while (
-            not (
-                isinstance(flow_graph.current_node, InvokeExternal)
-                or isinstance(flow_graph.current_node, RequestState)
-                or isinstance(flow_graph.current_node, ReturnNode)
+        # Keep stepping :)
+        while flow_graph.current_node.fun_addr == current_address:
+            if (
+                isinstance(flow_graph.current_node, ReturnNode)
+                and flow_graph.current_node.next == []
+                or flow_graph.current_node.next == -1
+            ):
+                break
+
+            print(
+                f"Stepping again {flow_graph.current_node.typ} and {flow_graph.current_node.to_dict()}"
             )
-            and flow_graph.current_node.fun_type == self.function_type
-        ):
             updated_state, _ = flow_graph.step(
                 self.class_wrapper, updated_state, instance
             )
+
+        print(
+            f"Now going to {flow_graph.current_node.fun_addr.to_dict()} {flow_graph.current_node.typ}"
+        )
 
         return event, updated_state

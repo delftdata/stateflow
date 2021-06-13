@@ -77,7 +77,9 @@ class EgressRouter:
                     next_node = flow_graph.get_node_by_id(next_node_id)
 
                     # Get next node and set proper input.
-                    next_node[current_node.return_name] = current_node.get_results()
+                    next_node.input[
+                        current_node.return_name
+                    ] = current_node.get_results()
 
                 if self.serialize_on_return:
                     event = self.serializer.serialize_event(event)
@@ -127,9 +129,11 @@ class IngressRouter:
     def _route_event_flow(self, event: Event) -> Route:
         flow_graph: EventFlowGraph = event.payload["flow"]
         current_node = flow_graph.current_node
-        route_name: str = current_node.fun_type.get_full_name()
+        route_name: str = current_node.fun_addr.function_type.get_full_name()
 
-        if current_node.typ == EventFlowNode.RETURN and current_node.next == -1:
+        if current_node.typ == EventFlowNode.RETURN and (
+            current_node.next == -1 or current_node.next == []
+        ):
             return Route(
                 RouteDirection.EGRESS,
                 route_name,
@@ -145,15 +149,21 @@ class IngressRouter:
             return Route(RouteDirection.INTERNAL, route_name, key, event)
         elif current_node.typ == EventFlowNode.INVOKE_SPLIT_FUN:
             return Route(
-                RouteDirection.INTERNAL, route_name, event.fun_address.key, event
+                RouteDirection.INTERNAL, route_name, current_node.fun_addr.key, event
             )
         elif current_node.typ == EventFlowNode.START:
-            return Route(RouteDirection.INTERNAL, route_name, current_node.key, event)
+            return Route(
+                RouteDirection.INTERNAL, route_name, current_node.fun_addr.key, event
+            )
         elif current_node.typ == EventFlowNode.INVOKE_EXTERNAL:
-            return Route(RouteDirection.INTERNAL, route_name, current_node.key, event)
+            print(f"Current node key {current_node.fun_addr.key}")
+            print(f"Other key {current_node.key}")
+            return Route(
+                RouteDirection.INTERNAL, route_name, current_node.fun_addr.key, event
+            )
         elif current_node.typ == EventFlowNode.INVOKE_CONDITIONAL:
             return Route(
-                RouteDirection.INTERNAL, route_name, event.fun_address.key, event
+                RouteDirection.INTERNAL, route_name, current_node.fun_addr.key, event
             )
         else:
             raise AttributeError(

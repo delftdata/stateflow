@@ -246,13 +246,17 @@ class TestE2E:
     def test_nested_calls(self, start_and_stop):
         try:
             nest_other: OtherNestClass = OtherNestClass(11).get(timeout=25)
-            nest: OtherNestClass = OtherNestClass(3).get(timeout=25)
+            nest: NestClass = NestClass(3).get(timeout=25)
 
             y, z, p = nest.nest_call(nest_other).get(timeout=10)
 
-            assert y == 0
-            assert z == 0
-            assert p == 0
+            assert y == 11
+            assert z == 3
+            assert p == 3
+
+            other_nest = nest_other.nest_calll(nest_other).get(timeout=10)
+            assert other_nest is True
+
             print("Asserts are done!")
         except Exception as exc:
             raise exc

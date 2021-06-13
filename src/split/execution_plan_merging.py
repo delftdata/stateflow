@@ -4,9 +4,11 @@ from src.descriptors import MethodDescriptor, ClassDescriptor
 from src.dataflow.event_flow import (
     EventFlowNode,
     InvokeExternal,
-    FunctionType,
+    FunctionAddress,
     InvokeConditional,
+    InvokeFor,
     StartNode,
+    Null,
 )
 from typing import List, Optional, Tuple, Dict
 from dataclasses import dataclass
@@ -37,6 +39,10 @@ class ExecutionPlanMerger:
                 updates[method] = self.replace_and_merge(method.flow_list)
 
         for method, flow_list in updates.items():
+            from src.util.dataflow_visualizer import visualize_flow
+
+            print(f"UPDATED FLOW {method.method_name}")
+            print(visualize_flow(flow_list))
             method.flow_list = flow_list
 
     def _is_match(self, flow_node: EventFlowNode) -> Optional[MethodDescriptor]:
@@ -49,13 +55,13 @@ class ExecutionPlanMerger:
             return None
 
         method_name: str = flow_node.fun_name
-        fun_type: FunctionType = flow_node.fun_type
+        fun_addr: FunctionAddress = flow_node.fun_addr
 
         # Find method which matches the name and the function type.
         for method_desc in self.method_descriptors:
             if (
                 method_name == method_desc.method_name
-                and self.method_to_fun_type[method_desc] == fun_type
+                and self.method_to_fun_type[method_desc] == fun_addr.function_type
                 and len(method_desc.flow_list) > 0
             ):
                 return method_desc
@@ -71,10 +77,14 @@ class ExecutionPlanMerger:
 
         return None
 
-    def _node_by_id(self, node_id: int, nodes: List[EventFlowNode]) -> EventFlowNode:
+    def _node_by_id(
+        self, node_id: int, nodes: List[EventFlowNode]
+    ) -> Optional[EventFlowNode]:
         for n in nodes:
             if n.id == node_id:
                 return n
+
+        return None
 
     def replace_and_merge(
         self,
@@ -108,6 +118,10 @@ class ExecutionPlanMerger:
             if isinstance(node, InvokeConditional):  # True and False
                 node.if_true_node = self._node_by_id(node.if_true_node, flow_list)
                 node.if_false_node = self._node_by_id(node.if_false_node, flow_list)
+
+            if isinstance(node, InvokeFor):
+                node.for_body_node = self._node_by_id(node.for_body_node, flow_list)
+                node.else_node = self._node_by_id(node.else_node, flow_list)
 
         # For each method_id we have a lookup table for which we can find the original node id's and the new node id's.
         lookup_table: List[List[EventFlowNode]] = [flow_list]
@@ -159,6 +173,10 @@ class ExecutionPlanMerger:
                 start_node: StartNode = new_nodes[0]
                 assert isinstance(start_node, StartNode)
 
+                # This node needs to copy the required input from the InvokeExternal.
+                for arg in current_node.args:
+                    start_node.output[arg] = Null
+
                 to_link_to_start: List[EventFlowNode] = [
                     node for node in discovered if current_node in node.next
                 ]
@@ -195,12 +213,20 @@ class ExecutionPlanMerger:
                 node.if_true_node = node.next[0].id
                 node.if_false_node = node.next[1].id
 
+            if isinstance(node, InvokeFor):
+                node.for_body_node = node.for_body_node.id
+                node.else_node = node.else_node.id if node.else_node else -1
+
             node.next = [n.id for n in node.next]
 
         for node in nodes_to_relink:
             if isinstance(node, InvokeConditional):
                 node.if_true_node = node.next[0].id
                 node.if_false_node = node.next[1].id
+
+            if isinstance(node, InvokeFor):
+                node.for_body_node = node.for_body_node.id
+                node.else_node = node.else_node.id if node.else_node else -1
 
             node.next = [n.id for n in node.next]
 

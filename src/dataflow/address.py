@@ -33,6 +33,9 @@ class FunctionType:
             "stateful": self.stateful,
         }
 
+    def to_address(self) -> "FunctionAddress":
+        return FunctionAddress(self, None)
+
     @staticmethod
     def create(desc) -> "FunctionType":
         name = desc.class_name

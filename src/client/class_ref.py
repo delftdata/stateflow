@@ -144,6 +144,7 @@ class ClassRef(object):
 
                 if f.typ == EventFlowNode.REQUEST_STATE and f.var_name == arg:
                     f.set_request_key(arg_value._get_key())
+                    f.fun_addr.key = arg_value._get_key()
                     to_remove.append(arg)
                 elif arg in f.input:
                     f.input[arg] = arg_value
@@ -151,6 +152,7 @@ class ClassRef(object):
             to_assign = [el for el in to_assign if el not in to_remove]
 
         flow_graph = EventFlowGraph(flow[0], flow)
+        flow_graph.set_function_address(flow[0], 0, self._fun_addr)
         flow_graph.step()
 
         payload = {"flow": flow_graph}
@@ -244,4 +246,4 @@ class ClassRef(object):
         return f"Class reference for {self._fun_addr.function_type.name} with key {self._fun_addr.key}."
 
     def to_internal_ref(self) -> InternalClassRef:
-        return InternalClassRef(self._fun_addr.key, self._fun_addr.function_type)
+        return InternalClassRef(self._fun_addr)

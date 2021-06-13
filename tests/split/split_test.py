@@ -273,28 +273,28 @@ def test_multiple_splits():
     assert node_one[0].id == 1 and isinstance(node_one[0], RequestState)
     assert node_one[0].next == [node_one[1].id]
     assert node_one[0].var_name == "b"
-    assert node_one[0].fun_type.name == "BB"
+    assert node_one[0].fun_addr.function_type.name == "BB"
 
     assert node_one[1].id == 2 and isinstance(node_one[1], RequestState)
     assert node_one[1].previous == node_one[0].id
     assert node_one[1].next == [node_one[2].id]
     assert node_one[1].var_name == "c"
-    assert node_one[1].fun_type.name == "CC"
+    assert node_one[1].fun_addr.function_type.name == "CC"
 
     assert node_one[2].id == 3 and isinstance(node_one[2], InvokeSplitFun)
     assert node_one[2].previous == node_one[1].id
     assert node_one[2].next == [node_one[3].id]
-    assert node_one[2].fun_type.name == "AA"
+    assert node_one[2].fun_addr.function_type.name == "AA"
 
     assert node_one[3].id == 4 and isinstance(node_one[3], InvokeExternal)
     assert node_one[3].previous == node_one[2].id
     assert node_one[3].next == []
-    assert node_one[3].fun_type.name == "BB"
+    assert node_one[3].fun_addr.function_type.name == "BB"
 
     node_last = stmts[-1].build_event_flow_nodes(0)
     assert len(node_last) == 2
     assert node_last[0].id == 1 and isinstance(node_last[0], InvokeSplitFun)
-    assert node_last[0].fun_type.name == "AA"
+    assert node_last[0].fun_addr.function_type.name == "AA"
 
     assert node_last[1].id == 2 and isinstance(node_last[1], ReturnNode)
     assert node_last[1].previous == node_last[0].id
@@ -302,9 +302,9 @@ def test_multiple_splits():
     node_inter = stmts[1].build_event_flow_nodes(0)
     assert len(node_inter) == 2
     assert node_inter[0].id == 1 and isinstance(node_inter[0], InvokeSplitFun)
-    assert node_inter[0].fun_type.name == "AA"
+    assert node_inter[0].fun_addr.function_type.name == "AA"
     assert node_inter[1].id == 2 and isinstance(node_inter[1], InvokeExternal)
-    assert node_inter[1].fun_type.name == "CC"
+    assert node_inter[1].fun_addr.function_type.name == "CC"
 
 
 def test_multiple_splits_with_returns():
@@ -395,14 +395,14 @@ def test_multiple_splits_with_returns():
 
     assert node_one[0].id == 1 and isinstance(node_one[0], RequestState)
     assert node_one[0].var_name == "b"
-    assert node_one[0].fun_type.name == "BBB"
+    assert node_one[0].fun_addr.function_type.name == "BBB"
 
     assert node_one[1].id == 2 and isinstance(node_one[1], RequestState)
     assert node_one[1].var_name == "c"
-    assert node_one[1].fun_type.name == "CCC"
+    assert node_one[1].fun_addr.function_type.name == "CCC"
 
     assert node_one[2].id == 3 and isinstance(node_one[2], InvokeSplitFun)
-    assert node_one[2].fun_type.name == "AAA"
+    assert node_one[2].fun_addr.function_type.name == "AAA"
 
     node_two = stmts[1].build_event_flow_nodes(len(node_one))
     assert node_two[0].id == 4 and isinstance(node_two[0], InvokeConditional)
@@ -418,7 +418,7 @@ def test_multiple_splits_with_returns():
     assert (
         node_four[1].id == 8
         and isinstance(node_four[1], InvokeExternal)
-        and node_four[1].fun_type.name == "BBB"
+        and node_four[1].fun_addr.function_type.name == "BBB"
     )
 
     node_five = stmts[4].build_event_flow_nodes(
@@ -629,7 +629,9 @@ def test_if_statements():
     # return other.x
     assert isinstance(blocks[9], StatementBlock)
 
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize(blocks, True)
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
@@ -693,7 +695,9 @@ def test_if_non_split():
 
     dataflow_visualizer.visualize(blocks, True)
 
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
 
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
@@ -758,7 +762,9 @@ def test_if_statements_complex():
     from src.util import dataflow_visualizer
 
     dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
 
@@ -935,7 +941,9 @@ def test_request_state():
     from src.util import dataflow_visualizer
 
     dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
     flow = method_desc.flow_list
@@ -943,7 +951,7 @@ def test_request_state():
     assert len(flow) == 6
     assert isinstance(flow[1], RequestState)
     assert flow[1].var_name == "state"
-    assert flow[1].fun_type.name == "StateClass"
+    assert flow[1].fun_addr.function_type.name == "StateClass"
     assert len(request_blocks) == 1
 
     method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
@@ -964,7 +972,9 @@ def test_request_state():
 
     blocks: List[Block] = analyzer.blocks
     dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
     flow = method_desc.flow_list
@@ -997,7 +1007,9 @@ def test_request_state():
 
     blocks: List[Block] = analyzer.blocks
     dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
     flow = method_desc.flow_list
@@ -1027,7 +1039,9 @@ def test_request_state():
 
     blocks: List[Block] = analyzer.blocks
     dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
     flow = method_desc.flow_list
@@ -1054,7 +1068,9 @@ def test_request_state():
 
     blocks: List[Block] = analyzer.blocks
     dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
     flow = method_desc.flow_list
@@ -1086,7 +1102,9 @@ def test_request_state():
 
     blocks: List[Block] = analyzer.blocks
     dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
     flow = method_desc.flow_list
@@ -1111,7 +1129,9 @@ def test_request_state():
 
     blocks: List[Block] = analyzer.blocks
     dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
     flow = method_desc.flow_list
@@ -1185,7 +1205,9 @@ def test_for_loop_items():
     from src.util import dataflow_visualizer
 
     dataflow_visualizer.visualize(blocks, True)
-    method_desc.split_function(blocks)
+    method_desc.split_function(
+        blocks, wrapper.class_desc.to_function_type().to_address()
+    )
     dataflow_visualizer.visualize_flow(method_desc.flow_list)
 
     invoke_for: InvokeFor = [
@@ -1212,7 +1234,9 @@ def do_split(split, class_desc, method_name: str):
         method_desc.method_node.body.children,
     )
 
-    method_desc.split_function(analyzer.blocks)
+    method_desc.split_function(
+        analyzer.blocks, class_desc.to_function_type().to_address()
+    )
 
     return analyzer, method_desc
 

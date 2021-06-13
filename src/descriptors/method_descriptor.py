@@ -39,7 +39,7 @@ class MethodDescriptor:
     def is_splitted_function(self) -> bool:
         return len(self.statement_blocks) > 0
 
-    def split_function(self, blocks):
+    def split_function(self, blocks, fun_addr):
         from src.dataflow.event_flow import (
             EventFlowNode,
             StartNode,
@@ -49,7 +49,7 @@ class MethodDescriptor:
         self.flow_list: List[EventFlowNode] = []
 
         # Build start of the flow.
-        flow_start: EventFlowNode = StartNode(0)
+        flow_start: EventFlowNode = StartNode(0, fun_addr)
         latest_node_id: int = flow_start.id
         self.flow_list.append(flow_start)
 

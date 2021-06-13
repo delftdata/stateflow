@@ -30,9 +30,7 @@ class InvokeMethodRequest:
 class InternalClassRef:
     """Internal representation of another class."""
 
-    def __init__(
-        self, key: str, fun_type: FunctionType, attributes: Dict[str, Any] = {}
-    ):
+    def __init__(self, fun_addr: FunctionAddress, attributes: Dict[str, Any] = {}):
         """Initializes an internal class reference.
 
         This is passed as parameter to a stateful function.
@@ -41,20 +39,18 @@ class InternalClassRef:
         :param fun_type: the type of the function.
         :param attributes: all attributes of this function.
         """
-        self._key: str = key
-        self._fun_type: FunctionType = fun_type
+        self._fun_addr: FunctionAddress = fun_addr
         self._attributes: Dict[str, Any] = attributes
 
         for n, attr in attributes.items():
             setattr(self, n, attr)
 
     def _get_key(self) -> str:
-        return self._key
+        return self._fun_addr.key
 
     def _to_dict(self) -> Dict:
         return {
-            "key": self._key,
-            "fun_type": self._fun_type.to_dict(),
+            "fun_addr": self._fun_addr.to_dict(),
             "_type": "InternalClassRef",
         }
 
@@ -72,10 +68,12 @@ class EventFlowNode:
     RETURN = "RETURN"
     START = "START"
 
-    def __init__(self, typ: str, fun_type: FunctionType, id: int, method_id: int = 0):
+    def __init__(
+        self, typ: str, fun_addr: FunctionAddress, id: int, method_id: int = 0
+    ):
         self.id = id
         self.typ = typ
-        self.fun_type = fun_type
+        self.fun_addr = fun_addr
         self.method_id = method_id
 
         self.input = {}
@@ -104,14 +102,8 @@ class EventFlowNode:
             self.next.extend([next])
 
     def _to_class_ref(self, value: Dict[str, Any]) -> InternalClassRef:
-        key: str = value.get("key")
-        fun_typ: str = FunctionType(
-            value["fun_type"]["namespace"],
-            value["fun_type"]["name"],
-            value["fun_type"]["stateful"],
-        )
-
-        return InternalClassRef(key, fun_typ)
+        fun_addr = FunctionAddress.from_dict(value["fun_addr"])
+        return InternalClassRef(fun_addr)
 
     def _insert_internal_class_refs(self, args: Dict[str, Any]) -> Dict[str, Any]:
         # TODO If we switch to a different serializer, this is not necessary...
@@ -143,6 +135,9 @@ class EventFlowNode:
 
         while len(input_variables) > 0 and previous is not None:
             # We skip scopes of other method calls.
+            print(
+                f"Now looking in {previous.typ} with {previous.id} and method {previous.method_id}"
+            )
             if previous.method_id == self.method_id:
                 for key in previous.output.keys():
                     if key in input_variables:
@@ -190,14 +185,14 @@ class EventFlowNode:
         return self.next
 
     def to_dict(self) -> Dict:
-        if self.fun_type:
-            fun_type_dict = self.fun_type.to_dict()
+        if self.fun_addr:
+            fun_addr_dict = self.fun_addr.to_dict()
         else:
-            fun_type_dict = None
+            fun_addr_dict = None
 
         return {
             "type": self.typ,
-            "fun_type": fun_type_dict,
+            "fun_addr": fun_addr_dict,
             "id": self.id,
             "input": self.input,
             "output": self.output,
@@ -207,29 +202,25 @@ class EventFlowNode:
 
     @staticmethod
     def from_dict(dict: Dict) -> "EventFlowNode":
-        if dict["fun_type"] is not None:
-            fun_type = FunctionType(
-                dict["fun_type"]["namespace"],
-                dict["fun_type"]["name"],
-                dict["fun_type"]["stateful"],
-            )
+        if dict["fun_addr"] is not None:
+            fun_addr = FunctionAddress.from_dict(dict["fun_addr"])
         else:
-            fun_type = None
+            fun_addr = None
 
         flow_type = dict["type"]
         new_node = None
         if flow_type == EventFlowNode.START:
-            new_node = StartNode.construct(fun_type, dict)
+            new_node = StartNode.construct(fun_addr, dict)
         elif flow_type == EventFlowNode.RETURN:
-            new_node = ReturnNode.construct(fun_type, dict)
+            new_node = ReturnNode.construct(fun_addr, dict)
         elif flow_type == EventFlowNode.INVOKE_SPLIT_FUN:
-            new_node = InvokeSplitFun.construct(fun_type, dict)
+            new_node = InvokeSplitFun.construct(fun_addr, dict)
         elif flow_type == EventFlowNode.REQUEST_STATE:
-            new_node = RequestState.construct(fun_type, dict)
+            new_node = RequestState.construct(fun_addr, dict)
         elif flow_type == EventFlowNode.INVOKE_EXTERNAL:
-            new_node = InvokeExternal.construct(fun_type, dict)
+            new_node = InvokeExternal.construct(fun_addr, dict)
         elif flow_type == EventFlowNode.INVOKE_CONDITIONAL:
-            new_node = InvokeConditional.construct(fun_type, dict)
+            new_node = InvokeConditional.construct(fun_addr, dict)
         else:
             raise AttributeError(f"Unknown EventFlowNode type {flow_type}.")
 
@@ -283,12 +274,17 @@ class EventFlowGraph:
 
             discovered.append(current.id)
 
-            if current.method_id == method_id and not isinstance(current, RequestState):
-                # current_node set FunctionAddress..
-                pass
+            if (
+                current.method_id == method_id
+                and not isinstance(current, RequestState)
+                and not isinstance(current, InvokeExternal)
+            ):
+                print(f"Setting new address with key {address.key}")
+                assert current.fun_addr.function_type == address.function_type
+                current.fun_addr = address
 
-            for next in current.next:
-                stack.append(self.get_node_by_id(next))
+            for n in current.next:
+                stack.append(self.get_node_by_id(n))
 
     def get_current(self) -> EventFlowNode:
         return self.current_node
@@ -328,8 +324,8 @@ class EventFlowGraph:
 
 
 class StartNode(EventFlowNode):
-    def __init__(self, id: int, fun_type: FunctionType, key: str = ""):
-        super().__init__(EventFlowNode.START, fun_type, id)
+    def __init__(self, id: int, fun_addr: FunctionAddress, key: str = ""):
+        super().__init__(EventFlowNode.START, fun_addr, id)
 
         self.key: str = key
 
@@ -353,13 +349,13 @@ class StartNode(EventFlowNode):
         return graph.get_node_by_id(self.next[0]), state, instance
 
     @staticmethod
-    def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
-        return StartNode(dict["id"], fun_type, dict["key"])
+    def construct(fun_addr: FunctionAddress, dict: Dict) -> EventFlowNode:
+        return StartNode(dict["id"], fun_addr, dict["key"])
 
 
 class ReturnNode(EventFlowNode):
-    def __init__(self, id: int, return_name: str = ""):
-        super().__init__(EventFlowNode.RETURN, None, id)
+    def __init__(self, id: int, fun_addr: FunctionAddress, return_name: str = ""):
+        super().__init__(EventFlowNode.RETURN, fun_addr, id)
         self.return_name = return_name
 
     def to_dict(self):
@@ -368,6 +364,9 @@ class ReturnNode(EventFlowNode):
 
         return return_dict
 
+    def is_last(self) -> bool:
+        return self.next == -1 or self.next == []
+
     def step(
         self,
         graph: EventFlowGraph,
@@ -375,7 +374,13 @@ class ReturnNode(EventFlowNode):
         state: State,
         instance: Any,
     ) -> Tuple[EventFlowNode, State, Any]:
-        return self, state, instance
+        if self.next == [] or self.next == -1:
+            return self, state, instance
+
+        # TODO, We assume only 1 next node.
+        next_node = graph.get_node_by_id(self.next[0])
+        next_node.input[self.return_name] = self.get_results()
+        return next_node, state, instance
 
     def get_results(self):
         return self.output["results"]
@@ -384,13 +389,15 @@ class ReturnNode(EventFlowNode):
         self.output["results"] = return_results
 
     @staticmethod
-    def construct(fun_type: FunctionType, dict: Dict) -> EventFlowNode:
-        return ReturnNode(dict["id"], dict["return_name"])
+    def construct(fun_addr: FunctionAddress, dict: Dict) -> EventFlowNode:
+        return ReturnNode(dict["id"], fun_addr, dict["return_name"])
 
 
 class InvokeExternal(EventFlowNode):
-    def __init__(self, fun_type, id, method_name, args: List[str], key=None):
-        super().__init__(EventFlowNode.INVOKE_EXTERNAL, fun_type, id)
+    def __init__(
+        self, fun_addr: FunctionAddress, id, method_name, args: List[str], key=None
+    ):
+        super().__init__(EventFlowNode.INVOKE_EXTERNAL, fun_addr, id)
         self.fun_name = method_name
         self.args = args
         self.key = key
@@ -443,11 +450,11 @@ class InvokeExternal(EventFlowNode):
         ):
             self._set_return_result(invocation.return_results)
         elif isinstance(next_node, RequestState):
-            print(next_node.to_dict())
             instance_var = self._collect_incomplete_input(graph, [next_node.var_name])[
                 next_node.var_name
             ]
             next_node.set_request_key(instance_var._get_key())
+            next_node.fun_addr.key = instance_var._get_key()
         else:
             raise AttributeError(f"Unknown next node {next_node}.")
 
@@ -471,13 +478,13 @@ class InvokeExternal(EventFlowNode):
         return return_dict
 
     @staticmethod
-    def construct(fun_type: FunctionType, dict: Dict):
+    def construct(fun_addr: FunctionAddress, dict: Dict):
         if "key" in dict:
             key = dict["key"]
         else:
             key = None
         return InvokeExternal(
-            fun_type,
+            fun_addr,
             dict["id"],
             dict["fun_name"],
             dict["args"],
@@ -488,14 +495,14 @@ class InvokeExternal(EventFlowNode):
 class InvokeSplitFun(EventFlowNode):
     def __init__(
         self,
-        fun_type: FunctionType,
+        fun_addr: FunctionAddress,
         id: int,
         fun_name: str,
         params: List[str],
         definitions: List[str],
         typed_params: List[str],
     ):
-        super().__init__(EventFlowNode.INVOKE_SPLIT_FUN, fun_type, id)
+        super().__init__(EventFlowNode.INVOKE_SPLIT_FUN, fun_addr, id)
         self.fun_name: str = fun_name
         self.params = params
         self.definitions = definitions
@@ -641,6 +648,7 @@ class InvokeSplitFun(EventFlowNode):
 
             if next_node:
                 next_node.set_key(invoke_method_request["call_instance_ref"])
+                next_node.fun_addr.key = invoke_method_request["call_instance_ref"]
 
                 # We assume that arguments in the InvokeMethodRequest are in the correct order.
                 print(f"Next node {next_node.id} {next_node.fun_name} { next_node}")
@@ -654,10 +662,16 @@ class InvokeSplitFun(EventFlowNode):
                 )
 
                 next_node.key = invoke_method_request["call_instance_ref"]
+                next_node.fun_addr.key = invoke_method_request["call_instance_ref"]
+                graph.set_function_address(
+                    next_node, next_node.method_id, next_node.fun_addr
+                )
 
                 # TODO FIND FIX IF FIRST NODE IS REQUEST STATE!
-                for i, arg_key in enumerate(next_node.input.keys()):
-                    next_node.input[arg_key] = invoke_method_request["args"][i]
+                print(f"Next start node keys {next_node.input.keys()}")
+                print(f"My args {invoke_method_request['args']}")
+                for i, arg_key in enumerate(next_node.output.keys()):
+                    next_node.output[arg_key] = invoke_method_request["args"][i]
 
         elif (
             len(return_results) > 0
@@ -674,6 +688,7 @@ class InvokeSplitFun(EventFlowNode):
                     next_node.set_request_key(
                         self.output[next_node.var_name]._get_key()
                     )
+                    next_node.fun_addr.key = self.output[next_node.var_name]._get_key()
                 else:
                     instance_var = self._collect_incomplete_input(
                         graph, [next_node.var_name]
@@ -711,7 +726,10 @@ class InvokeSplitFun(EventFlowNode):
                 graph, EventFlowNode.RETURN
             )
 
-            next_node.set_results(invocation.results_as_list())
+            if next_node.is_last():
+                next_node.set_results(invocation.results_as_list())
+            else:
+                next_node.set_results(invocation.return_results)
 
         return next_node, invocation.updated_state, instance
 
@@ -725,9 +743,9 @@ class InvokeSplitFun(EventFlowNode):
         return return_dict
 
     @staticmethod
-    def construct(fun_type: FunctionType, dict: Dict):
+    def construct(fun_addr: FunctionAddress, dict: Dict):
         return InvokeSplitFun(
-            fun_type,
+            fun_addr,
             dict["id"],
             dict["fun_name"],
             dict["params"],
@@ -739,7 +757,7 @@ class InvokeSplitFun(EventFlowNode):
 class InvokeConditional(EventFlowNode):
     def __init__(
         self,
-        fun_type: FunctionType,
+        fun_addr: FunctionAddress,
         id: int,
         fun_name: str,
         params: List[str],
@@ -748,7 +766,7 @@ class InvokeConditional(EventFlowNode):
         if_true_block_id: int = -1,
         if_false_block_id: int = -1,
     ):
-        super().__init__(EventFlowNode.INVOKE_CONDITIONAL, fun_type, id)
+        super().__init__(EventFlowNode.INVOKE_CONDITIONAL, fun_addr, id)
         self.fun_name = fun_name
         self.params = params
         self.if_true_node = if_true_node
@@ -855,9 +873,9 @@ class InvokeConditional(EventFlowNode):
         return return_dict
 
     @staticmethod
-    def construct(fun_type: FunctionType, dict: Dict):
+    def construct(fun_addr: FunctionAddress, dict: Dict):
         return InvokeConditional(
-            fun_type,
+            fun_addr,
             dict["id"],
             dict["fun_name"],
             dict["params"],
@@ -869,7 +887,7 @@ class InvokeConditional(EventFlowNode):
 class InvokeFor(EventFlowNode):
     def __init__(
         self,
-        fun_type: FunctionType,
+        fun_addr: FunctionAddress,
         id: int,
         fun_name: str,
         iter_name: str,
@@ -882,7 +900,7 @@ class InvokeFor(EventFlowNode):
         else_block_id: int = -1,
     ):
 
-        super().__init__(EventFlowNode.INVOKE_FOR, fun_type, id)
+        super().__init__(EventFlowNode.INVOKE_FOR, fun_addr, id)
         self.fun_name = fun_name
 
         self.iter_name = iter_name
@@ -922,6 +940,7 @@ class InvokeFor(EventFlowNode):
         if self.iteration == 0:
             iterator = graph.get_node_by_id(self.previous).output[self.iter_name]
             self.before_for_node = self.previous
+
         else:  # Otherwise we get it from our 'own' output.
             iterator = self.output[self.iter_name]
 
@@ -991,11 +1010,14 @@ class InvokeFor(EventFlowNode):
         if next_node.typ == EventFlowNode.REQUEST_STATE:
             if next_node.var_name in self.output:
                 next_node.set_request_key(self.output[next_node.var_name]._get_key())
+                next_node.fun_addr.key = self.output[next_node.var_name]._get_key()
             else:
                 instance_var = self._collect_incomplete_input(
                     graph, [next_node.var_name]
                 )[next_node.var_name]
                 next_node.set_request_key(instance_var._get_key())
+                next_node.fun_addr.key = instance_var._get_key()
+
         return next_node, state, instance
 
     def resolve_next(self, nodes: List[EventFlowNode], block):
@@ -1020,9 +1042,9 @@ class InvokeFor(EventFlowNode):
         return return_dict
 
     @staticmethod
-    def construct(fun_type: FunctionType, dict: Dict):
+    def construct(fun_addr: FunctionAddress, dict: Dict):
         return InvokeFor(
-            fun_type,
+            fun_addr,
             dict["id"],
             dict["fun_name"],
             dict["iter_name"],
@@ -1044,8 +1066,8 @@ class RequestState(EventFlowNode):
     This result is later used for subsequent nodes.
     """
 
-    def __init__(self, fun_type: FunctionType, id: int, var_name: str):
-        super().__init__(EventFlowNode.REQUEST_STATE, fun_type, id)
+    def __init__(self, fun_addr: FunctionAddress, id: int, var_name: str):
+        super().__init__(EventFlowNode.REQUEST_STATE, fun_addr, id)
         self.var_name: str = var_name
 
         # Inputs for this node.
@@ -1073,7 +1095,7 @@ class RequestState(EventFlowNode):
         state_get = state.get()
 
         # We copy the key, so that subsequent nodes can use it.
-        ref = InternalClassRef(self.input["__key"], self.fun_type, state_get)
+        ref = InternalClassRef(self.fun_addr, state_get)
 
         self.output[self.var_name] = ref
 
@@ -1088,5 +1110,5 @@ class RequestState(EventFlowNode):
         return return_dict
 
     @staticmethod
-    def construct(fun_type: FunctionType, dict: Dict):
-        return RequestState(fun_type, dict["id"], dict["var_name"])
+    def construct(fun_addr: FunctionAddress, dict: Dict):
+        return RequestState(fun_addr, dict["id"], dict["var_name"])

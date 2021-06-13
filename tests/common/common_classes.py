@@ -165,6 +165,8 @@ class OtherNestClass:
         self.id = str(uuid.uuid4())
         self.x = x
 
+        print(f"Im {type(self)} with id {self.id}")
+
     def is_really_true(self):
         return True
 
@@ -172,9 +174,9 @@ class OtherNestClass:
         is_really_true: bool = other.is_really_true()
         return is_really_true
 
-    def nest_call(self, other: "OtherNestClass") -> bool:
+    def nest_calll(self, other: "OtherNestClass") -> bool:
         z = 0
-        is_true = other.is_true()
+        is_true = other.is_true(other)
         return is_true
 
     def __key__(self):
@@ -187,14 +189,16 @@ class NestClass:
         self.id = str(uuid.uuid4())
         self.x = x
 
+        print(f"Im {type(self)} with id {self.id}")
+
     def nest_call(self, other: OtherNestClass):
         y = other.x
         z = 3
 
-        if other.nest_call():
+        if other.nest_calll(other):
             p = 3
 
-        other.nest_call()
+        other.nest_calll(other)
 
         return y, z, p
 

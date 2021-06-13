@@ -8,6 +8,7 @@ from src.dataflow.event_flow import (
     RequestState,
     InvokeExternal,
     InvokeSplitFun,
+    FunctionAddress,
     FunctionType,
 )
 import libcst.matchers as m
@@ -400,7 +401,7 @@ class Block:
         for el in self.state_request:
             var_name, class_desc = el
             request_node = RequestState(
-                FunctionType.create(class_desc), flow_node_id, var_name
+                FunctionType.create(class_desc).to_address(), flow_node_id, var_name
             )
 
             print(
@@ -920,7 +921,9 @@ class StatementBlock(Block):
         flow_nodes: List[EventFlowNode] = []
 
         # For re-use purposes, we define the FunctionType of the class this StatementBlock belongs to.
-        class_type = self.split_context.class_desc.to_function_type()
+        class_type: FunctionAddress = (
+            self.split_context.class_desc.to_function_type().to_address()
+        )
 
         def update_flow_graph(new_node: EventFlowNode):
             nonlocal flow_nodes, latest_node, flow_node_id
@@ -945,22 +948,6 @@ class StatementBlock(Block):
                 2a. If this first part, has a return. We also add a return node.
             3. We invoke an external function (i.e. InvokeExternal node).
             """
-
-            # Step 1, build the RequestState nodes; We match the input parameters to the correct.
-            # for (
-            #     input_name,
-            #     input_type,
-            # ) in self.split_context.original_method_desc.input_desc.get().items():
-            #     matched_class = self.split_context.class_descriptors.get(input_type)
-            #
-            #     if matched_class:
-            #         request_node = RequestState(
-            #             FunctionType.create(matched_class), flow_node_id, input_name
-            #         )
-            #
-            #         # Update the flow graph.
-            #         update_flow_graph(request_node)
-
             # Step 2, invoke the first part of the splitted function.
             split_node = InvokeSplitFun(
                 class_type,
@@ -974,7 +961,7 @@ class StatementBlock(Block):
 
             # Step 2a, we add an (extra) return node.
             if self.returns > 0:
-                return_node = ReturnNode(flow_node_id)
+                return_node = ReturnNode(flow_node_id, class_type)
                 update_flow_graph(return_node)
 
                 # Since the last node should be InvokeSplitFun (not ReturnNode), we update the latest node again.
@@ -987,7 +974,7 @@ class StatementBlock(Block):
                         self.split_context.class_descriptors[
                             self.split_context.current_invocation.class_desc.class_name
                         ]
-                    ),
+                    ).to_address(),
                     flow_node_id,
                     self.split_context.current_invocation.method_invoked,
                     list(
@@ -1015,7 +1002,7 @@ class StatementBlock(Block):
             update_flow_graph(split_node)
 
             # Step 2, build the return node.
-            return_node = ReturnNode(flow_node_id)
+            return_node = ReturnNode(flow_node_id, class_type)
             update_flow_graph(return_node)
         else:
             """For an intermediate node, we assume the following scenario:
@@ -1036,7 +1023,7 @@ class StatementBlock(Block):
 
             # Step 2a, we add an (extra) return node.
             if self.returns > 0:
-                return_node = ReturnNode(flow_node_id)
+                return_node = ReturnNode(flow_node_id, class_type)
                 update_flow_graph(return_node)
 
                 # Since the last node should be InvokeSplitFun (not ReturnNode), we update the latest node again.
@@ -1049,7 +1036,7 @@ class StatementBlock(Block):
                         self.split_context.class_descriptors[
                             self.split_context.current_invocation.class_desc.class_name
                         ]
-                    ),
+                    ).to_address(),
                     flow_node_id,
                     self.split_context.current_invocation.method_invoked,
                     list(
