@@ -269,6 +269,27 @@ class EventFlowGraph:
 
         return updated_state, instance
 
+    def set_function_address(
+        self, current_node: EventFlowNode, method_id: int, address: FunctionAddress
+    ):
+        stack: List[EventFlowNode] = [current_node]
+        discovered: List[int] = []
+
+        while len(stack) > 0:
+            current: EventFlowNode = stack.pop()
+
+            if current.id in discovered:
+                continue
+
+            discovered.append(current.id)
+
+            if current.method_id == method_id and not isinstance(current, RequestState):
+                # current_node set FunctionAddress..
+                pass
+
+            for next in current.next:
+                stack.append(self.get_node_by_id(next))
+
     def get_current(self) -> EventFlowNode:
         return self.current_node
 
@@ -814,6 +835,7 @@ class InvokeConditional(EventFlowNode):
         next_node = nodes[0].id
         if block.block_id == self.if_true_block_id:
             self.if_true_node = next_node
+
         elif block.block_id == self.if_false_block_id:
             self.if_false_node = next_node
         else:
