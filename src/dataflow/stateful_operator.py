@@ -266,15 +266,15 @@ class StatefulOperator(Operator):
             ):
                 break
 
-            print(
-                f"Stepping again {flow_graph.current_node.typ} and {flow_graph.current_node.to_dict()}"
-            )
+            # print(
+            #     f"Stepping again {flow_graph.current_node.typ} and {flow_graph.current_node.to_dict()}"
+            # )
             updated_state, _ = flow_graph.step(
                 self.class_wrapper, updated_state, instance
             )
 
-        print(
-            f"Now going to {flow_graph.current_node.fun_addr.to_dict()} {flow_graph.current_node.typ}"
-        )
+        # print(
+        #     f"Now going to {flow_graph.current_node.fun_addr.to_dict()} {flow_graph.current_node.typ}"
+        # )
 
         return event, updated_state

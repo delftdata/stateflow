@@ -509,7 +509,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
         self._processed_for = True
         self._for_block = for_block
-        print(f"Setting the for block for {self._for_block.block_id}")
+        # print(f"Setting the for block for {self._for_block.block_id}")
 
         return False
 
@@ -605,9 +605,9 @@ class SplitAnalyzer(cst.CSTVisitor):
             if not isinstance(if_blocks[-1].split_context, LastBlockContext):
                 last_body_block.append(if_blocks[-1])
 
-            print(
-                f"Just analyzed an if-body, does it still have a for-body? {analyze_if_body._for_block}"
-            )
+            # print(
+            #     f"Just analyzed an if-body, does it still have a for-body? {analyze_if_body._for_block}"
+            # )
 
             # Update outer-scope.
             self.blocks.extend(if_blocks)
@@ -653,7 +653,7 @@ class SplitAnalyzer(cst.CSTVisitor):
         else:
             self._unlinked_conditional = conditional_block
 
-        print(f"Unlinked blocks: {[b.block_id for b in last_body_block]}")
+        # print(f"Unlinked blocks: {[b.block_id for b in last_body_block]}")
         self._unlinked_blocks = (
             last_body_block  # [b for b in last_body_block if len(b.next_block) == 0]
         )
@@ -676,7 +676,7 @@ class SplitAnalyzer(cst.CSTVisitor):
             ):
                 return True
 
-            print(f"{variable}.{attribute}")
+            # print(f"{variable}.{attribute}")
 
             # We get all blocks so far.
             blocks: List[Block] = self.scope.blocks + self.blocks
@@ -690,11 +690,11 @@ class SplitAnalyzer(cst.CSTVisitor):
                 block_index -= 1
 
             def add_request(block: Block):
-                print(
-                    f"Now appending state request for {variable} with class {class_desc.class_name}"
-                )
+                # print(
+                #     f"Now appending state request for {variable} with class {class_desc.class_name}"
+                # )
                 if block:
-                    print(f"Added to {block.block_id}")
+                    # print(f"Added to {block.block_id}")
                     block.state_request.append((variable, class_desc))
                 else:
                     if variable in [
@@ -702,8 +702,8 @@ class SplitAnalyzer(cst.CSTVisitor):
                     ]:
                         self._process_stmt_block_without_invocation("request state")
                     self.state_request.append((variable, class_desc))
-                    print(f"Added to self {self.current_block_id}, {self}")
-                    print(self.state_request)
+                    # print(f"Added to self {self.current_block_id}, {self}")
+                    # print(self.state_request)
 
             # If there is _no_ previous block, then we have to split now and add the request.
             if not previous_block:
@@ -716,7 +716,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
             latest_valid_block: Block = None
             while previous_block:
-                print(f"Previous block {previous_block.block_id}")
+                # print(f"Previous block {previous_block.block_id}")
 
                 # Check if the previous block has an invocation which invalidates the state.
                 previous_context: SplitContext = previous_block.split_context
@@ -727,10 +727,10 @@ class SplitAnalyzer(cst.CSTVisitor):
                     invocation: InvocationContext = getattr(
                         previous_context, "previous_invocation"
                     )  # or getattr(previous_context, "current_invocation", None)
-                    print(f"Found an invocation! {invocation}")
-                    print(
-                        f"{hasattr(previous_context, 'previous_invocation') } and {hasattr(previous_context, 'current_invocation')}"
-                    )
+                    # print(f"Found an invocation! {invocation}")
+                    # print(
+                    #     f"{hasattr(previous_context, 'previous_invocation') } and {hasattr(previous_context, 'current_invocation')}"
+                    # )
 
                     if (
                         invocation
@@ -740,9 +740,9 @@ class SplitAnalyzer(cst.CSTVisitor):
                         in class_desc.methods_dec  # Check if method belongs to same class desc.
                         and attribute in invocation.method_desc.write_to_self_attributes
                     ):
-                        print(
-                            f"INVALIDATED {isinstance(self.scope, InnerBlockScope)} {self.scope}"
-                        )
+                        # print(
+                        #     f"INVALIDATED {isinstance(self.scope, InnerBlockScope)} {self.scope}"
+                        # )
                         # Invalidate it!
                         if (
                             isinstance(self.scope, InnerBlockScope)
@@ -754,7 +754,7 @@ class SplitAnalyzer(cst.CSTVisitor):
 
                 elif self._get_previous_invocation():
                     invocation = self._get_previous_invocation()
-                    print("Found previous invocation for this block!")
+                    # print("Found previous invocation for this block!")
                     if (
                         invocation
                         and invocation.method_desc
@@ -868,9 +868,9 @@ class Split:
             updated_methods: Dict[str, List[StatementBlock]] = {}
             for method in desc.methods_dec:
                 if method.has_links():
-                    print(
-                        f"{method.method_name} has links to other classes/functions. Now analyzing:"
-                    )
+                    # print(
+                    #     f"{method.method_name} has links to other classes/functions. Now analyzing:"
+                    # )
 
                     analyzer: SplitAnalyzer = SplitAnalyzer(
                         desc.class_node,

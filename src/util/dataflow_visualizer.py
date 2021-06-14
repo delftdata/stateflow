@@ -51,7 +51,7 @@ def visualize(blocks: List[Block], code=False):
             for next in b.next_block:
                 dot.edge(str(b.block_id), str(next.block_id))
 
-    print(dot.source)
+    # print(dot.source)
 
 
 def visualize_flow(flow: List[EventFlowNode]):
@@ -120,4 +120,4 @@ def visualize_flow(flow: List[EventFlowNode]):
             for next in n.next:
                 dot.edge(str(n.id), str(next))
 
-    print(dot.source)
+    # print(dot.source)

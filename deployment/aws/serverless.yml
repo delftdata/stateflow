@@ -1,7 +1,0 @@
-service: stateflow
-provider:
-  name: aws
-  runtime: python3.8
-functions:
-  stateflow:
-    handler: aws_runtime.handler

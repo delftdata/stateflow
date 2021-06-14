@@ -1,6 +1,7 @@
 from typing import Optional, Any, List
 from src.client.future import StateflowFuture, T
 from src.serialization.json_serde import SerDe, JsonSerializer
+from src.dataflow.event import Event
 import time
 
 
@@ -11,7 +12,7 @@ class StateflowClient:
         self.flow = flow
         self.serializer: SerDe = serializer
 
-    def send(self, Event) -> StateflowFuture[T]:
+    def send(self, event: Event) -> StateflowFuture[T]:
         pass
 
     def find(self, clasz, key: str) -> Optional[Any]:

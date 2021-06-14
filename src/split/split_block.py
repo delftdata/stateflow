@@ -344,7 +344,7 @@ class Block:
             (x, y) for x, y in state_request
         ]
 
-        print(f"Just created block {block_id} with {self.state_request}")
+        # print(f"Just created block {block_id} with {self.state_request}")
 
         # Labels are used for debugging and visualization.
         self.label = label
@@ -394,9 +394,9 @@ class Block:
         flow_node_id = node_id + 1
         nodes: List[EventFlowNode] = []
 
-        print(
-            f"My id is {self.block_id} and I'm adding {len(self.state_request)} requests."
-        )
+        # print(
+        #     f"My id is {self.block_id} and I'm adding {len(self.state_request)} requests."
+        # )
 
         for el in self.state_request:
             var_name, class_desc = el
@@ -404,9 +404,9 @@ class Block:
                 FunctionType.create(class_desc).to_address(), flow_node_id, var_name
             )
 
-            print(
-                f"Now building request node with id {flow_node_id} and var name {var_name}"
-            )
+            # print(
+            #     f"Now building request node with id {flow_node_id} and var name {var_name}"
+            # )
 
             if len(nodes) > 0:
                 request_node.set_previous(nodes[-1].id)

@@ -1,0 +1,44 @@
+service: stateflow
+provider:
+  name: aws
+  region: eu-west-1
+  runtime: python3.8
+
+plugins:
+  - serverless-python-requirements
+package:
+  exclude:
+    - 'venv/**'
+custom:
+  pythonRequirements:
+    usePipenv: false
+    slim: true
+    noDeploy:
+      - pytest
+      - Flask
+      - flake8
+      - apache-beam
+      - coverage
+      - confluent-kafka
+      - beam-nuggets
+      - httplib2
+      - google-api-python-client
+      - pytest-mock
+      - PyHamcrest
+      - pytest-docker-fixtures
+      - pytest-timeout
+      - apache-flink
+      - boto3
+functions:
+  stateflow:
+    handler: aws_runtime.handler
+    memorySize: 256 # optional, in MB, default is 1024
+    maximumRetryAttempts: 1
+    events:
+      - stream:
+          arn: arn:aws:kinesis:eu-west-1:958167380706:stream/stateflow-request
+          batchSize: 1
+          startingPosition: LATEST
+          maximumRetryAttempts: 1
+          batchWindow: 1
+          enabled: false

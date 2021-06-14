@@ -114,9 +114,9 @@ class EventFlowNode:
                 isinstance(el, dict) and el.get("_type") == "InternalClassRef"
                 for el in value
             ):
-                print(
-                    f"here transform to class refs {[self._to_class_ref(el) for el in value]}"
-                )
+                # print(
+                #     f"here transform to class refs {[self._to_class_ref(el) for el in value]}"
+                # )
                 args[arg_key] = [self._to_class_ref(el) for el in value]
 
         return args
@@ -135,9 +135,9 @@ class EventFlowNode:
 
         while len(input_variables) > 0 and previous is not None:
             # We skip scopes of other method calls.
-            print(
-                f"Now looking in {previous.typ} with {previous.id} and method {previous.method_id}"
-            )
+            # print(
+            #     f"Now looking in {previous.typ} with {previous.id} and method {previous.method_id}"
+            # )
             if previous.method_id == self.method_id:
                 for key in previous.output.keys():
                     if key in input_variables:
@@ -279,7 +279,6 @@ class EventFlowGraph:
                 and not isinstance(current, RequestState)
                 and not isinstance(current, InvokeExternal)
             ):
-                print(f"Setting new address with key {address.key}")
                 assert current.fun_addr.function_type == address.function_type
                 current.fun_addr = address
 
@@ -424,7 +423,7 @@ class InvokeExternal(EventFlowNode):
         args: Arguments = Arguments(self.input)
 
         # Invoke the method.
-        print(f"Now invoking external method {self.fun_name} with args {args.get()}")
+        # print(f"Now invoking external method {self.fun_name} with args {args.get()}")
         if not instance:
             invocation, instance = class_wrapper.invoke_return_instance(
                 self.fun_name,
@@ -564,7 +563,7 @@ class InvokeSplitFun(EventFlowNode):
             ):
                 self.output[decl] = [el._to_dict() for el in return_results[i]]
             else:
-                print(f"Now setting {decl} to {return_results[i]}")
+                # print(f"Now setting {decl} to {return_results[i]}")
                 self.output[decl] = return_results[i]
 
     def step(
@@ -579,9 +578,9 @@ class InvokeSplitFun(EventFlowNode):
             key for key in self.input.keys() if self.input[key] == Null
         ]
 
-        print(
-            f"Now trying to invoke method {self.fun_name}. The input we still have to search: {incomplete_input}. All input variables are: {list(self.input.keys())}"
-        )
+        # print(
+        #     f"Now trying to invoke method {self.fun_name}. The input we still have to search: {incomplete_input}. All input variables are: {list(self.input.keys())}"
+        # )
 
         # Constructs the function arguments.
         # We _copy_ the self.input rather than overriding, this prevents us in sending duplicate
@@ -593,7 +592,7 @@ class InvokeSplitFun(EventFlowNode):
             }
         )
 
-        print(f"All input: {all_input}")
+        # print(f"All input: {all_input}")
 
         fun_arguments = Arguments(all_input)
 
@@ -651,8 +650,8 @@ class InvokeSplitFun(EventFlowNode):
                 next_node.fun_addr.key = invoke_method_request["call_instance_ref"]
 
                 # We assume that arguments in the InvokeMethodRequest are in the correct order.
-                print(f"Next node {next_node.id} {next_node.fun_name} { next_node}")
-                print(f"Next node keys {next_node.input.keys()}")
+                # print(f"Next node {next_node.id} {next_node.fun_name} { next_node}")
+                # print(f"Next node keys {next_node.input.keys()}")
                 for i, arg_key in enumerate(next_node.input.keys()):
                     next_node.input[arg_key] = invoke_method_request["args"][i]
             else:
@@ -668,8 +667,8 @@ class InvokeSplitFun(EventFlowNode):
                 )
 
                 # TODO FIND FIX IF FIRST NODE IS REQUEST STATE!
-                print(f"Next start node keys {next_node.input.keys()}")
-                print(f"My args {invoke_method_request['args']}")
+                # print(f"Next start node keys {next_node.input.keys()}")
+                # print(f"My args {invoke_method_request['args']}")
                 for i, arg_key in enumerate(next_node.output.keys()):
                     next_node.output[arg_key] = invoke_method_request["args"][i]
 
@@ -969,7 +968,7 @@ class InvokeFor(EventFlowNode):
 
             if output_type == "Continue":
                 # We don't really care...
-                print("Time to continue?!")
+                # print("Time to continue?!")
                 pass
             elif output_type == "Break":
                 # We move towards the "next" node which is not the for body
@@ -1000,12 +999,12 @@ class InvokeFor(EventFlowNode):
             self.iteration = 0
         else:
             self.iteration += 1
-            print(f"Going to the next iteration {self.iteration}")
+            # print(f"Going to the next iteration {self.iteration}")
 
             self.output[self.iter_target] = return_results[0]
             self.output[self.iter_name] = return_results[-1]
             next_node = graph.get_node_by_id(self.for_body_node)
-            print(f"Iteration type {next_node.typ}")
+            # print(f"Iteration type {next_node.typ}")
 
         if next_node.typ == EventFlowNode.REQUEST_STATE:
             if next_node.var_name in self.output:

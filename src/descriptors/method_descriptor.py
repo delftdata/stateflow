@@ -57,32 +57,33 @@ class MethodDescriptor:
         # Used to correctly build a EventFlowGraph
         flow_mapping = {block.block_id: None for block in self.statement_blocks}
 
-        print("Now splitting function.")
+        # print("Now splitting function.")
         for block in self.statement_blocks:
             flow_nodes: List[EventFlowNode] = block.build_event_flow_nodes(
                 latest_node_id
             )
             self.flow_list.extend(flow_nodes)
             if block.block_id == 0 or block.block_id == 1:
-                print(f"flow nodes {flow_nodes}")
+                pass
+                # print(f"flow nodes {flow_nodes}")
             flow_mapping[block.block_id] = flow_nodes
 
             latest_node_id = self.flow_list[-1].id
 
-            print(
-                f"Now computed flow nodes for {block.block_id} with length {len(flow_nodes)}"
-            )
+            # print(
+            #     f"Now computed flow nodes for {block.block_id} with length {len(flow_nodes)}"
+            # )
 
-        print(f"Mapping {flow_mapping}")
+        # print(f"Mapping {flow_mapping}")
 
         # Now that we got all flow nodes built, we can properly link them to each other.
         for block in self.statement_blocks:
             flow_nodes = flow_mapping[block.block_id]
-            print(f"Now looking at {block.block_id}")
+            # print(f"Now looking at {block.block_id}")
 
             # Get next block of this current block.
             for next_block in block.next_block:
-                print(f"Block {block.block_id} is linked to {next_block.block_id}")
+                # print(f"Block {block.block_id} is linked to {next_block.block_id}")
                 next_flow_node_list = flow_mapping[next_block.block_id]
                 if flow_nodes is None or next_flow_node_list is None:
                     raise RuntimeError(

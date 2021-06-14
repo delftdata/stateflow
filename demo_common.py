@@ -70,7 +70,6 @@ class User:
         total += first_item.stock  # total = 10
         first_item.set_stock(0)
         for x in items:
-            print(f"Item key is {x._key}")
             total += x.stock  # total = 10
             x.set_stock(5)
             total += x.stock  # total = 10 + 5 + 5 = 20

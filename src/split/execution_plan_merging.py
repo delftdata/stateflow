@@ -41,8 +41,8 @@ class ExecutionPlanMerger:
         for method, flow_list in updates.items():
             from src.util.dataflow_visualizer import visualize_flow
 
-            print(f"UPDATED FLOW {method.method_name}")
-            print(visualize_flow(flow_list))
+            # print(f"UPDATED FLOW {method.method_name}")
+            # print(visualize_flow(flow_list))
             method.flow_list = flow_list
 
     def _is_match(self, flow_node: EventFlowNode) -> Optional[MethodDescriptor]:
@@ -147,7 +147,7 @@ class ExecutionPlanMerger:
                 current_node, replacement_nodes
             )
             if replace_request:
-                print("IF CLAUSE")
+                # print("IF CLAUSE")
                 replaced += 1
                 new_nodes = self.replace_and_merge(
                     replace_request.method_to_insert.flow_list,
@@ -157,7 +157,7 @@ class ExecutionPlanMerger:
 
                 from src.util.dataflow_visualizer import visualize_flow
 
-                print(f"Now replaced {current_node} at level {current_method_id}")
+                # print(f"Now replaced {current_node} at level {current_method_id}")
                 visualize_flow(new_nodes)
 
                 assert len(new_nodes) > 0
