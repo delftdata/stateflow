@@ -63,7 +63,7 @@ class EgressRouter:
                     payload={"return_results": current_node.get_results()},
                 )
                 if self.serialize_on_return:
-                    event = self.serializer.serialize_event(event)
+                    event = self.serialize(event)
 
                 return Route(
                     RouteDirection.CLIENT,
@@ -82,7 +82,7 @@ class EgressRouter:
                     ] = current_node.get_results()
 
                 if self.serialize_on_return:
-                    event = self.serializer.serialize_event(event)
+                    event = self.serialize(event)
 
                 return Route(
                     RouteDirection.INTERNAL,
@@ -102,13 +102,16 @@ class EgressRouter:
                 event,
             )
 
+    def serialize(self, event: Event) -> ByteString:
+        return self.serializer.serialize_event(event)
+
     def route_and_serialize(self, event: Event) -> Route:
         if event.event_type == EventType.Request.EventFlow:
             return self._route_event_flow(event)
         elif isinstance(event.event_type, EventType.Reply):
             event_id = event.event_id
             if self.serialize_on_return:
-                event = self.serializer.serialize_event(event)
+                event = self.serialize(event)
 
             return Route(
                 RouteDirection.CLIENT,
@@ -118,7 +121,7 @@ class EgressRouter:
             )
         else:
             raise AttributeError(
-                f"Unknown event type {event.event_type}.\nFull event: {self.serializer.serialize_event(event)}."
+                f"Unknown event type {event.event_type}.\nFull event: {self.serialize(event)}."
             )
 
 
@@ -144,7 +147,6 @@ class IngressRouter:
                 ),
             )
         elif current_node.typ == EventFlowNode.REQUEST_STATE:
-            print(f"Now requesting state for {current_node.get_request_key()}.")
             key = current_node.get_request_key()
             return Route(RouteDirection.INTERNAL, route_name, key, event)
         elif current_node.typ == EventFlowNode.INVOKE_SPLIT_FUN:
@@ -156,8 +158,6 @@ class IngressRouter:
                 RouteDirection.INTERNAL, route_name, current_node.fun_addr.key, event
             )
         elif current_node.typ == EventFlowNode.INVOKE_EXTERNAL:
-            print(f"Current node key {current_node.fun_addr.key}")
-            print(f"Other key {current_node.key}")
             return Route(
                 RouteDirection.INTERNAL, route_name, current_node.fun_addr.key, event
             )
@@ -189,8 +189,10 @@ class IngressRouter:
         else:
             return Route(RouteDirection.INTERNAL, route_name, None, event)
 
-    def parse_and_route(self, value: ByteString) -> Route:
-        event: Event = self.serializer.deserialize_event(value)
+    def parse(self, value: ByteString) -> Event:
+        return self.serializer.deserialize_event(value)
+
+    def route(self, event: Event) -> Route:
         event_type: EventType = event.event_type
 
         if not isinstance(event_type, EventType.Request):
@@ -199,6 +201,10 @@ class IngressRouter:
             )
 
         return self._route_request(event, event_type)
+
+    def parse_and_route(self, value: ByteString) -> Route:
+        event: Event = self.parse(value)
+        return self.route(event)
 
 
 class Ingress(Edge):

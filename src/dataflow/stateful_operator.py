@@ -51,7 +51,6 @@ class StatefulOperator(Operator):
         """
         res: InvocationResult = self.class_wrapper.init_class(event.payload["args"])
 
-        print(res)
         key: str = res.return_results[0]
         created_state: State = res.updated_state
 
