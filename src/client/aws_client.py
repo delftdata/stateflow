@@ -34,26 +34,9 @@ class AWSKinesisClient(StateflowClient):
         # Set the wrapper.
         [op.meta_wrapper.set_client(self) for op in flow.operators]
 
-        if not self.does_stream_exist(request_stream):
-            self.create_stream(request_stream)
-
-        if not self.does_stream_exist(reply_stream):
-            self.create_stream(reply_stream)
-
         self.running = True
         consume_thread = threading.Thread(target=self.consume)
         consume_thread.start()
-
-    def does_stream_exist(self, name: str) -> bool:
-        try:
-            print(self.kinesis.describe_stream(StreamName=name))
-        except Exception:
-            return False
-
-        return True
-
-    def create_stream(self, name: str):
-        self.kinesis.create_stream(StreamName=name, ShardCount=1)
 
     def consume(self):
         iterator = self.kinesis.get_shard_iterator(
@@ -86,7 +69,7 @@ class AWSKinesisClient(StateflowClient):
         return self.send(Event(event_id, fun_address, event_type, payload), clasz)
 
     def send(self, event: Event, return_type: T = None) -> StateflowFuture[T]:
-        send_record = self.kinesis.put_record(
+        self.kinesis.put_record(
             StreamName=self.request_stream,
             Data=self.serializer.serialize_event(event),
             PartitionKey=event.event_id,

@@ -5,4 +5,4 @@ from demo_common import stateflow
 flow = stateflow.init()
 print("Called init code!")
 
-handler = AWSLambdaRuntime.get_handler(flow)
+runtime, handler = AWSLambdaRuntime.get_handler(flow)

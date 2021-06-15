@@ -26,10 +26,12 @@ Add additional features here common to all your Lambdas, like logging."""
 class LambdaBase(object):
     @classmethod
     def get_handler(cls, *args, **kwargs):
-        def handler(event, context):
-            return cls(*args, **kwargs).handle(event, context)
+        inst = cls(*args, **kwargs)
 
-        return handler
+        def handler(event, context):
+            return inst.handle(event, context)
+
+        return inst, handler
 
     def handle(self, event, context):
         raise NotImplementedError
@@ -69,14 +71,23 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
             for operator in self.flow.operators
         }
 
-        self.dynamodb = boto3.resource("dynamodb", config=config)
-        self.lock_client: DynamoDBLockClient = DynamoDBLockClient(
-            self.dynamodb, expiry_period=datetime.timedelta(seconds=3)
-        )
+        self.dynamodb = self._setup_dynamodb(config)
+        self.lock_client: DynamoDBLockClient = self._setup_lock_client(3)
 
-        self.kinesis = boto3.client("kinesis", config=config)
+        self.kinesis = self._setup_kinesis(config)
         self.request_stream: str = request_stream
         self.reply_stream: str = reply_stream
+
+    def _setup_dynamodb(self, config: Config):
+        return boto3.resource("dynamodb", config=config)
+
+    def _setup_kinesis(self, config: Config):
+        return boto3.client("kinesis", config=config)
+
+    def _setup_lock_client(self, expiry_period: int) -> DynamoDBLockClient:
+        return DynamoDBLockClient(
+            self.dynamodb, expiry_period=datetime.timedelta(seconds=expiry_period)
+        )
 
     def lock_key(self, key: str):
         print(f"Locking {key}")
