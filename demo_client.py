@@ -1,6 +1,7 @@
 from demo_common import User, Item, stateflow
 from src.client.kafka_client import StateflowClient, StateflowKafkaClient
 from src.client.aws_client import AWSKinesisClient
+from src.util.local_runtime import LocalRuntime
 from src.client.future import StateflowFuture, StateflowFailure
 import time
 import datetime
@@ -11,7 +12,7 @@ from src.serialization.pickle_serializer import PickleSerializer
 # client: StateflowClient = StateflowKafkaClient(
 #     stateflow.init(), brokers="localhost:9092", serializer=PickleSerializer()
 # )
-client: StateflowClient = AWSKinesisClient(stateflow.init())
+client: StateflowClient = LocalRuntime(stateflow.init(), return_future=True)
 # client.wait_until_healthy(timeout=10)
 
 print("Creating a user: ")
