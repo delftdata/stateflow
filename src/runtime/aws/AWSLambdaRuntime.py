@@ -17,6 +17,7 @@ import boto3
 from pynamodb.models import Model
 from pynamodb.attributes import UnicodeAttribute, BinaryAttribute
 from botocore.config import Config
+import datetime
 
 """Base class for implementing Lambda handlers as classes.
 Used across multiple Lambda functions (included in each zip file).
@@ -125,14 +126,30 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
             full_key: str = f"{operator_name}_{route.key}"
 
             # Lock the key in DynamoDB.
+            start = datetime.datetime.now()
             lock = self.lock_key(full_key)
+            end = datetime.datetime.now()
+            delta = end - start
+            print(f"Locking key took {delta.total_seconds() * 1000}ms")
 
+            start = datetime.datetime.now()
             operator_state: State = self.get_state(full_key)
+            end = datetime.datetime.now()
+            delta = end - start
+            print(f"Getting state took {delta.total_seconds() * 1000}ms")
+
+            start = datetime.datetime.now()
             return_event, updated_state = operator.handle(event, operator_state)
+            end = datetime.datetime.now()
+            delta = end - start
+            print(f"Executing event took {delta.total_seconds() * 1000}ms")
 
+            start = datetime.datetime.now()
             self.save_state(full_key, updated_state)
+            end = datetime.datetime.now()
+            delta = end - start
+            print(f"Saving state took {delta.total_seconds() * 1000}ms")
 
-            print(f"Releasing lock {full_key}")
             lock.release()
             return return_event
 

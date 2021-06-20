@@ -1171,9 +1171,9 @@ def test_for_loop_items():
 
             self.a = 0
 
-            # for x in others:
-            #     x.set(self.a * 3)
-            #     self.a = 0
+            for x in others:
+                x.set(self.a * 3)
+                self.a = 0
 
     stateflow.stateflow(ForClass, parse_file=False)
     stateflow.stateflow(ForOtherClass, parse_file=False)
@@ -1204,11 +1204,11 @@ def test_for_loop_items():
 
     from src.util import dataflow_visualizer
 
-    dataflow_visualizer.visualize(blocks, True)
+    print(dataflow_visualizer.visualize(blocks, True))
     method_desc.split_function(
         blocks, wrapper.class_desc.to_function_type().to_address()
     )
-    dataflow_visualizer.visualize_flow(method_desc.flow_list)
+    print(dataflow_visualizer.visualize_flow(method_desc.flow_list))
 
     invoke_for: InvokeFor = [
         f for f in method_desc.flow_list if isinstance(f, InvokeFor)

@@ -3,7 +3,8 @@ provider:
   name: aws
   region: eu-west-1
   runtime: python3.8
-
+  iam:
+    role: arn:aws:iam::958167380706:role/stateflow-dev-eu-west-1-lambdaRole
 plugins:
   - serverless-python-requirements
 package:
@@ -32,8 +33,7 @@ custom:
 functions:
   stateflow:
     handler: aws_runtime.handler
-    memorySize: 256 # optional, in MB, default is 1024
-    maximumRetryAttempts: 1
+    memorySize: 1024 # optional, in MB, default is 1024
     events:
       - stream:
           arn: arn:aws:kinesis:eu-west-1:958167380706:stream/stateflow-request
@@ -41,4 +41,4 @@ functions:
           startingPosition: LATEST
           maximumRetryAttempts: 1
           batchWindow: 1
-          enabled: false
+          enabled: true
