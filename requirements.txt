@@ -20,3 +20,5 @@ python-dynamodb-lock-whatnick==0.9.3
 pynamodb==5.0.3
 boto3==1.17.93
 decorator==5.0.9
+fastapi==0.65.2
+uvicorn==0.14.0
