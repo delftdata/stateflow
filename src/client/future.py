@@ -2,6 +2,7 @@ from typing import Generic, TypeVar, Optional
 from src.dataflow.event import FunctionAddress, Event
 import time
 from src.dataflow.event import EventType
+from asyncio import Future
 from collections.abc import Iterable
 
 # Type variable used to represent the return value of a StateflowFuture.
