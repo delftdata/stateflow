@@ -58,14 +58,26 @@ class StateflowFuture(Generic[T]):
         if event.event_type == EventType.Reply.FailedInvocation:
             self.result = StateflowFailure(event.payload["error_message"])
         elif event.event_type == EventType.Reply.SuccessfulCreateClass:
-            self.result = self.return_type(__key=event.fun_address.key)
+            if self.return_type:
+                self.result = self.return_type(__key=event.fun_address.key)
+            else:
+                self.result = (
+                    f"Created {self.function_addr.function_type.get_full_name()} "
+                    f"instance with key = {event.fun_address.key}."
+                )
         elif event.event_type == EventType.Reply.SuccessfulInvocation:
             self.result = event.payload["return_results"]
         elif event.event_type == EventType.Reply.SuccessfulStateRequest:
             if "state" in event.payload:
                 self.result = event.payload["state"]
         elif event.event_type == EventType.Reply.FoundClass:
-            self.result = self.return_type(__key=event.fun_address.key)
+            if self.return_type:
+                self.result = self.return_type(__key=event.fun_address.key)
+            else:
+                self.result = (
+                    f"Found {self.function_addr.function_type.get_full_name()} "
+                    f"instance with key = {event.fun_address.key}."
+                )
         elif event.event_type == EventType.Reply.Pong:
             self.result = None
         elif event.event_type == EventType.Reply.KeyNotFound:

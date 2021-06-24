@@ -6,13 +6,16 @@ from src.descriptors.method_descriptor import MethodDescriptor
 from src.dataflow.dataflow import Operator
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from src.dataflow.event import Event, FunctionAddress, EventType
+from src.dataflow.event_flow import EventFlowGraph, EventFlowNode, InternalClassRef
 from src.dataflow.args import Arguments
 from src.client.future import StateflowFuture, StateflowFailure
 from src.dataflow.address import FunctionType, FunctionAddress
 import uuid
 from src.serialization.pickle_serializer import SerDe, PickleSerializer
-from typing import Dict
+from typing import Dict, List, Tuple, Any
+import re
 import time
+import copy
 
 
 class FastAPIClient:
@@ -23,10 +26,13 @@ class FastAPIClient:
         self.serializer: SerDe = serializer
         self.request_map: Dict[str, StateflowFuture] = {}
 
+        self.class_descriptors: Dict[str, ClassDescriptor] = {}
         self.setup_init()
 
         for operator in flow.operators:
             cls_descriptor: ClassDescriptor = operator.class_wrapper.class_desc
+            self.class_descriptors[cls_descriptor.class_name] = cls_descriptor
+
             fun_type = operator.function_type
 
             for method in cls_descriptor.methods_dec:
@@ -149,36 +155,105 @@ class FastAPIClient:
         print(endpoint)
         return endpoint
 
-    def is_primitive(self, el: str) -> bool:
-        if el in ["str", "int", "bool", "float"]:
-            return True
+    def _invoke_flow(
+        self, flow: List[EventFlowNode], fun_addr: FunctionAddress, args: Arguments
+    ) -> Event:
 
-        return False
+        to_assign = list(args.get_keys())
+        flow_for_params: List = []
+
+        # Get the first nodes up and until the first InvokeSplitFun.
+        # For example: RequestState, RequestState, InvokeSplitFun.
+        for f in flow:
+            flow_for_params.append(f)
+            if f.typ == EventFlowNode.INVOKE_SPLIT_FUN:
+                break
+
+        for f in flow_for_params:
+            to_remove = []
+            for arg in to_assign:
+                arg_value = args[arg]
+
+                if f.typ == EventFlowNode.REQUEST_STATE and f.var_name == arg:
+                    f.set_request_key(arg_value._get_key())
+                    f.fun_addr.key = arg_value._get_key()
+                    to_remove.append(arg)
+                elif arg in f.input:
+                    f.input[arg] = arg_value
+                    to_remove.append(arg)
+            to_assign = [el for el in to_assign if el not in to_remove]
+
+        flow_graph = EventFlowGraph(flow[0], flow)
+        flow_graph.set_function_address(flow[0], 0, fun_addr)
+        flow_graph.step()
+
+        payload = {"flow": flow_graph}
+        event_id: str = str(uuid.uuid4())
+
+        invoke_flow_event = Event(
+            event_id, fun_addr, EventType.Request.EventFlow, payload
+        )
+
+        return invoke_flow_event
+
+    def _type_is_class(self, typ: str) -> Tuple[bool, ClassDescriptor]:
+        match = re.compile(r"(?<=\[)(.*?)(?=\])").search(typ)
+
+        if not match:
+            match = typ
+        else:
+            match = match.group(0)
+
+        class_desc = self.class_descriptors.get(match)
+        return class_desc is not None, class_desc
+
+    def _replace_with_internal_ref(
+        self, typ: str, value: Any
+    ) -> Tuple[Any, InternalClassRef]:
+        is_class, class_desc = self._type_is_class(typ)
+
+        if not is_class:
+            return value
+
+        fun_type = class_desc.to_function_type()
+        if isinstance(value, list):
+            return [InternalClassRef(FunctionAddress(fun_type, x)) for x in value]
+        else:  # We expect a singleton.
+            return InternalClassRef(FunctionAddress(fun_type, value))
+
+    def _compute_input_args(self, method_desc: MethodDescriptor) -> str:
+        all_args: List[str] = []
+        for name, typ in method_desc.input_desc.get().items():
+            is_other_stateful_fun, _ = self._type_is_class(typ)
+
+            if is_other_stateful_fun:
+                if typ.startswith("List["):
+                    all_args.append(f"{name}: List[str] = Query(None)")
+                else:  # We assume it is a singleton.
+                    all_args.append(f"{name}: str")
+            else:
+                all_args.append(f"{name}: {typ}")
+
+        return ", ".join(all_args)
 
     def create_method_handler(
         self, function_type, method_desc: MethodDescriptor, class_desc: ClassDescriptor
     ):
         # TODO transform lists of stateful functins
-        if len(method_desc.input_desc.get()) > 0:
-            input_args = ", ".join(
-                [
-                    f"{k}: {v}"
-                    for k, v in method_desc.input_desc.get().items()
-                    if self.is_primitive(v)
-                ]
-                + [
-                    f"{k}: str"
-                    for k, v in method_desc.input_desc.get().items()
-                    if not self.is_primitive(v)
-                ]
-            )
+        if (
+            len(method_desc.input_desc.get()) > 0
+            or not method_desc.method_name == "__init__"
+        ):
+            input_args = self._compute_input_args(method_desc)
+
             input_assign = "\n        ".join(
                 [f"self.{k} = {k}" for k, _ in method_desc.input_desc.get().items()]
             )
 
             args = f"""
 class {self.get_name(method_desc)}_params:
-    def __init__(self, {input_args}):
+    def __init__(self, key: str, {input_args}):
+        self.key = key
         {input_assign}
             """
         else:
@@ -187,31 +262,51 @@ class {self.get_name(method_desc)}_params:
     pass
             """
 
+        print(args)
         exec(compile(args, "", mode="exec"), globals(), globals())
 
         method_name = self.get_name(method_desc)
+        is_init: bool = method_desc.method_name == "__init__"
+        is_flow: bool = len(method_desc.flow_list) > 0
 
         @self.app.post(
             f"/stateflow/{function_type.get_full_name()}/{self.get_name(method_desc)}",
             name=self.get_name(method_desc),
         )
         async def endpoint(
-            request: Request,
             params: f"{method_name}_params" = Depends(),
         ):
             args = {}
-            for key in method_desc.input_desc.keys():
-                args[key] = getattr(params, key)
+            for name, typ in method_desc.input_desc.get().items():
+                args[name] = self._replace_with_internal_ref(typ, getattr(params, name))
+
+            if not is_init:
+                key = params.key
 
             payload = {"args": Arguments(args)}
             event_id: str = str(uuid.uuid4())
 
-            event = Event(
-                event_id,
-                FunctionAddress(class_desc.to_function_type(), None),
-                EventType.Request.InitClass,
-                payload,
-            )
+            if is_init:
+                event = Event(
+                    event_id,
+                    FunctionAddress(class_desc.to_function_type(), None),
+                    EventType.Request.InitClass,
+                    payload,
+                )
+            elif is_flow:
+                event = self._invoke_flow(
+                    copy.deepcopy(method_desc.flow_list),
+                    FunctionAddress(class_desc.to_function_type(), key),
+                    Arguments(args),
+                )
+            else:
+                payload["method_name"] = method_name
+                event = Event(
+                    event_id,
+                    FunctionAddress(class_desc.to_function_type(), key),
+                    EventType.Request.InvokeStateful,
+                    payload,
+                )
 
             await self.producer.send_and_wait(
                 "client_request", self.serializer.serialize_event(event)
