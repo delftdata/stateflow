@@ -1,10 +1,16 @@
-from src.client.class_ref import ClassRef, StateflowClient, StateflowFuture
+from src.client.class_ref import (
+    ClassRef,
+    StateflowClient,
+    StateflowFuture,
+    AsyncClassRef,
+)
 from src.dataflow.address import FunctionType
 from src.descriptors import ClassDescriptor
 from src.dataflow.event import Event, FunctionAddress, EventType
 from src.dataflow.args import Arguments
 from typing import Union
 import uuid
+import types
 
 
 class MetaWrapper(type):
@@ -27,8 +33,47 @@ class MetaWrapper(type):
         :param descriptor: the class descriptor of this class.
         """
         msc.client: StateflowClient = None
+        msc.asynchronous: bool = False
         dct["descriptor"]: ClassDescriptor = descriptor
         return super(MetaWrapper, msc).__new__(msc, name, bases, dct)
+
+    def to_asynchronous_wrapper(msc):
+        msc.asynchronous = True
+
+    def by_key(msc, key: str):
+        return msc({"__key": key})
+
+    async def __async_call__(msc, *args, **kwargs) -> Union[ClassRef, StateflowFuture]:
+        if "__key" in kwargs:
+            return AsyncClassRef(
+                FunctionAddress(FunctionType.create(msc.descriptor), kwargs["__key"]),
+                msc.descriptor,
+                msc.client,
+            )
+
+        fun_address = FunctionAddress(FunctionType.create(msc.descriptor), None)
+
+        event_id: str = str(uuid.uuid4())
+
+        # Build arguments.
+        print(args)
+        print(kwargs)
+        args = Arguments.from_args_and_kwargs(
+            msc.descriptor.get_method_by_name("__init__").input_desc.get(),
+            *args,
+            **kwargs,
+        )
+
+        payload = {"args": args}
+
+        # Creates a class event.
+        create_class_event = Event(
+            event_id, fun_address, EventType.Request.InitClass, payload
+        )
+
+        print(f"Now sending events with payload {args.get()}")
+        result = await msc.client.send(create_class_event, msc)
+        return result
 
     def __call__(msc, *args, **kwargs) -> Union[ClassRef, StateflowFuture]:
         """Invoked on constructing an instance of class.
@@ -50,6 +95,9 @@ class MetaWrapper(type):
         :param kwargs: invocation kwargs.
         :return: either a StateflowFuture or ClassRef.
         """
+        if "__call__" in vars(msc):
+            return vars(msc)["__async_call__"](args, kwargs)
+
         if "__key" in kwargs:
             return ClassRef(
                 FunctionAddress(FunctionType.create(msc.descriptor), kwargs["__key"]),

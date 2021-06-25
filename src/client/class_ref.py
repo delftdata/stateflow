@@ -86,6 +86,16 @@ class ClassRef(object):
         }
         self._client = client
 
+    def _prepare_invoke_method_event(self, method_name: str, args: Arguments) -> Event:
+        payload = {"args": args, "method_name": method_name}
+        event_id: str = str(uuid.uuid4())
+
+        invoke_method_event = Event(
+            event_id, self._fun_addr, EventType.Request.InvokeStateful, payload
+        )
+
+        return invoke_method_event
+
     def _invoke_method(self, method_name: str, args: Arguments) -> StateflowFuture:
         """Invokes a method of stateful function/actor.
 
@@ -97,27 +107,10 @@ class ClassRef(object):
         :param args: the arguments of the method.
         :return: a stateflow future.
         """
-        payload = {"args": args, "method_name": method_name}
-        event_id: str = str(uuid.uuid4())
-
-        invoke_method_event = Event(
-            event_id, self._fun_addr, EventType.Request.InvokeStateful, payload
-        )
-
+        invoke_method_event = self._prepare_invoke_method_event(method_name, args)
         return self._client.send(invoke_method_event)
 
-    def _invoke_flow(self, flow: List[EventFlowNode], args: Arguments):
-        """Invokes a (splitted) method of stateful function/actor. This will invoke a so-called EventFlow.
-
-        This method prepares the arguments and sets the correct payload.
-        Finally the event is send to the runtime via the client. A StateflowFuture is returned,
-        which will be completed when a response is received.
-
-        :param flow: the EventFlow to invoke/traverse.
-        :param args: the arguments of the method.
-        :return: a stateflow future.
-        """
-
+    def _prepare_flow(self, flow: List[EventFlowNode], args: Arguments):
         to_assign = list(args.get_keys())
         flow_for_params: List = []
 
@@ -139,8 +132,8 @@ class ClassRef(object):
                     isinstance(el, ClassRef) for el in arg_value
                 ):
                     arg_value = [el.to_internal_ref() for el in arg_value]
-
-                print(arg_value)
+                    print(f"Invoking flow")
+                    print(arg_value)
 
                 if f.typ == EventFlowNode.REQUEST_STATE and f.var_name == arg:
                     f.set_request_key(arg_value._get_key())
@@ -162,8 +155,20 @@ class ClassRef(object):
             event_id, self._fun_addr, EventType.Request.EventFlow, payload
         )
 
-        print(f"Now sending event flow to {self._fun_addr.key}.")
+        return invoke_flow_event
 
+    def _invoke_flow(self, flow: List[EventFlowNode], args: Arguments):
+        """Invokes a (splitted) method of stateful function/actor. This will invoke a so-called EventFlow.
+
+        This method prepares the arguments and sets the correct payload.
+        Finally the event is send to the runtime via the client. A StateflowFuture is returned,
+        which will be completed when a response is received.
+
+        :param flow: the EventFlow to invoke/traverse.
+        :param args: the arguments of the method.
+        :return: a stateflow future.
+        """
+        invoke_flow_event = self._prepare_flow(flow, args)
         return self._client.send(invoke_flow_event)
 
     def get_attribute(self, attr: str) -> StateflowFuture:
@@ -247,3 +252,36 @@ class ClassRef(object):
 
     def to_internal_ref(self) -> InternalClassRef:
         return InternalClassRef(self._fun_addr)
+
+
+class AsyncClassRef(ClassRef):
+    from src.dataflow.event import FunctionAddress
+
+    def __init__(
+        self,
+        fun_addr: FunctionAddress,
+        class_desc: ClassDescriptor,
+        client: StateflowClient,
+    ):
+        super().__init__(fun_addr, class_desc, client)
+
+    async def _invoke_method(self, method_name: str, args: Arguments):
+        """Invokes a method of stateful function/actor.
+
+        This method prepares the arguments and sets the correct payload.
+        Finally the event is send to the runtime via the client. A StateflowFuture is returned,
+        which will be completed when a response is received.
+
+        :param method_name: the name of the method to invoke.
+        :param args: the arguments of the method.
+        :return: a stateflow future.
+        """
+        invoke_method_event = self._prepare_invoke_method_event(method_name, args)
+        res = await self._client.send(invoke_method_event)
+        return res
+
+    async def _invoke_flow(self, flow: List[EventFlowNode], args: Arguments):
+        """ """
+        invoke_flow = self._prepare_flow(flow, args)
+        res = await self._client.send(invoke_flow)
+        return res

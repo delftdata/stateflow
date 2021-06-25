@@ -8,7 +8,8 @@ from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from src.dataflow.event import Event, FunctionAddress, EventType
 from src.dataflow.event_flow import EventFlowGraph, EventFlowNode, InternalClassRef
 from src.dataflow.args import Arguments
-from src.client.future import StateflowFuture, StateflowFailure
+from src.client.future import StateflowFuture, StateflowFailure, T
+from src.client.stateflow_client import StateflowClient
 from src.dataflow.address import FunctionType, FunctionAddress
 import uuid
 from src.serialization.pickle_serializer import SerDe, PickleSerializer
@@ -18,7 +19,7 @@ import time
 import copy
 
 
-class FastAPIClient:
+class FastAPIClient(StateflowClient):
     def __init__(self, flow: Dataflow, serializer: SerDe = PickleSerializer()):
         self.app: FastAPI = FastAPI()
         self.producer: AIOKafkaProducer = None
@@ -27,9 +28,13 @@ class FastAPIClient:
         self.request_map: Dict[str, StateflowFuture] = {}
 
         self.class_descriptors: Dict[str, ClassDescriptor] = {}
+        self.timeout: int = 5
         self.setup_init()
 
         for operator in flow.operators:
+            operator.meta_wrapper.to_asynchronous_wrapper()
+            operator.meta_wrapper.set_client(self)
+
             cls_descriptor: ClassDescriptor = operator.class_wrapper.class_desc
             self.class_descriptors[cls_descriptor.class_name] = cls_descriptor
 
@@ -44,7 +49,6 @@ class FastAPIClient:
     async def consume_forever(self):
         async for msg in self.consumer:
             return_event: Event = self.serializer.deserialize_event(msg.value)
-            print(f"Received event with id {return_event.event_id}")
             if return_event.event_id in self.request_map:
                 self.request_map[return_event.event_id].set_result(return_event)
                 del self.request_map[return_event.event_id]
@@ -94,7 +98,7 @@ class FastAPIClient:
             self.request_map[event.event_id] = fut
 
             try:
-                result = await asyncio.wait_for(fut, timeout=5)
+                result = await asyncio.wait_for(fut, timeout=self.timeout)
             except asyncio.TimeoutError:
                 del self.request_map[event.event_id]
                 return "Ping timed out..."
@@ -262,7 +266,6 @@ class {self.get_name(method_desc)}_params:
     pass
             """
 
-        print(args)
         exec(compile(args, "", mode="exec"), globals(), globals())
 
         method_name = self.get_name(method_desc)
@@ -322,7 +325,7 @@ class {self.get_name(method_desc)}_params:
             self.request_map[event.event_id] = fut
 
             try:
-                result = await asyncio.wait_for(fut, timeout=5)
+                result = await asyncio.wait_for(fut, timeout=self.timeout)
             except asyncio.TimeoutError:
                 del self.request_map[event.event_id]
                 return "Request timed out."
@@ -334,9 +337,37 @@ class {self.get_name(method_desc)}_params:
             except StateflowFailure as exc:
                 return exc
 
-            return future.get()
+            return result
 
         return endpoint
+
+    async def send(self, event: Event, return_type: T = None):
+        await self.producer.send_and_wait(
+            "client_request", self.serializer.serialize_event(event)
+        )
+        loop = asyncio.get_running_loop()
+
+        fut = loop.create_future()
+        future = StateflowFuture(
+            event.event_id, time.time(), event.fun_address, return_type
+        )
+
+        self.request_map[event.event_id] = fut
+
+        try:
+            result = await asyncio.wait_for(fut, timeout=self.timeout)
+        except asyncio.TimeoutError:
+            del self.request_map[event.event_id]
+            raise StateflowFailure("Request timed out!")
+
+        future.complete(result)
+
+        try:
+            result = future.get()
+        except StateflowFailure as exc:
+            return exc
+
+        return result
 
     def get_app(self) -> FastAPI:
         return self.app

@@ -43,6 +43,17 @@ class User:
         self.balance -= total_price
         return True
 
+    def simple_for_loops(self, users: List["User"]):
+        i = 0
+        for user in users:
+            if i > 0:
+                user.update_balance(9)
+            else:
+                user.update_balance(4)
+            i += 1
+
+        return i
+
     def __key__(self):
         return self.username
 

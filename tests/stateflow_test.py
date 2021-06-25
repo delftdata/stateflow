@@ -176,8 +176,12 @@ class TestE2E:
             )
 
             user: User = User(str(uuid.uuid4())).get(timeout=25)
+            user2: User = User(str(uuid.uuid4())).get(timeout=25)
+            user3: User = User(str(uuid.uuid4())).get(timeout=25)
+            user4: User = User(str(uuid.uuid4())).get(timeout=25)
             item: Item = Item(str(uuid.uuid4()), 5).get(timeout=10)
 
+            print(user)
             user.update_balance(20).get(timeout=10)
             item.update_stock(4).get(timeout=10)
 
@@ -189,11 +193,17 @@ class TestE2E:
             final_balance = user.balance.get(timeout=10)
             final_stock = item.stock.get(timeout=10)
 
+            final_for = user.simple_for_loops([user, user2, user3, user4]).get(
+                timeout=10
+            )
+
             assert buy is True
             assert initial_stock == 4
             assert initial_balance == 20
             assert final_balance == 5
             assert final_stock == 1
+
+            assert final_for == 4
 
             print("Finished all asserts :)")
         except Exception as exc:

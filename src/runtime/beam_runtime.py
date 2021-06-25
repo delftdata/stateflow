@@ -66,7 +66,7 @@ class BeamInitOperator(DoFn):
             yield element[0], element[1]
         else:
             return_event = self.operator.handle_create(element[1])
-            print(f"{return_event} with key {return_event.fun_address.key}")
+            # print(f"{return_event} with key {return_event.fun_address.key}")
             yield return_event.fun_address.key, return_event
 
 

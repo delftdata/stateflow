@@ -61,6 +61,8 @@ class User:
                 user.update_balance(4)
             i += 1
 
+        return i
+
     def state_requests(self, items: List[Item]):
         total: int = 0
         first_item: Item = items[0]
