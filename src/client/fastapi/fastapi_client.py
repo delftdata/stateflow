@@ -277,7 +277,7 @@ class {self.get_name(method_desc)}_params:
             name=self.get_name(method_desc),
         )
         async def endpoint(
-            params: f"{method_name}_params" = Depends(),
+            params: f"{method_name}_params" = Depends(),  # noqa: F821
         ):
             args = {}
             for name, typ in method_desc.input_desc.get().items():
