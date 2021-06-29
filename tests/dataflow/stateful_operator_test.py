@@ -1,15 +1,14 @@
-import os
 import uuid
-
+from tests.context import stateflow
 import pytest
 
-from tests.common.common_classes import User, stateflow
-from src.dataflow.event import Event, EventType
-from src.dataflow.address import FunctionAddress, FunctionType
-from src.dataflow.args import Arguments
-from src.dataflow.state import State
-from src.dataflow.stateful_operator import StatefulOperator
-from src.serialization.json_serde import JsonSerializer
+from tests.common.common_classes import stateflow
+from stateflow.dataflow.event import Event, EventType
+from stateflow.dataflow.address import FunctionAddress, FunctionType
+from stateflow.dataflow.args import Arguments
+from stateflow.dataflow.state import State
+from stateflow.dataflow.stateful_operator import StatefulOperator
+from stateflow.serialization.json_serde import JsonSerializer
 
 
 @pytest.fixture(scope="session", autouse=True)

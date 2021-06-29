@@ -1,6 +1,7 @@
 import pytest
 from tests.common.common_classes import User, stateflow
-from src.client.kafka_client import (
+from tests.context import stateflow
+from stateflow.client.kafka_client import (
     StateflowKafkaClient,
     Producer,
     Consumer,
@@ -9,7 +10,7 @@ from src.client.kafka_client import (
     FunctionAddress,
     FunctionType,
 )
-from src.client.class_ref import ClassRef
+from stateflow.client.class_ref import ClassRef
 from unittest import mock
 
 

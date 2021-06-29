@@ -1,19 +1,17 @@
-from tests.common.common_classes import User, Item, stateflow
-from src.runtime.beam_runtime import BeamRuntime, Runtime
+from tests.context import stateflow
+from stateflow.runtime.beam_runtime import BeamRuntime
 from apache_beam.testing.test_stream import TestStream
 import apache_beam as beam
 from apache_beam.testing import util as beam_test
-from src.client.class_ref import ClassRef
-from hamcrest import *
 from hamcrest.core.base_matcher import BaseMatcher, Description
-from src.dataflow.event import (
+from stateflow.dataflow.event import (
     Event,
     EventType,
 )
-from src.dataflow.address import FunctionAddress, FunctionType
-from src.dataflow.args import Arguments
+from stateflow.dataflow.address import FunctionAddress, FunctionType
+from stateflow.dataflow.args import Arguments
 import uuid
-from src.serialization.json_serde import JsonSerializer
+from stateflow.serialization.json_serde import JsonSerializer
 
 
 class EventMatcher(BaseMatcher):

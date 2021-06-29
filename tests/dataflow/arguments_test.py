@@ -1,5 +1,6 @@
 import pytest
-from src.dataflow.args import Arguments
+from tests.context import stateflow
+from stateflow.dataflow.args import Arguments
 
 
 def test_match_simple_args():

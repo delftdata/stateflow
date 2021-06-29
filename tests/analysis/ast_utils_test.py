@@ -1,6 +1,5 @@
-import pytest
-import libcst as cst
-from src.analysis.ast_utils import *
+from tests.context import stateflow
+from stateflow.analysis.ast_utils import *
 
 
 def test_self_positive():

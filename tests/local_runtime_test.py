@@ -1,4 +1,5 @@
-from src.util.stateflow_test import stateflow_test
+from .context import stateflow
+from stateflow.util.stateflow_test import stateflow_test
 from tests.common.common_classes import User, Item
 
 

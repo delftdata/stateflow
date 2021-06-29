@@ -1,8 +1,12 @@
-import pytest
-from src.wrappers.class_wrapper import ClassWrapper, InvocationResult, FailedInvocation
-from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from src.dataflow.args import Arguments
-from src.dataflow.state import State
+from tests.context import stateflow
+from stateflow.wrappers.class_wrapper import (
+    ClassWrapper,
+    InvocationResult,
+    FailedInvocation,
+)
+from stateflow.analysis.extract_class_descriptor import ExtractClassDescriptor
+from stateflow.dataflow.args import Arguments
+from stateflow.dataflow.state import State
 
 import inspect
 import libcst as cst

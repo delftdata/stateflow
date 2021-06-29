@@ -1,14 +1,13 @@
-import pytest
-
-from src.client.stateflow_client import StateflowClient
-from src.wrappers.meta_wrapper import MetaWrapper
+from tests.context import stateflow
+from stateflow.client.stateflow_client import StateflowClient
+from stateflow.wrappers.meta_wrapper import MetaWrapper
 import inspect
 import libcst as cst
-from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from src.descriptors.class_descriptor import ClassDescriptor
-from src.dataflow.event import EventType
+from stateflow.analysis.extract_class_descriptor import ExtractClassDescriptor
+from stateflow.descriptors.class_descriptor import ClassDescriptor
+from stateflow.dataflow.event import EventType
 from unittest import mock
-from src.client.class_ref import ClassRef
+from stateflow.client.class_ref import ClassRef
 
 
 class SimpleClass:

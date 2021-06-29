@@ -1,6 +1,5 @@
 import pytest
 from tests.common.common_classes import (
-    stateflow,
     User,
     Item,
     ExperimentalB,
@@ -8,19 +7,16 @@ from tests.common.common_classes import (
     NestClass,
     OtherNestClass,
 )
-from src.client.kafka_client import StateflowKafkaClient
-from src.runtime.flink_runtime import FlinkRuntime
-from src.runtime.beam_runtime import BeamRuntime
-from src.serialization.pickle_serializer import PickleSerializer
+from .context import stateflow
+from stateflow.client.kafka_client import StateflowKafkaClient
+from stateflow.runtime.flink_runtime import FlinkRuntime
+from stateflow.runtime.beam_runtime import BeamRuntime
+from stateflow.serialization.pickle_serializer import PickleSerializer
 
 import time
-from multiprocessing import Process
 from threading import Thread
 from tests.kafka.KafkaImage import KafkaImage
 import uuid
-from src.util import dataflow_visualizer
-from src.dataflow.address import FunctionType
-import os
 
 
 @pytest.fixture(scope="class")
@@ -167,10 +163,10 @@ class TestE2E:
     # @pytest.mark.parametrize("start_and_stop", ["flink", "beam"], indirect=True)
     def test_full_e2e(self, start_and_stop):
         try:
-            import src.util.dataflow_visualizer as viz
+            import stateflow.util.dataflow_visualizer as viz
 
             viz.visualize_flow(
-                stateflow.registered_classes[1]
+                stateflow.core.registered_classes[1]
                 .class_desc.get_method_by_name("buy_item")
                 .flow_list
             )

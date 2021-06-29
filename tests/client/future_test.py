@@ -1,9 +1,10 @@
 import pytest
-from tests.common.common_classes import User, stateflow
-from src.client.future import StateflowFuture, StateflowFailure
-from src.dataflow.event import EventType, Event
-from src.dataflow.address import FunctionAddress, FunctionType
-from src.client.class_ref import ClassRef
+from tests.context import stateflow
+from tests.common.common_classes import User
+from stateflow.client.future import StateflowFuture, StateflowFailure
+from stateflow.dataflow.event import EventType, Event
+from stateflow.dataflow.address import FunctionAddress, FunctionType
+from stateflow.client.class_ref import ClassRef
 from typing import List
 
 
@@ -69,7 +70,7 @@ def test_future_complete_found_class_event():
         "123",
         123,
         FunctionAddress(FunctionType("", "", True), "test-user"),
-        stateflow.meta_classes[1],
+        stateflow.core.meta_classes[1],
     )
     event = Event(
         "id",
@@ -91,7 +92,7 @@ def test_future_complete_successful_create_class_event():
         "123",
         123,
         FunctionAddress(FunctionType("", "", True), "test-user"),
-        stateflow.meta_classes[1],
+        stateflow.core.meta_classes[1],
     )
     event = Event(
         "id",

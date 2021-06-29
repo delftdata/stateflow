@@ -1,5 +1,6 @@
 import pytest
-from src.split.split_analyze import (
+from tests.context import stateflow
+from stateflow.split.split_analyze import (
     SplitAnalyzer,
     Split,
     RemoveAfterClassDefinition,
@@ -9,7 +10,7 @@ from src.split.split_analyze import (
     StatementBlock,
     ConditionalBlock,
 )
-from src.dataflow.event_flow import (
+from stateflow.dataflow.event_flow import (
     StartNode,
     InvokeExternal,
     InvokeSplitFun,
@@ -19,11 +20,11 @@ from src.dataflow.event_flow import (
     InvokeFor,
 )
 from typing import List
-import src.stateflow as stateflow
+import stateflow as stateflow
 
 
 def test_split_dependencies():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class B:
         def __init__(self):
@@ -46,14 +47,14 @@ def test_split_dependencies():
     stateflow.stateflow(B, parse_file=False)
     stateflow.stateflow(A, parse_file=False)
 
-    a_wrapper = stateflow.registered_classes[1]
-    a_method_desc = stateflow.registered_classes[1].class_desc.get_method_by_name(
+    a_wrapper = stateflow.core.registered_classes[1]
+    a_method_desc = stateflow.core.registered_classes[1].class_desc.get_method_by_name(
         "get_a"
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -63,13 +64,13 @@ def test_split_dependencies():
             a_wrapper.class_desc.expression_provider,
             a_method_desc.method_node,
             a_method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         a_method_desc.method_node.body.children,
     )
     stmts = analyzer.blocks
 
-    from src.util.dataflow_visualizer import visualize
+    from stateflow.util.dataflow_visualizer import visualize
 
     visualize(stmts, code=True)
 
@@ -79,7 +80,7 @@ def test_split_dependencies():
 
 
 def test_split_dependencies_more():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class C:
         def __init__(self):
@@ -102,14 +103,14 @@ def test_split_dependencies_more():
     stateflow.stateflow(C, parse_file=False)
     stateflow.stateflow(D, parse_file=False)
 
-    a_wrapper = stateflow.registered_classes[1]
-    a_method_desc = stateflow.registered_classes[1].class_desc.get_method_by_name(
+    a_wrapper = stateflow.core.registered_classes[1]
+    a_method_desc = stateflow.core.registered_classes[1].class_desc.get_method_by_name(
         "get_a"
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -119,7 +120,7 @@ def test_split_dependencies_more():
             a_wrapper.class_desc.expression_provider,
             a_method_desc.method_node,
             a_method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         a_method_desc.method_node.body.children,
     )
@@ -131,20 +132,20 @@ def test_split_dependencies_more():
 
 
 def test_dependencies_user_class():
-    stateflow.clear()
+    stateflow.core.clear()
     from tests.common.common_classes import User, Item
 
     stateflow.stateflow(Item, parse_file=False)
     stateflow.stateflow(User, parse_file=False)
 
-    wrapper = stateflow.registered_classes[1]
-    method_desc = stateflow.registered_classes[1].class_desc.get_method_by_name(
+    wrapper = stateflow.core.registered_classes[1]
+    method_desc = stateflow.core.registered_classes[1].class_desc.get_method_by_name(
         "buy_item"
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -154,7 +155,7 @@ def test_dependencies_user_class():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
@@ -174,7 +175,7 @@ def test_dependencies_user_class():
 
 
 def test_multiple_splits():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class CC(object):
         def __init__(self):
@@ -210,22 +211,22 @@ def test_multiple_splits():
     stateflow.stateflow(BB, parse_file=False)
     stateflow.stateflow(CC, parse_file=False)
 
-    wrapper = stateflow.registered_classes[0]
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    wrapper = stateflow.core.registered_classes[0]
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "cool_method"
     )
 
     print(
         [
             method.method_name
-            for m in stateflow.registered_classes
+            for m in stateflow.core.registered_classes
             for method in m.class_desc.methods_dec
         ]
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -235,7 +236,7 @@ def test_multiple_splits():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
@@ -308,7 +309,7 @@ def test_multiple_splits():
 
 
 def test_multiple_splits_with_returns():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class CCC(object):
         def __init__(self):
@@ -350,22 +351,22 @@ def test_multiple_splits_with_returns():
     stateflow.stateflow(BBB, parse_file=False)
     stateflow.stateflow(CCC, parse_file=False)
 
-    wrapper = stateflow.registered_classes[0]
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    wrapper = stateflow.core.registered_classes[0]
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "cool_method"
     )
 
     print(
         [
             method.method_name
-            for m in stateflow.registered_classes
+            for m in stateflow.core.registered_classes
             for method in m.class_desc.methods_dec
         ]
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -375,7 +376,7 @@ def test_multiple_splits_with_returns():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
@@ -384,7 +385,7 @@ def test_multiple_splits_with_returns():
     # GET STATE -> GET STATE -> INVOKE SPLIT FUN -> INVOKE EXTERNAL
     node_one = stmts[0].build_event_flow_nodes(0)
 
-    from src.util import dataflow_visualizer
+    from stateflow.util import dataflow_visualizer
 
     dataflow_visualizer.visualize_flow(node_one)
     dataflow_visualizer.visualize(stmts, code=True)
@@ -475,7 +476,7 @@ def test_multiple_splits_with_returns():
 
 
 def test_if_statements():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class Other(object):
         def __init__(self):
@@ -508,14 +509,14 @@ def test_if_statements():
     stateflow.stateflow(IfClass, parse_file=False)
     stateflow.stateflow(Other, parse_file=False)
 
-    wrapper = stateflow.registered_classes[0]
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    wrapper = stateflow.core.registered_classes[0]
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "cool_method"
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -525,14 +526,14 @@ def test_if_statements():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
 
     blocks: List[Block] = analyzer.blocks
 
-    from src.util import dataflow_visualizer
+    from stateflow.util import dataflow_visualizer
 
     dataflow_visualizer.visualize(blocks)
 
@@ -637,7 +638,7 @@ def test_if_statements():
 
 
 def test_if_non_split():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class DummyIf:
         def __init__(self):
@@ -668,13 +669,13 @@ def test_if_non_split():
     stateflow.stateflow(IfNoSplit, parse_file=False)
     stateflow.stateflow(DummyIf, parse_file=False)
 
-    wrapper = stateflow.registered_classes[0]
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    wrapper = stateflow.core.registered_classes[0]
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "invoke"
     )
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -684,14 +685,14 @@ def test_if_non_split():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
 
     blocks: List[Block] = analyzer.blocks
 
-    from src.util import dataflow_visualizer
+    from stateflow.util import dataflow_visualizer
 
     dataflow_visualizer.visualize(blocks, True)
 
@@ -703,7 +704,7 @@ def test_if_non_split():
 
 
 def test_if_statements_complex():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class OtherComplex(object):
         def __init__(self):
@@ -735,14 +736,14 @@ def test_if_statements_complex():
     stateflow.stateflow(IfClassComplex, parse_file=False)
     stateflow.stateflow(OtherComplex, parse_file=False)
 
-    wrapper = stateflow.registered_classes[0]
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    wrapper = stateflow.core.registered_classes[0]
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "cool_method"
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -752,14 +753,14 @@ def test_if_statements_complex():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
 
     blocks: List[Block] = analyzer.blocks
 
-    from src.util import dataflow_visualizer
+    from stateflow.util import dataflow_visualizer
 
     dataflow_visualizer.visualize(blocks, True)
     method_desc.split_function(
@@ -769,7 +770,7 @@ def test_if_statements_complex():
 
 
 def test_list_items():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class ListOtherClass(object):
         def __init__(self):
@@ -797,14 +798,14 @@ def test_list_items():
     stateflow.stateflow(ListClass, parse_file=False)
     stateflow.stateflow(ListOtherClass, parse_file=False)
 
-    wrapper = stateflow.registered_classes[0]
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    wrapper = stateflow.core.registered_classes[0]
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "cool_method"
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -814,14 +815,14 @@ def test_list_items():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
 
     blocks: List[Block] = analyzer.blocks
 
-    # from src.util import dataflow_visualizer
+    # from util import dataflow_visualizer
     #
     # dataflow_visualizer.visualize(blocks, True)
     # method_desc.split_function(blocks)
@@ -831,7 +832,7 @@ def test_list_items():
 
 
 def test_request_state():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class StateClass:
         def __init__(self):
@@ -914,14 +915,14 @@ def test_request_state():
             x.x
 
     stateflow.stateflow(StateClass, parse_file=False)
-    wrapper = stateflow.registered_classes[0]
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    wrapper = stateflow.core.registered_classes[0]
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "request_state_simple"
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -931,14 +932,14 @@ def test_request_state():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
 
     blocks: List[Block] = analyzer.blocks
 
-    from src.util import dataflow_visualizer
+    from stateflow.util import dataflow_visualizer
 
     dataflow_visualizer.visualize(blocks, True)
     method_desc.split_function(
@@ -954,7 +955,7 @@ def test_request_state():
     assert flow[1].fun_addr.function_type.name == "StateClass"
     assert len(request_blocks) == 1
 
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "request_state_invalidate"
     )
 
@@ -965,7 +966,7 @@ def test_request_state():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
@@ -989,7 +990,7 @@ def test_request_state():
     assert isinstance(flow[14], RequestState)
     assert flow[14].var_name == "state"
 
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "request_state_invalidate_2"
     )
 
@@ -1000,7 +1001,7 @@ def test_request_state():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
@@ -1021,7 +1022,7 @@ def test_request_state():
     assert isinstance(flow[11], RequestState)
     assert flow[11].var_name == "state"
 
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "request_state_not_invalidate"
     )
 
@@ -1032,7 +1033,7 @@ def test_request_state():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
@@ -1050,7 +1051,7 @@ def test_request_state():
     assert isinstance(flow[1], RequestState)
     assert flow[1].var_name == "state"
 
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "request_for"
     )
 
@@ -1061,7 +1062,7 @@ def test_request_state():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
@@ -1084,7 +1085,7 @@ def test_request_state():
     assert request_blocks[2].id == 11
     assert request_blocks[2].var_name == "y"
 
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "request_state_simple_invalidate"
     )
 
@@ -1095,7 +1096,7 @@ def test_request_state():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
@@ -1111,7 +1112,7 @@ def test_request_state():
     request_blocks = [block for block in flow if isinstance(block, RequestState)]
     assert len(request_blocks) == 2
 
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "request_rename"
     )
 
@@ -1122,7 +1123,7 @@ def test_request_state():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
@@ -1142,7 +1143,7 @@ def test_request_state():
 
 
 def test_for_loop_items():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class ForOtherClass(object):
         def __init__(self):
@@ -1178,14 +1179,14 @@ def test_for_loop_items():
     stateflow.stateflow(ForClass, parse_file=False)
     stateflow.stateflow(ForOtherClass, parse_file=False)
 
-    wrapper = stateflow.registered_classes[0]
-    method_desc = stateflow.registered_classes[0].class_desc.get_method_by_name(
+    wrapper = stateflow.core.registered_classes[0]
+    method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
         "cool_method"
     )
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     analyzer = SplitAnalyzer(
@@ -1195,14 +1196,14 @@ def test_for_loop_items():
             wrapper.class_desc.expression_provider,
             method_desc.method_node,
             method_desc,
-            stateflow.registered_classes[0].class_desc,
+            stateflow.core.registered_classes[0].class_desc,
         ),
         method_desc.method_node.body.children,
     )
 
     blocks: List[Block] = analyzer.blocks
 
-    from src.util import dataflow_visualizer
+    from stateflow.util import dataflow_visualizer
 
     print(dataflow_visualizer.visualize(blocks, True))
     method_desc.split_function(
@@ -1242,7 +1243,7 @@ def do_split(split, class_desc, method_name: str):
 
 
 def test_nested_execution():
-    stateflow.clear()
+    stateflow.core.clear()
 
     class OtherNestClass:
         def __init__(self, x: int):
@@ -1279,32 +1280,32 @@ def test_nested_execution():
     stateflow.stateflow(OtherNestClass, parse_file=False)
 
     split = Split(
-        [cls.class_desc for cls in stateflow.registered_classes],
-        stateflow.registered_classes,
+        [cls.class_desc for cls in stateflow.core.registered_classes],
+        stateflow.core.registered_classes,
     )
 
     nest_analyzer, nest_method = do_split(
-        split, stateflow.registered_classes[0].class_desc, "nest_call"
+        split, stateflow.core.registered_classes[0].class_desc, "nest_call"
     )
     nest_other, nest_other_method = do_split(
-        split, stateflow.registered_classes[1].class_desc, "nest_call"
+        split, stateflow.core.registered_classes[1].class_desc, "nest_call"
     )
 
     is_true, is_true_method = do_split(
-        split, stateflow.registered_classes[1].class_desc, "is_true"
+        split, stateflow.core.registered_classes[1].class_desc, "is_true"
     )
 
     is_really_true, is_really_true_method = do_split(
-        split, stateflow.registered_classes[1].class_desc, "is_really_true"
+        split, stateflow.core.registered_classes[1].class_desc, "is_really_true"
     )
 
     # We don't need to split it!
     is_really_true_method.flow_list = []
 
-    from src.split.execution_plan_merging import ExecutionPlanMerger
+    from stateflow.split.execution_plan_merging import ExecutionPlanMerger
 
     merger = ExecutionPlanMerger(
-        [cls.class_desc for cls in stateflow.registered_classes]
+        [cls.class_desc for cls in stateflow.core.registered_classes]
     )
 
     replace = merger.mark_replacement_nodes(is_really_true_method.flow_list)
@@ -1324,7 +1325,7 @@ def test_nested_execution():
     ]
 
     # Very shallow tests
-    from src.util.dataflow_visualizer import visualize_flow
+    from stateflow.util.dataflow_visualizer import visualize_flow
 
     visualize_flow(merger.replace_and_merge(nest_other_method.flow_list))
 

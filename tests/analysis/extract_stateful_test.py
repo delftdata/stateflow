@@ -1,7 +1,8 @@
 import pytest
-from src.analysis.extract_class_descriptor import ExtractClassDescriptor
-from src.descriptors import ClassDescriptor, MethodDescriptor
-from src.analysis.extract_method_descriptor import ExtractMethodDescriptor
+from tests.context import stateflow
+from stateflow.analysis.extract_class_descriptor import ExtractClassDescriptor
+from stateflow.descriptors.class_descriptor import ClassDescriptor, MethodDescriptor
+from stateflow.analysis.extract_method_descriptor import ExtractMethodDescriptor
 from typing import Any, Dict
 import libcst as cst
 

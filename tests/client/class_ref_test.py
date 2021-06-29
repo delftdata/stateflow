@@ -1,22 +1,22 @@
 import pytest
-
+from tests.context import stateflow
 from tests.common.common_classes import User, stateflow
-from src.client.class_ref import (
+from stateflow.client.class_ref import (
     MethodRef,
     ClassRef,
     StateflowClient,
     Arguments,
     EventType,
 )
-from src.dataflow.address import FunctionType, FunctionAddress
+from stateflow.dataflow.address import FunctionType, FunctionAddress
 from unittest import mock
 
 
 class TestClassRef:
     def setup(self):
         flow = stateflow.init()
-        self.item_desc = stateflow.registered_classes[0].class_desc
-        self.user_desc = stateflow.registered_classes[1].class_desc
+        self.item_desc = stateflow.core.registered_classes[0].class_desc
+        self.user_desc = stateflow.core.registered_classes[1].class_desc
 
     def test_method_ref_simple_call(self):
         update_balance_method = self.user_desc.get_method_by_name("update_balance")

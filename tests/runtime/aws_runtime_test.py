@@ -1,17 +1,16 @@
 import base64
-
-from tests.common.common_classes import User, Item, stateflow
-from src.runtime.aws.AWSLambdaRuntime import AWSLambdaRuntime
-from src.dataflow.event import Event, EventType
-from src.dataflow.event_flow import InternalClassRef
-from src.dataflow.state import State
-from src.serialization.pickle_serializer import PickleSerializer
-from src.serialization.json_serde import JsonSerializer
-from src.dataflow.args import Arguments
-from src.dataflow.address import FunctionType, FunctionAddress
+from tests.context import stateflow
+from tests.common.common_classes import stateflow
+from stateflow.runtime.aws.AWSLambdaRuntime import AWSLambdaRuntime
+from stateflow.dataflow.event import Event, EventType
+from stateflow.dataflow.event_flow import InternalClassRef
+from stateflow.dataflow.state import State
+from stateflow.serialization.pickle_serializer import PickleSerializer
+from stateflow.serialization.json_serde import JsonSerializer
+from stateflow.dataflow.args import Arguments
+from stateflow.dataflow.address import FunctionType, FunctionAddress
 from python_dynamodb_lock.python_dynamodb_lock import *
 import uuid
-import json
 from unittest import mock
 
 
