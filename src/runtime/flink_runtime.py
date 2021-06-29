@@ -103,13 +103,14 @@ class FlinkOperator(KeyedProcessFunction):
         logging.info(
             f"Stateful operator for key {ctx.get_current_key()} with state {self.state.value()}"
         )
-        return_event, updated_state = self.operator.handle(value[1], self.state.value())
+        original_state = self.state.value()
+        return_event, updated_state = self.operator.handle(value[1], original_state)
 
         logging.info(
             f"Stateful operator, return event {return_event}, updated state {updated_state}"
         )
 
-        if updated_state:
+        if updated_state is not original_state:
             self.state.update(updated_state)
 
         yield return_event

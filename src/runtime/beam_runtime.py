@@ -84,12 +84,11 @@ class BeamOperator(DoFn):
     def process(
         self, element: Tuple[str, Any], operator_state=DoFn.StateParam(STATE_SPEC)
     ) -> Tuple[str, Any]:
-        return_event, updated_state = self.operator.handle(
-            element[1], operator_state.read()
-        )
+        original_state = operator_state.read()
+        return_event, updated_state = self.operator.handle(element[1], original_state)
 
         # Update state.
-        if updated_state is not None:
+        if updated_state is not original_state:
             operator_state.write(updated_state)
 
         route = self.router.route_and_serialize(return_event)

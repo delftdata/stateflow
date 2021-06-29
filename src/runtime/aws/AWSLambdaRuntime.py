@@ -133,7 +133,7 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
             print(f"Locking key took {delta.total_seconds() * 1000}ms")
 
             start = datetime.datetime.now()
-            operator_state: State = self.get_state(full_key)
+            operator_state = self.get_state(full_key)
             end = datetime.datetime.now()
             delta = end - start
             print(f"Getting state took {delta.total_seconds() * 1000}ms")
@@ -145,7 +145,8 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
             print(f"Executing event took {delta.total_seconds() * 1000}ms")
 
             start = datetime.datetime.now()
-            self.save_state(full_key, updated_state)
+            if updated_state is not operator_state:
+                self.save_state(full_key, updated_state)
             end = datetime.datetime.now()
             delta = end - start
             print(f"Saving state took {delta.total_seconds() * 1000}ms")
