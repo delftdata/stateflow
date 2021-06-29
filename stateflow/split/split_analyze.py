@@ -56,7 +56,7 @@ class HasInteraction(cst.CSTVisitor):
 
             # Find callee class in the complete 'context'.
             desc: ClassDescriptor = self.split_context.class_descriptors.get(
-                self.split_context.original_method_desc.input_desc[callee]
+                self.split_context.original_method_desc.input_desc.get().get(callee)
             )
 
             if desc is not None:

@@ -81,10 +81,10 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
 
         :param node: the return param.
         """
-        if m.findall(node, m.Call()):  # We don't allow calls in a return node.
-            raise AttributeError(
-                f"Doing a function call in a return statement is not permitted."
-            )
+        # if m.findall(node, m.Call()):  # We don't allow calls in a return node.
+        #     raise AttributeError(
+        #         f"Doing a function call in a return statement is not permitted."
+        #     )
 
         amount_of_returns = 0
 

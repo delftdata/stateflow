@@ -439,26 +439,26 @@ class FancyClass:
     ]
 
 
-def test_method_extraction_return_no_call():
-    code = """
-class FancyClass:
-    def __init__(self):
-        self.x : int = 4
-
-    def fun(self):
-        self.x = 3
-        y = self.x
-        return x.bye()
-        """
-
-    code_tree = cst.parse_module(code)
-
-    # Get the function.
-    fun_def: cst.FunctionDef = code_tree.body[0].body.body[1]
-
-    visitor = ExtractMethodDescriptor(code_tree, fun_def)
-    with pytest.raises(AttributeError):
-        fun_def.visit(visitor)
+# def test_method_extraction_return_no_call():
+#     code = """
+# class FancyClass:
+#     def __init__(self):
+#         self.x : int = 4
+#
+#     def fun(self):
+#         self.x = 3
+#         y = self.x
+#         return x.bye()
+#         """
+#
+#     code_tree = cst.parse_module(code)
+#
+#     # Get the function.
+#     fun_def: cst.FunctionDef = code_tree.body[0].body.body[1]
+#
+#     visitor = ExtractMethodDescriptor(code_tree, fun_def)
+#     with pytest.raises(AttributeError):
+#         fun_def.visit(visitor)
 
 
 def test_method_extraction_typed_declarations():

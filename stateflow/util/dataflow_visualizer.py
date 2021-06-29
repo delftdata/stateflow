@@ -5,6 +5,7 @@ from stateflow.dataflow.event_flow import (
     InvokeConditional,
     InvokeExternal,
 )
+from stateflow.client.class_ref import ClassRef
 from typing import List
 from graphviz import Digraph
 
@@ -56,6 +57,13 @@ def visualize(blocks: List[Block], code=False):
                 dot.edge(str(b.block_id), str(next.block_id))
 
     return dot.source
+
+
+def visualize_ref(ref: ClassRef, name: str):
+    class_desc = ref._class_desc
+    method = class_desc.get_method_by_name(name)
+
+    return visualize_flow(method.flow_list)
 
 
 def visualize_flow(flow: List[EventFlowNode]):

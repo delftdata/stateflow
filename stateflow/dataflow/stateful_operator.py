@@ -13,7 +13,7 @@ from stateflow.wrappers.class_wrapper import (
 )
 from stateflow.wrappers.meta_wrapper import MetaWrapper
 from typing import NewType, List, Tuple, Optional
-from stateflow.serialization.json_serde import SerDe, JsonSerializer
+from stateflow.serialization.pickle_serializer import SerDe, PickleSerializer
 
 NoType = NewType("NoType", None)
 
@@ -26,7 +26,7 @@ class StatefulOperator(Operator):
         function_type: FunctionType,
         class_wrapper: ClassWrapper,
         meta_wrapper: MetaWrapper,
-        serializer: SerDe = JsonSerializer(),
+        serializer: SerDe = PickleSerializer(),
     ):
         super().__init__(incoming_edges, outgoing_edges, function_type)
         self.class_wrapper = class_wrapper
@@ -116,9 +116,8 @@ class StatefulOperator(Operator):
         )
 
         if updated_state is not None:
-            return return_event, bytes(
-                self.serializer.serialize_dict(updated_state.get()), "utf-8"
-            )
+            return return_event, self.serializer.serialize_dict(updated_state.get())
+
         return return_event, updated_state
 
     def _handle_create_with_state(
@@ -155,9 +154,7 @@ class StatefulOperator(Operator):
         new_state = event.payload["init_class_state"]
         updated_state = State(new_state)
 
-        return return_event, bytes(
-            self.serializer.serialize_dict(updated_state.get()), "utf-8"
-        )
+        return return_event, self.serializer.serialize_dict(updated_state.get())
 
     def _handle_get_state(self, event: Event, state: State) -> Tuple[Event, State]:
         """Gets a field/attribute of the current state.
