@@ -32,7 +32,7 @@ custom:
       - boto3
 functions:
   stateflow:
-    handler: aws_runtime.handler
+    handler: aws_runtime_kinesis.handler
     memorySize: 1024 # optional, in MB, default is 1024
     events:
       - stream:

@@ -1,6 +1,6 @@
 import uuid
 from typing import List
-import src.stateflow as stateflow
+import stateflow
 
 
 @stateflow.stateflow

@@ -55,8 +55,6 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
         self,
         flow: Dataflow,
         table_name="stateflow",
-        request_stream="stateflow-request",
-        reply_stream="stateflow-reply",
         serializer: SerDe = PickleSerializer(),
         config: Config = Config(region_name="eu-west-1"),
     ):
@@ -74,15 +72,8 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
         self.dynamodb = self._setup_dynamodb(config)
         self.lock_client: DynamoDBLockClient = self._setup_lock_client(3)
 
-        self.kinesis = self._setup_kinesis(config)
-        self.request_stream: str = request_stream
-        self.reply_stream: str = reply_stream
-
     def _setup_dynamodb(self, config: Config):
         return boto3.resource("dynamodb", config=config)
-
-    def _setup_kinesis(self, config: Config):
-        return boto3.client("kinesis", config=config)
 
     def _setup_lock_client(self, expiry_period: int) -> DynamoDBLockClient:
         return DynamoDBLockClient(
@@ -165,18 +156,4 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
             return route
 
     def handle(self, event, context):
-        for record in event["Records"]:
-            event = base64.b64decode(record["kinesis"]["data"])
-
-            parsed_event: Event = self.ingress_router.parse(event)
-            return_route: Route = self.handle_invocation(parsed_event)
-
-            while return_route.direction != RouteDirection.CLIENT:
-                return_route = self.handle_invocation(return_route.value)
-
-            serialized_event = self.egress_router.serialize(return_route.value)
-            self.kinesis.put_record(
-                StreamName=self.reply_stream,
-                Data=serialized_event,
-                PartitionKey=return_route.value.event_id,
-            )
+        raise NotImplementedError("Needs to be implemented by subclasses.")
