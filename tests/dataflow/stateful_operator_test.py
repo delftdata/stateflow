@@ -15,8 +15,9 @@ from stateflow.serialization.json_serde import JsonSerializer
 def setup():
     flow = stateflow.init()
     item_operator = flow.operators[0]
+    item_operator.serializer = JsonSerializer()
     user_operator = flow.operators[1]
-
+    user_operator.serializer = JsonSerializer()
     yield user_operator, item_operator
 
 

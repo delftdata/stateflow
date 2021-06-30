@@ -82,7 +82,7 @@ class TestAWSRuntime:
             "Records": [{"kinesis": {"data": base64.b64encode(serialized_event)}}]
         }
 
-        inst.get_state = lambda x: JsonSerializer().serialize_dict(
+        inst.get_state = lambda x: PickleSerializer().serialize_dict(
             State({"username": "wouter", "x": 5}).get()
         )
 
