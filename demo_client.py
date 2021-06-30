@@ -2,15 +2,16 @@ from demo_common import User, Item, stateflow
 from stateflow.client.kafka_client import StateflowClient
 from stateflow.util.local_runtime import LocalRuntime
 from stateflow.client.future import StateflowFuture, StateflowFailure
+from stateflow.client.aws_gateway_client import AWSGatewayClient
 import time
 import datetime
 
 # stateflow.init()
 
-# client: StateflowClient = StateflowKafkaClient(
-#     stateflow.init(), brokers="localhost:9092", serializer=PickleSerializer()
-# )
-client: StateflowClient = LocalRuntime(stateflow.init(), return_future=True)
+client: StateflowClient = AWSGatewayClient(
+    stateflow.init(),
+)
+# client: StateflowClient = LocalRuntime(stateflow.init(), return_future=True)
 # client.wait_until_healthy(timeout=10)
 
 print("Creating a user: ")

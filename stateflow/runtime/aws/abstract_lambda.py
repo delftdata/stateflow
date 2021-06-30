@@ -6,6 +6,8 @@ from stateflow.dataflow.dataflow import (
     Event,
     Route,
     RouteDirection,
+    EventFlowGraph,
+    EventFlowNode,
 )
 from stateflow.dataflow.stateful_operator import StatefulOperator
 from stateflow.dataflow.event import EventType
@@ -96,6 +98,21 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
         record = StateflowRecord(key, state=state)
         record.save()
 
+    def is_request_state(self, event: Event) -> bool:
+        if event.event_type == EventType.Request.GetState:
+            return True
+
+        if event.event_type != EventType.Request.EventFlow:
+            return False
+
+        flow_graph: EventFlowGraph = event.payload["flow"]
+        current_node = flow_graph.current_node
+
+        if current_node.typ == EventFlowNode.REQUEST_STATE:
+            return True
+
+        return False
+
     def invoke_operator(self, route: Route) -> Event:
         event: Event = route.value
 
@@ -117,7 +134,11 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
 
             # Lock the key in DynamoDB.
             start = datetime.datetime.now()
-            lock = self.lock_key(full_key)
+            if not self.is_request_state(event):
+                lock = self.lock_key(full_key)
+            else:
+                lock = None
+
             end = datetime.datetime.now()
             delta = end - start
             print(f"Locking key took {delta.total_seconds() * 1000}ms")
@@ -141,7 +162,8 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
             delta = end - start
             print(f"Saving state took {delta.total_seconds() * 1000}ms")
 
-            lock.release()
+            if lock:
+                lock.release()
             return return_event
 
     def handle_invocation(self, event: Event) -> Route:

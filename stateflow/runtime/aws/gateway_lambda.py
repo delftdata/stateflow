@@ -1,3 +1,5 @@
+import json
+
 from stateflow.runtime.aws.abstract_lambda import (
     AWSLambdaRuntime,
     Dataflow,
@@ -22,7 +24,8 @@ class AWSGatewayLambdaRuntime(AWSLambdaRuntime):
         super().__init__(flow, table_name, serializer, config)
 
     def handle(self, event, context):
-        event_encoded = event["event"]
+        event_body = json.loads(event["body"])
+        event_encoded = event_body["event"]
         event_serialized = base64.b64decode(event_encoded)
 
         parsed_event: Event = self.ingress_router.parse(event_serialized)
@@ -34,4 +37,7 @@ class AWSGatewayLambdaRuntime(AWSLambdaRuntime):
         return_event_serialized = self.egress_router.serialize(return_route.value)
         return_event_encoded = base64.b64encode(return_event_serialized)
 
-        return {"event": return_event_encoded}
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"event": return_event_encoded.decode()}),
+        }
