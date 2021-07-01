@@ -14,6 +14,7 @@ from stateflow.dataflow.address import FunctionType, FunctionAddress
 from python_dynamodb_lock.python_dynamodb_lock import *
 import uuid
 from unittest import mock
+import json
 
 
 class TestAWSRuntime:
@@ -111,7 +112,9 @@ class TestAWSRuntime:
         )
 
         serialized_event = PickleSerializer().serialize_event(event)
-        json_event = {"event": base64.b64encode(serialized_event)}
+        json_event = {
+            "body": json.dumps({"event": base64.b64encode(serialized_event).decode()})
+        }
 
         inst, handler = self.setup_gateway_handle()
 
@@ -150,7 +153,9 @@ class TestAWSRuntime:
         )
 
         serialized_event = PickleSerializer().serialize_event(event)
-        json_event = {"event": base64.b64encode(serialized_event)}
+        json_event = {
+            "body": json.dumps({"event": base64.b64encode(serialized_event).decode()})
+        }
 
         inst.get_state = lambda x: PickleSerializer().serialize_dict(
             State({"username": "wouter", "x": 5}).get()

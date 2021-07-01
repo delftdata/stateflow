@@ -115,44 +115,11 @@ class ClassRef(object):
         return self._client.send(invoke_method_event)
 
     def _prepare_flow(self, flow: List[EventFlowNode], args: Arguments):
-        to_assign = list(args.get_keys())
-        flow_for_params: List = []
-
-        # Get the first nodes up and until the first InvokeSplitFun.
-        # For example: RequestState, RequestState, InvokeSplitFun.
-        for f in flow:
-            flow_for_params.append(f)
-            if f.typ == EventFlowNode.INVOKE_SPLIT_FUN:
-                break
-
-        for f in flow_for_params:
-            to_remove = []
-            for arg in to_assign:
-                arg_value = args[arg]
-
-                if isinstance(arg_value, ClassRef):
-                    arg_value = arg_value.to_internal_ref()
-                elif isinstance(arg_value, list) and all(
-                    isinstance(el, ClassRef) for el in arg_value
-                ):
-                    arg_value = [el.to_internal_ref() for el in arg_value]
-                    print(f"Invoking flow")
-                    print(arg_value)
-
-                if f.typ == EventFlowNode.REQUEST_STATE and f.var_name == arg:
-                    f.set_request_key(arg_value._get_key())
-                    f.fun_addr.key = arg_value._get_key()
-                    to_remove.append(arg)
-                elif arg in f.input:
-                    f.input[arg] = arg_value
-                    to_remove.append(arg)
-            to_assign = [el for el in to_assign if el not in to_remove]
-
-        flow_graph = EventFlowGraph(flow[0], flow)
-        flow_graph.set_function_address(flow[0], 0, self._fun_addr)
-        flow_graph.step()
-
-        payload = {"flow": flow_graph}
+        payload = {
+            "flow": EventFlowGraph.construct_and_assign_arguments(
+                flow, self._fun_addr, args
+            )
+        }
         event_id: str = str(uuid.uuid4())
 
         invoke_flow_event = Event(

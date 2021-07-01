@@ -295,6 +295,40 @@ class EventFlowGraph:
     def get_node_by_id(self, id) -> Optional[EventFlowNode]:
         return self.id_to_node.get(str(id))
 
+    @staticmethod
+    def construct_and_assign_arguments(
+        flow: List[EventFlowNode], fun_addr: FunctionAddress, args: Arguments
+    ) -> "EventFlowGraph":
+        to_assign: List[str] = list(args.get_keys())
+        flow_for_params: List[EventFlowNode] = []
+
+        # Get the first nodes up and until the first InvokeSplitFun.
+        # For example: RequestState, RequestState, InvokeSplitFun.
+        for f in flow:
+            flow_for_params.append(f)
+            if f.typ == EventFlowNode.INVOKE_SPLIT_FUN:
+                break
+
+        for f in flow_for_params:
+            to_remove = []
+            for arg in to_assign:
+                arg_value = args[arg]
+
+                if f.typ == EventFlowNode.REQUEST_STATE and f.var_name == arg:
+                    f.set_request_key(arg_value._get_key())
+                    f.fun_addr.key = arg_value._get_key()
+                    to_remove.append(arg)
+                elif arg in f.input:
+                    f.input[arg] = arg_value
+                    to_remove.append(arg)
+            to_assign = [el for el in to_assign if el not in to_remove]
+
+        flow_graph = EventFlowGraph(flow[0], flow)
+        flow_graph.set_function_address(flow[0], 0, fun_addr)
+        flow_graph.step()
+
+        return flow_graph
+
     def to_dict(self):
         return_dict = {}
         return_dict["current"] = self.current_node.id

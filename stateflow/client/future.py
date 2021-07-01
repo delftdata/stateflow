@@ -87,6 +87,9 @@ class StateflowFuture(Generic[T]):
                 f"Can't complete unknown even type: {event.event_type}"
             )
 
+    def complete_with_failure(self, msg: str):
+        self.result = StateflowFailure(msg)
+
     def get(self, timeout=-1) -> T:
         """Gets the return value of this future.
         If not completed, it will wait until it is.
