@@ -1,9 +1,8 @@
 import asyncio
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, Query
 from stateflow.dataflow.dataflow import Dataflow, ClassDescriptor
 from stateflow.descriptors.method_descriptor import MethodDescriptor
-from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from stateflow.dataflow.event import Event, EventType
 from stateflow.dataflow.event_flow import (
     EventFlowGraph,
@@ -23,15 +22,21 @@ import copy
 
 
 class FastAPIClient(StateflowClient):
-    def __init__(self, flow: Dataflow, serializer: SerDe = PickleSerializer()):
+    def __init__(
+        self,
+        flow: Dataflow,
+        serializer: SerDe = PickleSerializer(),
+        timeout: int = 5,
+        root: str = "stateflow",
+    ):
         self.app: FastAPI = FastAPI()
-        self.producer: AIOKafkaProducer = None
-        self.consumer: AIOKafkaConsumer = None
         self.serializer: SerDe = serializer
         self.request_map: Dict[str, StateflowFuture] = {}
 
+        self.root = root if not root else f"/{root}/"
+
         self.class_descriptors: Dict[str, ClassDescriptor] = {}
-        self.timeout: int = 5
+        self.timeout: int = timeout
         self.setup_init()
 
         for operator in flow.operators:
@@ -45,42 +50,16 @@ class FastAPIClient(StateflowClient):
 
             for method in cls_descriptor.methods_dec:
                 if not self.get_name(method) == "__key__":
-                    self.create_method_handler(fun_type, method, cls_descriptor)
+                    self.create_method_endpoint(fun_type, method, cls_descriptor)
 
-            self.create_fun_get(fun_type)
-
-    async def consume_forever(self):
-        async for msg in self.consumer:
-            return_event: Event = self.serializer.deserialize_event(msg.value)
-            if return_event.event_id in self.request_map:
-                self.request_map[return_event.event_id].set_result(return_event)
-                del self.request_map[return_event.event_id]
+            self.create_find_endpoint(fun_type)
 
     def setup_init(self):
-        @self.app.on_event("startup")
-        async def setup_kafka():
-            self.producer = AIOKafkaProducer(bootstrap_servers="localhost:9092")
-            await self.producer.start()
-
-            self.consumer = AIOKafkaConsumer(
-                "client_reply",
-                loop=asyncio.get_event_loop(),
-                bootstrap_servers="localhost:9092",
-                group_id=str(uuid.uuid4()),
-                auto_offset_reset="latest",
-            )
-            await self.consumer.start()
-            asyncio.create_task(self.consume_forever())
-
-        @self.app.on_event("shutdown")
-        async def stop_kafka():
-            await self.producer.close()
-
         @self.app.get("/")
         async def default_root():
             return "Welcome to the FastAPI Stateflow client."
 
-        @self.app.get("/stateflow/ping")
+        @self.app.get(f"{self.root}ping")
         async def send_ping():
             event = Event(
                 str(uuid.uuid4()),
@@ -88,68 +67,76 @@ class FastAPIClient(StateflowClient):
                 EventType.Request.Ping,
                 {},
             )
-            await self.producer.send_and_wait(
-                "client_request", self.serializer.serialize_event(event)
-            )
-
-            loop = asyncio.get_running_loop()
-            fut = loop.create_future()
             future = StateflowFuture(
                 event.event_id, time.time(), event.fun_address, None
             )
 
-            self.request_map[event.event_id] = fut
+            # Send event, completing the future.
+            await self.send_and_wait_with_future(event, future, "Ping timed out..")
 
             try:
-                result = await asyncio.wait_for(fut, timeout=self.timeout)
-            except asyncio.TimeoutError:
-                del self.request_map[event.event_id]
-                return "Ping timed out..."
+                future.get()
+            except StateflowFailure as fail:
+                return fail.error_msg
 
-            future.complete(result)
             return "Pong"
 
-        return setup_kafka
+    async def send_and_wait_with_future(
+        self,
+        event: Event,
+        future: StateflowFuture,
+        timeout_msg: str = "Event timed out.",
+    ):
+        raise NotImplementedError("Needs to be implemented by subclass.")
 
     def get_name(self, method: MethodDescriptor) -> str:
+        """Gets the name of the method.
+
+        When a method is named '__init__', 'create' is returned.
+
+        :param method: the MethodDescriptor.
+        :return: the name of the method.
+        """
         if method.method_name == "__init__":
             return "create"
         return method.method_name
 
-    def create_fun_get(self, function_type):
+    def create_find_endpoint(self, function_type: FunctionType):
+        """Creates the endpoint for finding a stateful function instance.
+
+        For example:
+        http://localhost/stateflow/global/User/find?key=john
+
+        This queries the runtime if the global/User with key=john exists.
+
+        Currently, only an acknowledgement is returned whether or not an instance exists.
+        In other words, state is not in the return result.
+
+        :param function_type: the type of the stateful funtion endpoint to create.
+        :return: the 'find' endpoint.
+        """
+
         @self.app.get(
-            f"/stateflow/{function_type.get_full_name()}/find/",
+            f"{self.root}{function_type.get_full_name()}/find/",
             name=f"find_{function_type.get_full_name()}",
         )
-        async def endpoint(key: str, request: Request):
+        async def endpoint(key: str):
             event = Event(
                 str(uuid.uuid4()),
                 FunctionAddress(function_type, key),
                 EventType.Request.FindClass,
                 {},
             )
-
-            await self.producer.send_and_wait(
-                "client_request", self.serializer.serialize_event(event)
-            )
-
-            loop = asyncio.get_running_loop()
-
-            fut = loop.create_future()
             future = StateflowFuture(
                 event.event_id, time.time(), event.fun_address, None
             )
 
-            self.request_map[event.event_id] = fut
+            # Send and 'fill' the future.
+            await self.send_and_wait_with_future(
+                event, future, f"Finding {key} timed out after {self.timeout} seconds."
+            )
 
-            try:
-                result = await asyncio.wait_for(fut, timeout=5)
-            except asyncio.TimeoutError:
-                del self.request_map[event.event_id]
-                return "Request timed out."
-
-            future.complete(result)
-
+            # Catch the potential exception and return the result.
             try:
                 result = future.get()
             except StateflowFailure:
@@ -157,44 +144,16 @@ class FastAPIClient(StateflowClient):
                     f"{function_type.get_full_name()} with key = {key} does not exist."
                 )
 
-            return future.get()
+            return result
 
-        print(endpoint)
         return endpoint
 
-    def _invoke_flow(
+    def create_flow_event(
         self, flow: List[EventFlowNode], fun_addr: FunctionAddress, args: Arguments
     ) -> Event:
-
-        to_assign = list(args.get_keys())
-        flow_for_params: List = []
-
-        # Get the first nodes up and until the first InvokeSplitFun.
-        # For example: RequestState, RequestState, InvokeSplitFun.
-        for f in flow:
-            flow_for_params.append(f)
-            if f.typ == EventFlowNode.INVOKE_SPLIT_FUN:
-                break
-
-        for f in flow_for_params:
-            to_remove = []
-            for arg in to_assign:
-                arg_value = args[arg]
-
-                if f.typ == EventFlowNode.REQUEST_STATE and f.var_name == arg:
-                    f.set_request_key(arg_value._get_key())
-                    f.fun_addr.key = arg_value._get_key()
-                    to_remove.append(arg)
-                elif arg in f.input:
-                    f.input[arg] = arg_value
-                    to_remove.append(arg)
-            to_assign = [el for el in to_assign if el not in to_remove]
-
-        flow_graph = EventFlowGraph(flow[0], flow)
-        flow_graph.set_function_address(flow[0], 0, fun_addr)
-        flow_graph.step()
-
-        payload = {"flow": flow_graph}
+        payload = {
+            "flow": EventFlowGraph.construct_and_assign_arguments(flow, fun_addr, args)
+        }
         event_id: str = str(uuid.uuid4())
 
         invoke_flow_event = Event(
@@ -225,7 +184,7 @@ class FastAPIClient(StateflowClient):
         fun_type = class_desc.to_function_type()
         if isinstance(value, list):
             return [InternalClassRef(FunctionAddress(fun_type, x)) for x in value]
-        else:  # We expect a singleton.
+        else:  # We expect a singleton and it is not explicitly checked. Currently we only support List or 'singletons'.
             return InternalClassRef(FunctionAddress(fun_type, value))
 
     def _compute_input_args(self, method_desc: MethodDescriptor) -> str:
@@ -243,7 +202,7 @@ class FastAPIClient(StateflowClient):
 
         return ", ".join(all_args)
 
-    def create_method_handler(
+    def create_method_endpoint(
         self, function_type, method_desc: MethodDescriptor, class_desc: ClassDescriptor
     ):
         # TODO transform lists of stateful functins
@@ -288,6 +247,8 @@ class {self.get_name(method_desc)}_params:
 
             if not is_init:
                 key = params.key
+            else:
+                key = None
 
             payload = {"args": Arguments(args)}
             event_id: str = str(uuid.uuid4())
@@ -295,12 +256,12 @@ class {self.get_name(method_desc)}_params:
             if is_init:
                 event = Event(
                     event_id,
-                    FunctionAddress(class_desc.to_function_type(), None),
+                    FunctionAddress(class_desc.to_function_type(), key),
                     EventType.Request.InitClass,
                     payload,
                 )
             elif is_flow:
-                event = self._invoke_flow(
+                event = self.create_flow_event(
                     copy.deepcopy(method_desc.flow_list),
                     FunctionAddress(class_desc.to_function_type(), key),
                     Arguments(args),
@@ -314,63 +275,27 @@ class {self.get_name(method_desc)}_params:
                     payload,
                 )
 
-            await self.producer.send_and_wait(
-                "client_request", self.serializer.serialize_event(event)
-            )
-
-            loop = asyncio.get_running_loop()
-
-            fut = loop.create_future()
             future = StateflowFuture(
-                event.event_id, time.time(), event.fun_address, None
+                event.event_id, time.time(), event.fun_address, event.fun_address.key
             )
 
-            self.request_map[event.event_id] = fut
+            # Send and 'fill' the future.
+            await self.send_and_wait_with_future(
+                event, future, f"Finding {key} timed out after {self.timeout} seconds."
+            )
 
-            try:
-                result = await asyncio.wait_for(fut, timeout=self.timeout)
-            except asyncio.TimeoutError:
-                del self.request_map[event.event_id]
-                return "Request timed out."
-
-            future.complete(result)
-
+            # Catch the potential exception and return the result.
             try:
                 result = future.get()
             except StateflowFailure as exc:
-                return exc
+                return exc.error_msg
 
             return result
 
         return endpoint
 
     async def send(self, event: Event, return_type: T = None):
-        await self.producer.send_and_wait(
-            "client_request", self.serializer.serialize_event(event)
-        )
-        loop = asyncio.get_running_loop()
-
-        fut = loop.create_future()
-        future = StateflowFuture(
-            event.event_id, time.time(), event.fun_address, return_type
-        )
-
-        self.request_map[event.event_id] = fut
-
-        try:
-            result = await asyncio.wait_for(fut, timeout=self.timeout)
-        except asyncio.TimeoutError:
-            del self.request_map[event.event_id]
-            raise StateflowFailure("Request timed out!")
-
-        future.complete(result)
-
-        try:
-            result = future.get()
-        except StateflowFailure as exc:
-            return exc
-
-        return result
+        raise NotImplementedError("Needs to be implemented by subclass.")
 
     def get_app(self) -> FastAPI:
         return self.app

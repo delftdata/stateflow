@@ -1,10 +1,12 @@
 import uuid
 
-from src.client.fastapi.fastapi_client import FastAPIClient
+from stateflow.client.fastapi.aws_gateway import AWSGatewayFastAPIClient
 from demo_common import stateflow, User
-from src.wrappers.meta_wrapper import MetaWrapper
 
-client = FastAPIClient(stateflow.init())
+client = AWSGatewayFastAPIClient(
+    stateflow.init(),
+    "https://b1yexogt4d.execute-api.eu-west-1.amazonaws.com/dev/stateflow",
+)
 app = client.get_app()
 
 

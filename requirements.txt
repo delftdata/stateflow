@@ -21,3 +21,4 @@ boto3==1.17.93
 fastapi==0.65.2
 uvicorn==0.14.0
 aiokafka==0.7.1
+httpx==0.18.2
