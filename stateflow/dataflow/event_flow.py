@@ -314,6 +314,13 @@ class EventFlowGraph:
             for arg in to_assign:
                 arg_value = args[arg]
 
+                if hasattr(arg_value, "to_internal_ref"):
+                    arg_value = arg_value.to_internal_ref()
+                elif isinstance(arg_value, list) and all(
+                    hasattr(el, "to_internal_ref") for el in arg_value
+                ):
+                    arg_value = [el.to_internal_ref() for el in arg_value]
+
                 if f.typ == EventFlowNode.REQUEST_STATE and f.var_name == arg:
                     f.set_request_key(arg_value._get_key())
                     f.fun_addr.key = arg_value._get_key()
