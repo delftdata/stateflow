@@ -1,38 +1,21 @@
 import uuid
 
-from stateflow.client.fastapi.aws_gateway import AWSGatewayFastAPIClient
+from stateflow.client.fastapi.kafka import KafkaFastAPIClient, StateflowFailure
 from demo_common import stateflow, User
 
-client = AWSGatewayFastAPIClient(
-    stateflow.init(),
-    "https://b1yexogt4d.execute-api.eu-west-1.amazonaws.com/dev/stateflow",
-)
+client = KafkaFastAPIClient(stateflow.init())
 app = client.get_app()
 
 
-@app.get("/hoi")
-async def handler():
-    import asyncio
+@app.get("/extra")
+async def create_users_set_balance(username: str, balance: int):
+    try:
+        user_one: User = await User(f"{username}-0")
+        user_two: User = await User(f"{username}-1")
 
-    # multiple = [User(f"{str(uuid.uuid4())}") for x in range(0, 200)]
-    # done, _ = await asyncio.wait(multiple)
-    # multiple = [res.result() for res in done]
-    # print(multiple)
-    # res = [x.simple_for_loop(multiple) for x in multiple]
-    # done, _ = await asyncio.wait(res)
-    # # print(done)
-    # # return sum([x.result() for x in done])
-    multiple = []
-    for x in range(0, 1):
-        hi: User = await User(str(uuid.uuid4()))
-        multiple.append(hi)
+        await user_one.update_balance(balance)
+        await user_two.update_balance(balance)
+    except StateflowFailure as exc:
+        return exc
 
-    # multiple = [User(f"{str(uuid.uuid4())}") for x in range(0, 1)]
-    # done, _ = await asyncio.wait(multiple)
-    #
-    # multiple = [res.result() for res in done]
-    # print(f"HERE WITH MULTIPLE {multiple}")
-
-    print(multiple)
-    for_res = await hi.simple_for_loop(multiple * 10)
-    return for_res
+    return "Done!"

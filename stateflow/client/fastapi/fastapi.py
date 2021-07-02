@@ -216,7 +216,14 @@ class FastAPIClient(StateflowClient):
                 [f"self.{k} = {k}" for k, _ in method_desc.input_desc.get().items()]
             )
 
-            args = f"""
+            if method_desc.method_name == "__init__":
+                args = f"""
+class {self.get_name(method_desc)}_params:
+    def __init__(self,{input_args}):
+        {input_assign}
+            """
+            else:
+                args = f"""
 class {self.get_name(method_desc)}_params:
     def __init__(self, key: str, {input_args}):
         self.key = key
