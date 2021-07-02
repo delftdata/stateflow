@@ -1122,6 +1122,7 @@ class RequestState(EventFlowNode):
 
     def set_request_key(self, key: str):
         self.input["__key"] = key
+        self.fun_addr.key = key
 
     def get_request_key(self) -> str:
         return self.input["__key"]
