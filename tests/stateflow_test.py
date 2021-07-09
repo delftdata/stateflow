@@ -9,7 +9,7 @@ from tests.common.common_classes import (
 )
 from .context import stateflow
 from stateflow.client.kafka_client import StateflowKafkaClient
-from stateflow.runtime.flink_runtime import FlinkRuntime
+from stateflow.runtime.flink.pyflink import FlinkRuntime
 from stateflow.runtime.beam_runtime import BeamRuntime
 from stateflow.serialization.pickle_serializer import PickleSerializer
 
