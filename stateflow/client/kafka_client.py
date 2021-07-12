@@ -1,5 +1,6 @@
-from stateflow.client.stateflow_client import StateflowClient, SerDe, JsonSerializer
-from stateflow.dataflow.dataflow import Dataflow
+from stateflow.client.stateflow_client import StateflowClient, SerDe
+from stateflow.serialization.pickle_serializer import PickleSerializer
+from stateflow.dataflow.dataflow import Dataflow, IngressRouter
 from stateflow.dataflow.event import Event, FunctionAddress, EventType
 from stateflow.dataflow.address import FunctionType
 from stateflow.client.future import StateflowFuture, T
@@ -8,18 +9,24 @@ import threading
 
 import uuid
 from confluent_kafka import Producer, Consumer
+from confluent_kafka.admin import AdminClient, NewTopic
 import time
 
 
 class StateflowKafkaClient(StateflowClient):
     def __init__(
-        self, flow: Dataflow, brokers: str, serializer: SerDe = JsonSerializer()
+        self,
+        flow: Dataflow,
+        brokers: str,
+        serializer: SerDe = PickleSerializer(),
+        statefun_mode: bool = False,
     ):
         super().__init__(flow, serializer)
         self.brokers = brokers
 
         # We should set a client id later.
         # self.client_id: str = uuid.uuid4()
+        self.statefun_mode: bool = statefun_mode
 
         # Producer and consumer.
         self.producer = self._set_producer(brokers)
@@ -29,10 +36,13 @@ class StateflowKafkaClient(StateflowClient):
         self.req_topic = "client_request"
         self.reply_topic = "client_reply"
 
+        self.ingress_router = IngressRouter(self.serializer)
+
         # The futures still to complete.
         self.futures: Dict[str, StateflowFuture] = {}
 
         # Set the wrapper.
+        self.operators = flow.operators
         [op.meta_wrapper.set_client(self) for op in flow.operators]
 
         # Start consumer thread.
@@ -81,11 +91,26 @@ class StateflowKafkaClient(StateflowClient):
             # print("Received message: {}".format(msg.value().decode("utf-8")))
 
     def send(self, event: Event, return_type: T = None):
-        self.producer.produce(
-            self.req_topic,
-            value=self.serializer.serialize_event(event),
-            key=bytes(event.event_id, "utf-8"),
-        )
+        if not self.statefun_mode:
+            self.producer.produce(
+                self.req_topic,
+                value=self.serializer.serialize_event(event),
+                key=bytes(event.event_id, "utf-8"),
+            )
+        else:
+            route = self.ingress_router.route(event)
+            topic = route.route_name.replace("/", "_")
+            key = route.key or event.event_id
+
+            if not route.key:
+                topic = topic + "_create"
+            print(f"Sending to {topic} with key {key}")
+
+            self.producer.produce(
+                topic,
+                value=self.serializer.serialize_event(event),
+                key=key,
+            )
 
         future = StateflowFuture(
             event.event_id, time.time(), event.fun_address, return_type
@@ -105,6 +130,38 @@ class StateflowKafkaClient(StateflowClient):
 
         return self.send(Event(event_id, fun_address, event_type, payload), clasz)
 
+    def create_all_topics(self):
+        admin = AdminClient({"bootstrap.servers": self.brokers})
+
+        topics_to_create = [
+            NewTopic("globals_ping", num_partitions=1, replication_factor=1)
+        ]
+        for operator in self.operators:
+            topics_to_create.append(
+                NewTopic(
+                    operator.function_type.get_full_name().replace("/", "_"),
+                    num_partitions=1,
+                    replication_factor=1,
+                )
+            )
+            topics_to_create.append(
+                NewTopic(
+                    f"{operator.function_type.get_full_name().replace('/', '_')}_create",
+                    num_partitions=1,
+                    replication_factor=1,
+                )
+            )
+        topics_to_create.append(
+            NewTopic("client_reply", num_partitions=1, replication_factor=1)
+        )
+
+        for topic, f in admin.create_topics(topics_to_create).items():
+            try:
+                f.result()  # The result itself is None
+                print("Topic {} created".format(topic))
+            except Exception as e:
+                print("Failed to create topic {}: {}".format(topic, e))
+
     def _send_ping(self) -> StateflowFuture:
         event = Event(
             str(uuid.uuid4()),
@@ -113,8 +170,10 @@ class StateflowKafkaClient(StateflowClient):
             {},
         )
 
+        topic = self.req_topic if not self.statefun_mode else "globals_ping"
+
         self.producer.produce(
-            self.req_topic,
+            topic,
             value=self.serializer.serialize_event(event),
             key=bytes(event.event_id, "utf-8"),
         )

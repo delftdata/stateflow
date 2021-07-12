@@ -1,0 +1,72 @@
+version: '3.0'
+module:
+  meta:
+    type: remote
+  spec:
+    egresses:
+    - egress:
+        meta:
+          id: stateflow/kafka-egress
+          type: io.statefun.kafka/egress
+        spec:
+          address: kafka-broker:9093
+    endpoints:
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: globals/ping
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Item
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Item_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/User
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/User_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    ingresses:
+    - ingress:
+        meta:
+          id: stateflow/kafka-ingress
+          type: io.statefun.kafka/ingress
+        spec:
+          address: kafka-broker:9093
+          consumerGroupId: stateflow-statefun-consumer
+          topics:
+          - topic: globals_ping
+            targets:
+            - globals/ping
+            valueType: stateflow/byte_type
+          - topic: global_Item
+            targets:
+            - global/Item
+            valueType: stateflow/byte_type
+          - topic: global_Item_create
+            targets:
+            - global/Item_create
+            valueType: stateflow/byte_type
+          - topic: global_User
+            targets:
+            - global/User
+            valueType: stateflow/byte_type
+          - topic: global_User_create
+            targets:
+            - global/User_create
+            valueType: stateflow/byte_type

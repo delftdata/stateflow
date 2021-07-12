@@ -1,0 +1,43 @@
+version: "2.1"
+
+services:
+
+  ###############################################################
+  #    StateFun runtime
+  ###############################################################
+
+  statefun-manager:
+    image: apache/flink-statefun:3.0.0
+    expose:
+      - "6123"
+    ports:
+      - "8081:8081"
+    environment:
+      ROLE: master
+      MASTER_HOST: statefun-manager
+    volumes:
+      - ./module.yaml:/opt/statefun/modules/stateflow/module.yaml
+
+  statefun-worker:
+    image: apache/flink-statefun:3.0.0
+    expose:
+      - "6121"
+      - "6122"
+    environment:
+      ROLE: worker
+      MASTER_HOST: statefun-manager
+    volumes:
+      - ./module.yaml:/opt/statefun/modules/stateflow/module.yaml
+
+  host-machine:
+    image: qoomon/docker-host@sha256:e0f021dd77c7c26d37b825ab2cbf73cd0a77ca993417da80a14192cb041937b0
+    cap_add: ['NET_ADMIN', 'NET_RAW']
+    mem_limit: 8M
+    restart: on-failure
+    environment:
+      PORTS: 8000
+
+networks:
+  default:
+    external: true
+    name: kafka_network

@@ -3,16 +3,24 @@ from stateflow.client.kafka_client import StateflowClient
 from stateflow.util.local_runtime import LocalRuntime
 from stateflow.client.future import StateflowFuture, StateflowFailure
 from stateflow.client.aws_gateway_client import AWSGatewayClient
+from stateflow.client.kafka_client import StateflowKafkaClient
 import time
 import datetime
+from stateflow.util import statefun_module_generator
 
 # stateflow.init()
-
-client: StateflowClient = AWSGatewayClient(
-    stateflow.init(),
+flow = stateflow.init()
+# client: StateflowClient = AWSGatewayClient(
+#     stateflow.init(),
+# )
+client: StateflowClient = StateflowKafkaClient(
+    flow, brokers="localhost:9092", statefun_mode=True
 )
-# client: StateflowClient = LocalRuntime(stateflow.init(), return_future=True)
-# client.wait_until_healthy(timeout=10)
+print(statefun_module_generator.generate(flow))
+client.create_all_topics()
+
+client.wait_until_healthy(timeout=10)
+
 
 print("Creating a user: ")
 start = datetime.datetime.now()
