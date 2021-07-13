@@ -2,6 +2,7 @@ from stateflow.dataflow.state import State
 from typing import List, Optional, Any, Dict, Union, Tuple
 from stateflow.descriptors.class_descriptor import ClassDescriptor, MethodDescriptor
 from stateflow.dataflow.args import Arguments
+import time
 
 
 class InvocationResult:
@@ -46,6 +47,11 @@ class ClassWrapper:
         }
 
         self.initialized: bool = False
+
+        self.client = None
+
+    def set_experiment_client(self, client):
+        self.client = client
 
     def _verify_initialized(self):
         if isinstance(self.cls, str):
@@ -130,7 +136,9 @@ class ClassWrapper:
         :return: either a successful InvocationResult or a FailedInvocation.
         """
         try:
+            start = time.perf_counter()
             self._verify_initialized()
+
             # Construct a new class.
             constructed_class = self.cls.__new__(self.cls)
 
@@ -138,13 +146,20 @@ class ClassWrapper:
             for k in self.class_desc.state_desc.get_keys():
                 setattr(constructed_class, k, state[k])
 
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.client.add_to_last_row("ACTOR_CONSTRUCTION", time_ms)
+
             # Call the method.
             method_result = self._call_method(constructed_class, method_name, arguments)
 
             # Return the results.
-            return InvocationResult(
-                self._get_updated_state(constructed_class), method_result
-            )
+            start = time.perf_counter()
+            updated_state = self._get_updated_state(constructed_class)
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.client.add_to_last_row("ACTOR_CONSTRUCTION", time_ms)
+            return InvocationResult(updated_state, method_result)
         except Exception as e:
             return FailedInvocation(f"Exception occurred during invocation: {e}.")
 

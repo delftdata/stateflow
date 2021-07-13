@@ -11,6 +11,7 @@ from stateflow.wrappers.class_wrapper import (
     InvocationResult,
     FailedInvocation,
 )
+import time
 from stateflow.wrappers.meta_wrapper import MetaWrapper
 from typing import NewType, List, Tuple, Optional
 from stateflow.serialization.pickle_serializer import SerDe, PickleSerializer
@@ -33,6 +34,12 @@ class StatefulOperator(Operator):
         self.meta_wrapper = meta_wrapper
         self.serializer = serializer
 
+        self.client = None
+
+    def set_experiment_client(self, client):
+        self.client = client
+        self.class_wrapper.set_experiment_client(client)
+
     def handle_create(self, event: Event) -> Event:
         """Handles a request to create a new class.
         We assume that State does not yet exist for this requested class instance.
@@ -49,7 +56,6 @@ class StatefulOperator(Operator):
         """
         res: InvocationResult = self.class_wrapper.init_class(event.payload["args"])
 
-        print(res)
         key: str = res.return_results[0]
         created_state: State = res.updated_state
 
@@ -99,7 +105,11 @@ class StatefulOperator(Operator):
             return self._handle_create_with_state(event, state)
 
         if state:  # If state exists, we can deserialize it.
+            start = time.perf_counter()
             state = State(self.serializer.deserialize_dict(state))
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.client.add_to_last_row("STATE_SERIALIZATION_DURATION", time_ms)
         else:  # If state does not exists we can't execute these methods, so we return a KeyNotFound reply.
             return (
                 event.copy(
@@ -117,7 +127,12 @@ class StatefulOperator(Operator):
         )
 
         if updated_state is not None:
-            return return_event, self.serializer.serialize_dict(updated_state.get())
+            start = time.perf_counter()
+            serialized_state = self.serializer.serialize_dict(updated_state.get())
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.client.add_to_last_row("STATE_SERIALIZATION_DURATION", time_ms)
+            return return_event, serialized_state
 
         return return_event, updated_state
 
