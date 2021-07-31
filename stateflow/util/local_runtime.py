@@ -1,3 +1,5 @@
+import inspect
+
 from stateflow.client.stateflow_client import StateflowClient, StateflowFuture, T
 from stateflow.dataflow.dataflow import Dataflow
 from stateflow.dataflow.stateful_operator import StatefulOperator
@@ -147,6 +149,14 @@ class LocalRuntime(StateflowClient):
         return_route: Route = self.handle_invocation(parsed_event)
 
         while return_route.direction != RouteDirection.CLIENT:
+            start = time.perf_counter()
+            serial = self.serializer.deserialize_event(
+                self.serializer.serialize_event(return_route.value)
+            )
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.add_to_last_row("EVENT_SERIALIZATION_DURATION", time_ms)
+
             return_route = self.handle_invocation(return_route.value)
 
         # We just serialize for timings

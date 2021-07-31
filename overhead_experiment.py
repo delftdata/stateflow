@@ -1,4 +1,8 @@
-from overhead_experiment_classes import EntityExecutionGraph1000, stateflow
+from overhead_experiment_classes import (
+    EntityExecutionGraph10,
+    EntityInteractive,
+    stateflow,
+)
 from stateflow.util.local_runtime import LocalRuntime
 from stateflow.util.dataflow_visualizer import visualize_flow
 import time
@@ -12,7 +16,7 @@ experiment: pd.DataFrame = pd.DataFrame(
     columns=[
         "EXPERIMENT_ID",
         "REPETITION",
-        "EXECUTION_GRAPH_LENGTH",
+        "INTERACTIONS",
         "STATE_SERIALIZATION_DURATION",
         "EVENT_SERIALIZATION_DURATION",
         "ROUTING_DURATION",
@@ -27,7 +31,12 @@ client = LocalRuntime(flow, experiment)
 total_repetitions = 10000
 
 print(f"Now running experiment with 50KB and {total_repetitions} repetitions.")
-entity: EntityExecutionGraph1000 = EntityExecutionGraph1000()
+entities = []
+for i in range(0, 15):
+    other_entity: EntityExecutionGraph10 = EntityExecutionGraph10(f"entity-{i}")
+    entities.append(other_entity)
+
+entity: EntityInteractive = EntityInteractive()
 
 print(visualize_flow(entity._methods["execute"].flow_list))
 print(
@@ -35,8 +44,8 @@ print(
 )
 
 client.enable_experiment_mode()
-client.set_experiment_id("ExecutionGraph_length_1000")
-client.set_execution_graph_length(1000)
+client.set_experiment_id("ExecutionGraph_interactive_10")
+client.set_execution_graph_length(15)
 
 start = time.perf_counter()
 total = 0
@@ -44,12 +53,12 @@ for x in range(0, total_repetitions):
     if x % 100 == 0:
         print(x)
     client.set_repetition(x)
-    total += entity.execute(entity)
+    total += entity.execute(entities)
 
 print(f"Total is {total}, {total == total_repetitions}")
 
 end = time.perf_counter()
-print(f"Running ExecutionGraph length 100 took! {end-start}")
+print(f"This took! {end-start}")
 ms_per_thingy = ((end - start) * 1000) / total_repetitions
 print(f"Per invocation it took {ms_per_thingy}ms.")
 
@@ -83,4 +92,4 @@ print(
 )
 
 
-experiment.to_csv("execution_graph_length_1000.csv")
+experiment.to_csv("interactions_15.csv")
