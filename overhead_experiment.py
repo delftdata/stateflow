@@ -1,4 +1,4 @@
-from overhead_experiment_classes import Entity5MB, stateflow
+from overhead_experiment_classes import EntityExecutionGraph10, stateflow
 from stateflow.util.local_runtime import LocalRuntime
 import time
 import pandas as pd
@@ -16,6 +16,7 @@ experiment: pd.DataFrame = pd.DataFrame(
         "EVENT_SERIALIZATION_DURATION",
         "ROUTING_DURATION",
         "ACTOR_CONSTRUCTION",
+        "EXECUTION_GRAPH_TRAVERSAL",
     ]
 )
 
@@ -25,19 +26,19 @@ client = LocalRuntime(flow, experiment)
 total_repetitions = 10000
 
 print(f"Now running experiment with 5MB and {total_repetitions} repetitions.")
-entity: Entity5MB = Entity5MB()
+entity: EntityExecutionGraph10 = EntityExecutionGraph10()
 
 client.enable_experiment_mode()
-client.set_experiment_id("5MB_one_invocation")
-client.set_state_size_experiment("5MB")
+client.set_experiment_id("ExecutionGraph_length_10")
+client.set_state_size_experiment("500KB")
 
 start = time.perf_counter()
 for x in range(0, total_repetitions):
     client.set_repetition(x)
-    entity.execute()
+    print(entity.execute())
 
 end = time.perf_counter()
-print(f"Running 5MB took! {end-start}")
+print(f"Running ExecutionGraph length 10 took! {end-start}")
 ms_per_thingy = ((end - start) * 1000) / total_repetitions
 print(f"Per invocation it took {ms_per_thingy}ms.")
 
@@ -50,8 +51,22 @@ print(
             "EVENT_SERIALIZATION_DURATION",
             "ROUTING_DURATION",
             "ACTOR_CONSTRUCTION",
+            "EXECUTION_GRAPH_TRAVERSAL",
         ]
     ].mean()
 )
 
-experiment.to_csv("5MB_one_invocation.csv")
+print(
+    experiment[
+        [
+            "STATE_SERIALIZATION_DURATION",
+            "EVENT_SERIALIZATION_DURATION",
+            "ROUTING_DURATION",
+            "ACTOR_CONSTRUCTION",
+            "EXECUTION_GRAPH_TRAVERSAL",
+        ]
+    ].std()
+)
+
+
+# experiment.to_csv("500.csv")

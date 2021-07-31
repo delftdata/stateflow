@@ -45,6 +45,7 @@ def visualize(blocks: List[Block], code=False):
                 color="darkgreen",
                 style="dotted",
             )
+
             dot.edge(
                 str(b.block_id),
                 str(b.false_block.block_id),

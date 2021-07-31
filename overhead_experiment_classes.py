@@ -22,7 +22,7 @@ class Entity500KB:
         pass
 
     def __key__(self):
-        return "entity50kb"
+        return "entity500kb"
 
 
 @stateflow.stateflow
@@ -34,7 +34,7 @@ class Entity5MB:
         pass
 
     def __key__(self):
-        return "entity50kb"
+        return "entity5mb"
 
 
 @stateflow.stateflow
@@ -46,4 +46,23 @@ class Entity50MB:
         pass
 
     def __key__(self):
-        return "entity50kb"
+        return "entity50mb"
+
+
+@stateflow.stateflow
+class EntityExecutionGraph10:
+    def __init__(self):
+        self.data = bytearray([1] * 50000000)
+
+    def execute(self, other: "EntityExecutionGraph10"):
+        # Adding 'other' parameters,
+        # triggers the function to be split.
+        x = 1
+
+        if True:
+            if True:
+                ...
+                return x
+
+    def __key__(self):
+        return "entityexecutiongraph10"
