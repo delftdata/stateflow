@@ -47,6 +47,7 @@ class LocalRuntime(StateflowClient):
         self.experiment_id: str = ""
         self.repetition: int = 0
         self.state_size: str = ""
+        self.graph_length: int = 0
         self.experiment_mode: bool = False
 
     def enable_experiment_mode(self):
@@ -60,6 +61,9 @@ class LocalRuntime(StateflowClient):
 
     def set_state_size_experiment(self, state_size: str):
         self.state_size = state_size
+
+    def set_execution_graph_length(self, graph_length: int):
+        self.graph_length = graph_length
 
     def invoke_operator(self, route: Route) -> Event:
         event: Event = route.value
@@ -126,7 +130,8 @@ class LocalRuntime(StateflowClient):
             self.experiment.loc[len(self.experiment)] = [
                 self.experiment_id,
                 self.repetition,
-                self.state_size,
+                self.graph_length,
+                0,
                 0,
                 0,
                 0,

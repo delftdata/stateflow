@@ -52,7 +52,7 @@ class Entity50MB:
 @stateflow.stateflow
 class EntityExecutionGraph10:
     def __init__(self):
-        self.data = bytearray([1] * 50000000)
+        self.data = bytearray([1] * 50000)
 
     def execute(self, other: "EntityExecutionGraph10"):
         # Adding 'other' parameters,
@@ -60,9 +60,1645 @@ class EntityExecutionGraph10:
         x = 1
 
         if True:
-            if True:
-                ...
-                return x
+            pass
+
+        if True:
+            pass
+
+        if True:
+            return x
 
     def __key__(self):
         return "entityexecutiongraph10"
+
+
+@stateflow.stateflow
+class EntityExecutionGraph100:
+    def __init__(self):
+        self.data = bytearray([1] * 50000)
+
+    def execute(self, other: "EntityExecutionGraph100"):
+        # Adding 'other' parameters,
+        # triggers the function to be split.
+        x = 1
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            return x
+
+    def __key__(self):
+        return "entityexecutiongraph100"
+
+
+@stateflow.stateflow
+class EntityExecutionGraph500:
+    def __init__(self):
+        self.data = bytearray([1] * 50000)
+
+    def execute(self, other: "EntityExecutionGraph500"):
+        # Adding 'other' parameters,
+        # triggers the function to be split.
+        x = 1
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            return x
+
+    def __key__(self):
+        return "entityexecutiongraph500"
+
+
+@stateflow.stateflow
+class EntityExecutionGraph1000:
+    def __init__(self):
+        self.data = bytearray([1] * 50000)
+
+    def execute(self, other: "EntityExecutionGraph1000"):
+        # Adding 'other' parameters,
+        # triggers the function to be split.
+        x = 1
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            pass
+
+        if True:
+            return x
+
+    def __key__(self):
+        return "entityexecutiongraph1000"

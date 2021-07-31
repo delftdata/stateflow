@@ -265,6 +265,7 @@ class StatefulOperator(Operator):
     def _handle_event_flow(self, event: Event, state: State) -> Tuple[Event, State]:
         start = time.perf_counter()
         flow_graph: EventFlowGraph = event.payload["flow"]
+        flow_graph.client = self.client
         current_address: FunctionAddress = flow_graph.current_node.fun_addr
 
         updated_state, instance = flow_graph.step(self.class_wrapper, state)
@@ -291,6 +292,8 @@ class StatefulOperator(Operator):
 
         end = time.perf_counter()
         time_ms = (end - start) * 1000
-        self.client.add_to_last_row("EXECUTION_GRAPH_TRAVERSAL", time_ms)
+        self.client.add_to_last_row(
+            "EXECUTION_GRAPH_TRAVERSAL", time_ms - flow_graph.to_remove
+        )
 
         return event, updated_state

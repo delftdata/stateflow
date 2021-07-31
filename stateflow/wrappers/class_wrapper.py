@@ -210,7 +210,9 @@ class ClassWrapper:
         :return: either a successful InvocationResult or a FailedInvocation + the instance.
         """
         try:
+            start = time.perf_counter()
             self._verify_initialized()
+
             # Construct a new class.
             constructed_class = self.cls.__new__(self.cls)
 
@@ -218,16 +220,20 @@ class ClassWrapper:
             for k in self.class_desc.state_desc.get_keys():
                 setattr(constructed_class, k, state[k])
 
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.client.add_to_last_row("ACTOR_CONSTRUCTION", time_ms)
+
             # Call the method.
             method_result = self._call_method(constructed_class, method_name, arguments)
 
             # Return the results.
-            return (
-                InvocationResult(
-                    self._get_updated_state(constructed_class), method_result
-                ),
-                constructed_class,
-            )
+            start = time.perf_counter()
+            updated_state = self._get_updated_state(constructed_class)
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.client.add_to_last_row("ACTOR_CONSTRUCTION", time_ms)
+            return InvocationResult(updated_state, method_result), constructed_class
         except Exception as e:
             return (
                 FailedInvocation(f"Exception occurred during invocation: {e}."),

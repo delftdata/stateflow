@@ -8,6 +8,7 @@ from stateflow.wrappers.class_wrapper import (
     FailedInvocation,
 )
 from dataclasses import dataclass
+import time
 
 """
 A definition of Null next to None.
@@ -237,11 +238,13 @@ class EventFlowNode:
 
 
 class EventFlowGraph:
-    __slots__ = "current_node", "graph", "id_to_node"
+    __slots__ = "current_node", "graph", "id_to_node", "client", "to_remove"
 
     def __init__(self, current_node: EventFlowNode, graph: List[EventFlowNode]):
         self.current_node: EventFlowNode = current_node
         self.graph: EventFlowGraph = graph
+        self.client = None
+        self.to_remove = 0
 
         self.id_to_node: Dict[str, EventFlowNode] = {
             str(node.id): node for node in graph
@@ -642,6 +645,7 @@ class InvokeSplitFun(EventFlowNode):
         fun_arguments = Arguments(all_input)
 
         # Invocation of the actual 'splitted' method.
+        start = time.perf_counter()
         if not instance:
             invocation, instance = class_wrapper.invoke_return_instance(
                 self.fun_name,
@@ -654,6 +658,10 @@ class InvokeSplitFun(EventFlowNode):
                 instance,
                 fun_arguments,
             )
+        end = time.perf_counter()
+        time_ms = (end - start) * 1000
+        graph.to_remove += time_ms
+
         """ Based on the invocation we consider three scenarios:
         1. Invocation failed, we need somehow to go back to the client and throw an error (TODO: not implemented).
         2. Invocation successful, and this is a splitting point towards another function.
@@ -847,6 +855,7 @@ class InvokeConditional(EventFlowNode):
         )
 
         # Invocation of the actual 'splitted' method.
+        start = time.perf_counter()
         if not instance:
             invocation, instance = class_wrapper.invoke_return_instance(
                 self.fun_name,
@@ -859,6 +868,10 @@ class InvokeConditional(EventFlowNode):
                 instance,
                 fun_arguments,
             )
+
+        end = time.perf_counter()
+        time_ms = (end - start) * 1000
+        graph.to_remove += time_ms
 
         """ Based on the invocation we consider two scenarios:
             1. Invocation failed, we need somehow to go back to the client and throw an error (TODO: not implemented).
