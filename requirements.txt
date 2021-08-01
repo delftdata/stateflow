@@ -24,3 +24,4 @@ aiokafka==0.7.1
 httpx==0.18.2
 apache-flink-statefun==3.0
 aiohttp==3.7.4.post0
+pandas

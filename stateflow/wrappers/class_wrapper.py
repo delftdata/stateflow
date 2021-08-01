@@ -49,6 +49,7 @@ class ClassWrapper:
         self.initialized: bool = False
 
         self.client = None
+        self.current_experiment_date = {}
 
     def set_experiment_client(self, client):
         self.client = client
@@ -148,7 +149,7 @@ class ClassWrapper:
 
             end = time.perf_counter()
             time_ms = (end - start) * 1000
-            self.client.add_to_last_row("ACTOR_CONSTRUCTION", time_ms)
+            self.current_experiment_date["ACTOR_CONSTRUCTION"] += time_ms
 
             # Call the method.
             method_result = self._call_method(constructed_class, method_name, arguments)
@@ -158,7 +159,7 @@ class ClassWrapper:
             updated_state = self._get_updated_state(constructed_class)
             end = time.perf_counter()
             time_ms = (end - start) * 1000
-            self.client.add_to_last_row("ACTOR_CONSTRUCTION", time_ms)
+            self.current_experiment_date["ACTOR_CONSTRUCTION"] += time_ms
             return InvocationResult(updated_state, method_result)
         except Exception as e:
             return FailedInvocation(f"Exception occurred during invocation: {e}.")
@@ -222,7 +223,7 @@ class ClassWrapper:
 
             end = time.perf_counter()
             time_ms = (end - start) * 1000
-            self.client.add_to_last_row("ACTOR_CONSTRUCTION", time_ms)
+            self.current_experiment_date["ACTOR_CONSTRUCTION"] += time_ms
 
             # Call the method.
             method_result = self._call_method(constructed_class, method_name, arguments)
@@ -232,7 +233,7 @@ class ClassWrapper:
             updated_state = self._get_updated_state(constructed_class)
             end = time.perf_counter()
             time_ms = (end - start) * 1000
-            self.client.add_to_last_row("ACTOR_CONSTRUCTION", time_ms)
+            self.current_experiment_date["ACTOR_CONSTRUCTION"] += time_ms
             return InvocationResult(updated_state, method_result), constructed_class
         except Exception as e:
             return (

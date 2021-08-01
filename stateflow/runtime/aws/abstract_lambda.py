@@ -83,7 +83,6 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
         )
 
     def lock_key(self, key: str):
-        print(f"Locking {key}")
         return self.lock_client.acquire_lock(key)
 
     def get_state(self, key: str):
@@ -133,47 +132,67 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
             full_key: str = f"{operator_name}_{route.key}"
 
             # Lock the key in DynamoDB.
-            start = datetime.datetime.now()
+            start = time.perf_counter()
             if not self.is_request_state(event):
                 lock = self.lock_key(full_key)
             else:
                 lock = None
 
-            end = datetime.datetime.now()
-            delta = end - start
-            print(f"Locking key took {delta.total_seconds() * 1000}ms")
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.current_experiment_data["KEY_LOCKING"] += time_ms
 
-            start = datetime.datetime.now()
+            start = time.perf_counter()
             operator_state = self.get_state(full_key)
-            end = datetime.datetime.now()
-            delta = end - start
-            print(f"Getting state took {delta.total_seconds() * 1000}ms")
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.current_experiment_data["READ_STATE"] += time_ms
 
-            start = datetime.datetime.now()
+            operator.current_experiment_date = self.current_experiment_data
+            operator.class_wrapper.current_experiment_date = (
+                self.current_experiment_data
+            )
             return_event, updated_state = operator.handle(event, operator_state)
-            end = datetime.datetime.now()
-            delta = end - start
-            print(f"Executing event took {delta.total_seconds() * 1000}ms")
 
-            start = datetime.datetime.now()
+            start = time.perf_counter()
             if updated_state is not operator_state:
                 self.save_state(full_key, updated_state)
-            end = datetime.datetime.now()
-            delta = end - start
-            print(f"Saving state took {delta.total_seconds() * 1000}ms")
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.current_experiment_data["WRITE_STATE"] += time_ms
 
+            start = time.perf_counter()
             if lock:
                 lock.release()
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.current_experiment_data["KEY_LOCKING"] += time_ms
             return return_event
 
     def handle_invocation(self, event: Event) -> Route:
+
+        start = time.perf_counter()
         route: Route = self.ingress_router.route(event)
-        print(f"Received and routed event! {event.event_type}")
+        end = time.perf_counter()
+        time_ms = (end - start) * 1000
+        self.current_experiment_data["ROUTING_DURATION"] += time_ms
 
         if route.direction == RouteDirection.INTERNAL:
-            return self.egress_router.route_and_serialize(self.invoke_operator(route))
+            return_event = self.invoke_operator(route)
+
+            start = time.perf_counter()
+            route = self.egress_router.route_and_serialize(return_event)
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.current_experiment_data["ROUTING_DURATION"] += time_ms
+            return route
         elif route.direction == RouteDirection.EGRESS:
-            return self.egress_router.route_and_serialize(route.value)
+            start = time.perf_counter()
+            route = self.egress_router.route_and_serialize(route.value)
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            self.current_experiment_data["ROUTING_DURATION"] += time_ms
+            return route
         else:
             return route
 

@@ -32,6 +32,12 @@ class AWSGatewayClient(StateflowClient):
 
         result = requests.post(self.api_gateway_url, json={"event": event_encoded})
         result_json = result.json()
+
+        if "event" not in result_json:
+            print(result)
+            raise RuntimeError(
+                f"Error while retrieving result from Lambda {result_json}."
+            )
         result_event = base64.b64decode(result_json["event"])
 
         fut = StateflowFuture(

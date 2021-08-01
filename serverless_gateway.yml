@@ -15,7 +15,6 @@ custom:
     usePipenv: false
     slim: true
     noDeploy:
-      - pytest
       - Flask
       - flake8
       - apache-beam

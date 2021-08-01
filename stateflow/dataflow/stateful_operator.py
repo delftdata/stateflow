@@ -35,6 +35,7 @@ class StatefulOperator(Operator):
         self.serializer = serializer
 
         self.client = None
+        self.current_experiment_date = {}
 
     def set_experiment_client(self, client):
         self.client = client
@@ -109,7 +110,7 @@ class StatefulOperator(Operator):
             state = State(self.serializer.deserialize_dict(state))
             end = time.perf_counter()
             time_ms = (end - start) * 1000
-            self.client.add_to_last_row("STATE_SERIALIZATION_DURATION", time_ms)
+            self.current_experiment_date["STATE_SERIALIZATION_DURATION"] += time_ms
         else:  # If state does not exists we can't execute these methods, so we return a KeyNotFound reply.
             return (
                 event.copy(
@@ -131,7 +132,7 @@ class StatefulOperator(Operator):
             serialized_state = self.serializer.serialize_dict(updated_state.get())
             end = time.perf_counter()
             time_ms = (end - start) * 1000
-            self.client.add_to_last_row("STATE_SERIALIZATION_DURATION", time_ms)
+            self.current_experiment_date["STATE_SERIALIZATION_DURATION"] += time_ms
             return return_event, serialized_state
 
         return return_event, updated_state
@@ -292,8 +293,8 @@ class StatefulOperator(Operator):
 
         end = time.perf_counter()
         time_ms = (end - start) * 1000
-        self.client.add_to_last_row(
-            "EXECUTION_GRAPH_TRAVERSAL", time_ms - flow_graph.to_remove
+        self.current_experiment_date["EXECUTION_GRAPH_TRAVERSAL"] += (
+            time_ms - flow_graph.to_remove
         )
         flow_graph.to_remove = 0
 
