@@ -1,4 +1,8 @@
-from overhead_experiment_classes import EntityExecutionGraph1000, stateflow
+from overhead_experiment_classes import (
+    EntityInteractive,
+    EntityExecutionGraph10,
+    stateflow,
+)
 from stateflow.client.aws_gateway_client import AWSGatewayClient
 import time
 from stateflow.client.future import StateflowFailure
@@ -45,17 +49,29 @@ client = AWSGatewayClient(
 
 repetitions = 100
 
-enitity_future: EntityExecutionGraph1000 = EntityExecutionGraph1000()
+others = []
+for i in range(0, 20):
+    other_future: EntityExecutionGraph10 = EntityExecutionGraph10(f"entity-{i}")
+    try:
+        other: EntityExecutionGraph10 = other_future.get()
+    except StateflowFailure:
+        other: EntityExecutionGraph10 = client.find(
+            EntityExecutionGraph10, f"entity-{i}"
+        ).get()
+
+    others.append(other)
+
+enitity_future: EntityInteractive = EntityInteractive()
 try:
-    entity: EntityExecutionGraph1000 = enitity_future.get()
+    entity: EntityInteractive = enitity_future.get()
 except StateflowFailure:
-    entity: EntityExecutionGraph1000 = client.find(
-        EntityExecutionGraph1000, "entityexecutiongraph1000"
+    entity: EntityInteractive = client.find(
+        EntityInteractive, "interactive-entity"
     ).get()
-experiment_id = "AWS_EG_1000"
+experiment_id = "AWS_INTER_20"
 
 for i in range(0, repetitions):
-    fut = entity.execute(entity)
+    fut = entity.execute(others)
     fut.get()
 
     return_event = fut.is_completed
@@ -64,4 +80,4 @@ for i in range(0, repetitions):
     time.sleep(2)
 
 print(experiment)
-experiment.to_csv("aws_lambda_eg_1000.csv")
+experiment.to_csv("aws_lambda_inter_20.csv")

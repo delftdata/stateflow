@@ -107,7 +107,7 @@ class EntityExecutionGraph10:
         self.data = bytearray([1] * 50000)
         self.idd: str = idd
 
-    def execute(self, other: "EntityExecutionGraph10"):
+    def execute(self):
         # Adding 'other' parameters,
         # triggers the function to be split.
         x = 1
