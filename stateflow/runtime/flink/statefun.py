@@ -118,6 +118,9 @@ class StatefunRuntime(Runtime):
             current_experiment_data["EVENT_SERIALIZATION_DURATION"] += time_ms
 
             ingress_route.value.payload.update(current_experiment_data)
+            ingress_route.value.payload["INCOMING_TIMESTAMP"] = round(
+                time.time() * 1000
+            )
 
             ctx.send(
                 message_builder(
@@ -150,14 +153,6 @@ class StatefunRuntime(Runtime):
             self.operators_dict[operator.function_type.get_full_name()] = operator
 
             async def endpoint(ctx: Context, msg: Message):
-                current_experiment_data = {
-                    "STATE_SERIALIZATION_DURATION": 0,
-                    "EVENT_SERIALIZATION_DURATION": 0,
-                    "ROUTING_DURATION": 0,
-                    "ACTOR_CONSTRUCTION": 0,
-                    "EXECUTION_GRAPH_TRAVERSAL": 0,
-                    "STATEFUN": 0,
-                }
                 event_serialized = msg.raw_value()
                 current_state = ctx.storage.state
 
@@ -166,11 +161,40 @@ class StatefunRuntime(Runtime):
                 end = time.perf_counter()
                 time_ms = (end - start) * 1000
 
+                if "STATEFUN" in incoming_event.payload:
+                    current_experiment_data = {
+                        "STATE_SERIALIZATION_DURATION": incoming_event.payload[
+                            "STATE_SERIALIZATION_DURATION"
+                        ],
+                        "EVENT_SERIALIZATION_DURATION": incoming_event.payload[
+                            "EVENT_SERIALIZATION_DURATION"
+                        ],
+                        "ROUTING_DURATION": incoming_event.payload["ROUTING_DURATION"],
+                        "ACTOR_CONSTRUCTION": incoming_event.payload[
+                            "ACTOR_CONSTRUCTION"
+                        ],
+                        "EXECUTION_GRAPH_TRAVERSAL": incoming_event.payload[
+                            "EXECUTION_GRAPH_TRAVERSAL"
+                        ],
+                        "STATEFUN": incoming_event.payload["STATEFUN"],
+                    }
+                else:
+                    current_experiment_data = {
+                        "STATE_SERIALIZATION_DURATION": 0,
+                        "EVENT_SERIALIZATION_DURATION": 0,
+                        "ROUTING_DURATION": 0,
+                        "ACTOR_CONSTRUCTION": 0,
+                        "EXECUTION_GRAPH_TRAVERSAL": 0,
+                        "STATEFUN": 0,
+                    }
+
                 current_experiment_data["EVENT_SERIALIZATION_DURATION"] += time_ms
 
                 incoming_time = round(time.time() * 1000) - incoming_event.payload.pop(
                     "INCOMING_TIMESTAMP"
                 )
+                # print(f"Made a trip in Statefun! This took {incoming_time}.")
+
                 current_experiment_data["STATEFUN"] += incoming_time
 
                 operator = self.operators_dict[ctx.address.typename]

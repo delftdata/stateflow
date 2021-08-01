@@ -1,5 +1,6 @@
 from overhead_experiment_classes import (
-    EntityExecutionGraph1000,
+    EntityInteractive,
+    EntityExecutionGraph10,
     stateflow,
 )
 from stateflow.client.kafka_client import StateflowKafkaClient, StateflowClient
@@ -7,6 +8,7 @@ import time
 from stateflow.client.future import StateflowFailure
 import pandas as pd
 from stateflow.util import statefun_module_generator
+from stateflow.util.dataflow_visualizer import visualize_ref
 
 
 def process_return_event_aws(event, experiment_id, repetition, df) -> pd.DataFrame:
@@ -50,17 +52,32 @@ client: StateflowClient = StateflowKafkaClient(
 
 repetitions = 100
 
-enitity_future: EntityExecutionGraph1000 = EntityExecutionGraph1000()
+others = []
+for i in range(0, 20):
+    other_future: EntityExecutionGraph10 = EntityExecutionGraph10(f"entity-{i}")
+    try:
+        other: EntityExecutionGraph10 = other_future.get()
+    except StateflowFailure:
+        other: EntityExecutionGraph10 = client.find(
+            EntityExecutionGraph10, f"entity-{i}"
+        ).get()
+
+    others.append(other)
+
+
+enitity_future: EntityInteractive = EntityInteractive()
 try:
-    entity: EntityExecutionGraph1000 = enitity_future.get()
+    entity: EntityInteractive = enitity_future.get()
 except StateflowFailure:
-    entity: EntityExecutionGraph1000 = client.find(
-        EntityExecutionGraph1000, "entityexecutiongraph1000"
+    entity: EntityInteractive = client.find(
+        EntityInteractive, "entityinteractive"
     ).get()
-experiment_id = "STATEFUN_1000EG"
+experiment_id = "STATEFUN_20IN"
+
+print(visualize_ref(entity, "execute"))
 
 for i in range(0, repetitions):
-    fut = entity.execute(entity)
+    fut = entity.execute(others)
     fut.get()
 
     return_event = fut.is_completed
@@ -68,4 +85,4 @@ for i in range(0, repetitions):
     print(i)
 
 print(experiment)
-experiment.to_csv("statefun_1000eg.csv")
+experiment.to_csv("statefun_20in.csv")
