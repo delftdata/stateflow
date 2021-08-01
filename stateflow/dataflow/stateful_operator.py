@@ -296,6 +296,9 @@ class StatefulOperator(Operator):
         self.current_experiment_date["EXECUTION_GRAPH_TRAVERSAL"] += (
             time_ms - flow_graph.to_remove
         )
+        print(
+            f"Traversal took {time_ms} - {flow_graph.to_remove} = {time_ms - flow_graph.to_remove}"
+        )
         flow_graph.to_remove = 0
 
         return event, updated_state

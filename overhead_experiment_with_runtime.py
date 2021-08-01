@@ -1,4 +1,4 @@
-from overhead_experiment_classes import Entity100KB, stateflow
+from overhead_experiment_classes import EntityExecutionGraph1000, stateflow
 from stateflow.client.aws_gateway_client import AWSGatewayClient
 import time
 from stateflow.client.future import StateflowFailure
@@ -13,6 +13,7 @@ def process_return_event_aws(event, experiment_id, repetition, df) -> pd.DataFra
         "STATE_SERIALIZATION_DURATION": payload["STATE_SERIALIZATION_DURATION"],
         "EVENT_SERIALIZATION_DURATION": payload["EVENT_SERIALIZATION_DURATION"],
         "ROUTING_DURATION": payload["ROUTING_DURATION"],
+        "EXECUTION_GRAPH_TRAVERSAL": payload["EXECUTION_GRAPH_TRAVERSAL"],
         "ACTOR_CONSTRUCTION": payload["ACTOR_CONSTRUCTION"],
         "KEY_LOCKING": payload["KEY_LOCKING"],
         "READ_STATE": payload["READ_STATE"],
@@ -28,6 +29,7 @@ experiment: pd.DataFrame = pd.DataFrame(
         "STATE_SERIALIZATION_DURATION",
         "EVENT_SERIALIZATION_DURATION",
         "ROUTING_DURATION",
+        "EXECUTION_GRAPH_TRAVERSAL",
         "ACTOR_CONSTRUCTION",
         "KEY_LOCKING",
         "READ_STATE",
@@ -43,15 +45,17 @@ client = AWSGatewayClient(
 
 repetitions = 100
 
-enitity_future: Entity100KB = Entity100KB()
+enitity_future: EntityExecutionGraph1000 = EntityExecutionGraph1000()
 try:
-    entity: Entity100KB = enitity_future.get()
+    entity: EntityExecutionGraph1000 = enitity_future.get()
 except StateflowFailure:
-    entity: Entity100KB = client.find(Entity100KB, "entity100kb").get()
-experiment_id = "AWS_100KB"
+    entity: EntityExecutionGraph1000 = client.find(
+        EntityExecutionGraph1000, "entityexecutiongraph1000"
+    ).get()
+experiment_id = "AWS_EG_1000"
 
 for i in range(0, repetitions):
-    fut = entity.execute()
+    fut = entity.execute(entity)
     fut.get()
 
     return_event = fut.is_completed
@@ -60,4 +64,4 @@ for i in range(0, repetitions):
     time.sleep(2)
 
 print(experiment)
-experiment.to_csv("aws_lambda_100kb.csv")
+experiment.to_csv("aws_lambda_eg_1000.csv")
