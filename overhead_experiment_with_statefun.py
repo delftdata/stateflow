@@ -1,5 +1,5 @@
 from overhead_experiment_classes import (
-    Entity200KB,
+    EntityExecutionGraph1000,
     stateflow,
 )
 from stateflow.client.kafka_client import StateflowKafkaClient, StateflowClient
@@ -22,7 +22,7 @@ def process_return_event_aws(event, experiment_id, repetition, df) -> pd.DataFra
         "EVENT_SERIALIZATION_DURATION": payload["EVENT_SERIALIZATION_DURATION"],
         "ROUTING_DURATION": payload["ROUTING_DURATION"],
         "ACTOR_CONSTRUCTOR": payload["ACTOR_CONSTRUCTION"],
-        # "EXECUTION_GRAPH_TRAVERSAL": payload["EXECUTION_GRAPH_TRAVERSAL"],
+        "EXECUTION_GRAPH_TRAVERSAL": payload["EXECUTION_GRAPH_TRAVERSAL"],
         "STATEFUN": payload["STATEFUN"] + diff,
     }
     return df.append(to_add, ignore_index=True)
@@ -36,7 +36,7 @@ experiment: pd.DataFrame = pd.DataFrame(
         "EVENT_SERIALIZATION_DURATION",
         "ROUTING_DURATION",
         "ACTOR_CONSTRUCTOR",
-        # "EXECUTION_GRAPH_TRAVERSAL",
+        "EXECUTION_GRAPH_TRAVERSAL",
         "STATEFUN",
     ]
 )
@@ -50,15 +50,17 @@ client: StateflowClient = StateflowKafkaClient(
 
 repetitions = 100
 
-enitity_future: Entity200KB = Entity200KB()
+enitity_future: EntityExecutionGraph1000 = EntityExecutionGraph1000()
 try:
-    entity: Entity200KB = enitity_future.get()
+    entity: EntityExecutionGraph1000 = enitity_future.get()
 except StateflowFailure:
-    entity: Entity200KB = client.find(Entity200KB, "entity200kb").get()
-experiment_id = "STATEFUN_200KB"
+    entity: EntityExecutionGraph1000 = client.find(
+        EntityExecutionGraph1000, "entityexecutiongraph1000"
+    ).get()
+experiment_id = "STATEFUN_1000EG"
 
 for i in range(0, repetitions):
-    fut = entity.execute()
+    fut = entity.execute(entity)
     fut.get()
 
     return_event = fut.is_completed
@@ -66,4 +68,4 @@ for i in range(0, repetitions):
     print(i)
 
 print(experiment)
-experiment.to_csv("statefun_200kb.csv")
+experiment.to_csv("statefun_1000eg.csv")
