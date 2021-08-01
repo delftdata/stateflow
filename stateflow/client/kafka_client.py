@@ -91,6 +91,7 @@ class StateflowKafkaClient(StateflowClient):
             # print("Received message: {}".format(msg.value().decode("utf-8")))
 
     def send(self, event: Event, return_type: T = None):
+        event.payload["INCOMING_TIMESTAMP"] = round(time.time() * 1000)
         if not self.statefun_mode:
             self.producer.produce(
                 self.req_topic,

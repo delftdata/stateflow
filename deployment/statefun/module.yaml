@@ -21,25 +21,145 @@ module:
         meta:
           kind: http
         spec:
-          functions: global/Item
+          functions: global/Entity50KB
           urlPathTemplate: http://host-machine:8000/statefun
     - endpoint:
         meta:
           kind: http
         spec:
-          functions: global/Item_create
+          functions: global/Entity50KB_create
           urlPathTemplate: http://host-machine:8000/statefun
     - endpoint:
         meta:
           kind: http
         spec:
-          functions: global/User
+          functions: global/Entity100KB
           urlPathTemplate: http://host-machine:8000/statefun
     - endpoint:
         meta:
           kind: http
         spec:
-          functions: global/User_create
+          functions: global/Entity100KB_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity150KB
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity150KB_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity200KB
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity200KB_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity500KB
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity500KB_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity5MB
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity5MB_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity50MB
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/Entity50MB_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityInteractive
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityInteractive_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityExecutionGraph10
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityExecutionGraph10_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityExecutionGraph100
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityExecutionGraph100_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityExecutionGraph500
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityExecutionGraph500_create
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityExecutionGraph1000
+          urlPathTemplate: http://host-machine:8000/statefun
+    - endpoint:
+        meta:
+          kind: http
+        spec:
+          functions: global/EntityExecutionGraph1000_create
           urlPathTemplate: http://host-machine:8000/statefun
     ingresses:
     - ingress:
@@ -50,23 +170,103 @@ module:
           address: kafka-broker:9093
           consumerGroupId: stateflow-statefun-consumer
           topics:
-          - topic: globals_ping
-            targets:
+          - targets:
+            - global/Entity50KB
+            topic: global_Entity50KB
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity50KB_create
+            topic: global_Entity50KB_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity100KB
+            topic: global_Entity100KB
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity100KB_create
+            topic: global_Entity100KB_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity150KB
+            topic: global_Entity150KB
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity150KB_create
+            topic: global_Entity150KB_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity200KB
+            topic: global_Entity200KB
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity200KB_create
+            topic: global_Entity200KB_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity500KB
+            topic: global_Entity500KB
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity500KB_create
+            topic: global_Entity500KB_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity5MB
+            topic: global_Entity5MB
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity5MB_create
+            topic: global_Entity5MB_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity50MB
+            topic: global_Entity50MB
+            valueType: stateflow/byte_type
+          - targets:
+            - global/Entity50MB_create
+            topic: global_Entity50MB_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityInteractive
+            topic: global_EntityInteractive
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityInteractive_create
+            topic: global_EntityInteractive_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityExecutionGraph10
+            topic: global_EntityExecutionGraph10
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityExecutionGraph10_create
+            topic: global_EntityExecutionGraph10_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityExecutionGraph100
+            topic: global_EntityExecutionGraph100
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityExecutionGraph100_create
+            topic: global_EntityExecutionGraph100_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityExecutionGraph500
+            topic: global_EntityExecutionGraph500
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityExecutionGraph500_create
+            topic: global_EntityExecutionGraph500_create
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityExecutionGraph1000
+            topic: global_EntityExecutionGraph1000
+            valueType: stateflow/byte_type
+          - targets:
+            - global/EntityExecutionGraph1000_create
+            topic: global_EntityExecutionGraph1000_create
+            valueType: stateflow/byte_type
+          - targets:
             - globals/ping
-            valueType: stateflow/byte_type
-          - topic: global_Item
-            targets:
-            - global/Item
-            valueType: stateflow/byte_type
-          - topic: global_Item_create
-            targets:
-            - global/Item_create
-            valueType: stateflow/byte_type
-          - topic: global_User
-            targets:
-            - global/User
-            valueType: stateflow/byte_type
-          - topic: global_User_create
-            targets:
-            - global/User_create
+            topic: globals_ping
             valueType: stateflow/byte_type

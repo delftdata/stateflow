@@ -1,4 +1,4 @@
-from demo_common import stateflow
+from overhead_experiment_classes import stateflow
 from stateflow.runtime.beam_runtime import BeamRuntime, Runtime
 from stateflow.serialization.pickle_serializer import PickleSerializer
 from stateflow.runtime.flink.statefun import StatefunRuntime, web

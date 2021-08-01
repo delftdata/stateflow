@@ -11,6 +11,7 @@ from stateflow.dataflow.dataflow import (
 )
 from statefun import *
 from aiohttp import web
+import time
 
 
 class StatefunRuntime(Runtime):
@@ -76,10 +77,23 @@ class StatefunRuntime(Runtime):
 
         self.stateful_functions.register("globals/ping", ping_endpoint)
 
-    def _route(self, ctx: Context, outgoing_event: Event):
+    def _route(self, ctx: Context, outgoing_event: Event, current_experiment_data):
+        start = time.perf_counter()
         egress_route: Route = self.egress_router.route_and_serialize(outgoing_event)
+        end = time.perf_counter()
+        time_ms = (end - start) * 1000
+        current_experiment_data["ROUTING_DURATION"] += time_ms
+        current_experiment_data["OUTGOING_TIMESTAMP"] = round(time.time() * 1000)
 
         if egress_route.direction == RouteDirection.CLIENT:
+            start = time.perf_counter()
+            self.egress_router.serialize(egress_route.value)
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            current_experiment_data["EVENT_SERIALIZATION_DURATION"] += time_ms
+
+            egress_route.value.payload.update(current_experiment_data)
+
             ctx.send_egress(
                 kafka_egress_message(
                     typename="stateflow/kafka-egress",
@@ -90,9 +104,21 @@ class StatefunRuntime(Runtime):
             )
             return
 
+        start = time.perf_counter()
         ingress_route: Route = self.ingress_router.route(egress_route.value)
+        end = time.perf_counter()
+        time_ms = (end - start) * 1000
+        current_experiment_data["ROUTING_DURATION"] += time_ms
 
         if ingress_route.direction == RouteDirection.INTERNAL:
+            start = time.perf_counter()
+            self.egress_router.serialize(ingress_route.value)
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            current_experiment_data["EVENT_SERIALIZATION_DURATION"] += time_ms
+
+            ingress_route.value.payload.update(current_experiment_data)
+
             ctx.send(
                 message_builder(
                     target_typename=ingress_route.route_name,
@@ -102,6 +128,14 @@ class StatefunRuntime(Runtime):
                 )
             )
         elif ingress_route.direction == RouteDirection.EGRESS:
+            start = time.perf_counter()
+            self.egress_router.serialize(ingress_route.value)
+            end = time.perf_counter()
+            time_ms = (end - start) * 1000
+            current_experiment_data["EVENT_SERIALIZATION_DURATION"] += time_ms
+
+            ingress_route.value.payload.update(current_experiment_data)
+
             ctx.send_egress(
                 kafka_egress_message(
                     typename="stateflow/kafka-egress",
@@ -116,18 +150,41 @@ class StatefunRuntime(Runtime):
             self.operators_dict[operator.function_type.get_full_name()] = operator
 
             async def endpoint(ctx: Context, msg: Message):
+                current_experiment_data = {
+                    "STATE_SERIALIZATION_DURATION": 0,
+                    "EVENT_SERIALIZATION_DURATION": 0,
+                    "ROUTING_DURATION": 0,
+                    "ACTOR_CONSTRUCTION": 0,
+                    "EXECUTION_GRAPH_TRAVERSAL": 0,
+                    "STATEFUN": 0,
+                }
                 event_serialized = msg.raw_value()
                 current_state = ctx.storage.state
-                incoming_event = self.serializer.deserialize_event(event_serialized)
 
-                outgoing_event, updated_state = self.operators_dict[
-                    ctx.address.typename
-                ].handle(incoming_event, current_state)
+                start = time.perf_counter()
+                incoming_event = self.serializer.deserialize_event(event_serialized)
+                end = time.perf_counter()
+                time_ms = (end - start) * 1000
+
+                current_experiment_data["EVENT_SERIALIZATION_DURATION"] += time_ms
+
+                incoming_time = round(time.time() * 1000) - incoming_event.payload.pop(
+                    "INCOMING_TIMESTAMP"
+                )
+                current_experiment_data["STATEFUN"] += incoming_time
+
+                operator = self.operators_dict[ctx.address.typename]
+                operator.current_experiment_date = current_experiment_data
+                operator.class_wrapper.current_experiment_date = current_experiment_data
+
+                outgoing_event, updated_state = operator.handle(
+                    incoming_event, current_state
+                )
 
                 if current_state != updated_state:
                     ctx.storage.state = updated_state
 
-                self._route(ctx, outgoing_event)
+                self._route(ctx, outgoing_event, current_experiment_data)
 
             self.stateful_functions.register(
                 f"{operator.function_type.get_full_name()}",
