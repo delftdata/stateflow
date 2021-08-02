@@ -1,5 +1,6 @@
 from overhead_experiment_classes import (
-    EntityExecutionGraph100,
+    EntityInteractive,
+    EntityExecutionGraph10,
     stateflow,
 )
 from stateflow.client.kafka_client import StateflowKafkaClient, StateflowClient
@@ -46,17 +47,30 @@ client: StateflowClient = StateflowKafkaClient(flow, brokers="localhost:9092")
 
 repetitions = 100
 
-enitity_future: EntityExecutionGraph100 = EntityExecutionGraph100()
+others = []
+for i in range(0, 15):
+    other_future: EntityExecutionGraph10 = EntityExecutionGraph10(f"entity-{i}")
+    try:
+        other: EntityExecutionGraph10 = other_future.get()
+    except StateflowFailure:
+        other: EntityExecutionGraph10 = client.find(
+            EntityExecutionGraph10, f"entity-{i}"
+        ).get()
+
+    others.append(other)
+
+
+enitity_future: EntityInteractive = EntityInteractive()
 try:
-    entity: EntityExecutionGraph100 = enitity_future.get()
+    entity: EntityInteractive = enitity_future.get()
 except StateflowFailure:
-    entity: EntityExecutionGraph100 = client.find(
-        EntityExecutionGraph100, "entityexecutiongraph100"
+    entity: EntityInteractive = client.find(
+        EntityInteractive, "interactive-entity"
     ).get()
-experiment_id = "PYFLINK_500EG"
+experiment_id = "PYFLINK_15IN"
 
 for i in range(0, repetitions):
-    fut = entity.execute(entity)
+    fut = entity.execute(others)
     fut.get()
 
     return_event = fut.is_completed
@@ -66,4 +80,4 @@ for i in range(0, repetitions):
     print(i)
 
 print(experiment)
-experiment.to_csv("pyflink_500eg.csv")
+experiment.to_csv("pyflink_15in.csv")
