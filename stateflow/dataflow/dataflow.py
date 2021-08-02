@@ -58,9 +58,11 @@ class EgressRouter:
         if current_node.typ == EventFlowNode.RETURN:
             if current_node.next == []:
                 event_id = event.event_id
+                pl = event.payload
+                pl.update({"return_results": current_node.get_results()})
+
                 event = event.copy(
-                    event_type=EventType.Reply.SuccessfulInvocation,
-                    payload={"return_results": current_node.get_results()},
+                    event_type=EventType.Reply.SuccessfulInvocation, payload=pl
                 )
                 if self.serialize_on_return:
                     event = self.serialize(event)

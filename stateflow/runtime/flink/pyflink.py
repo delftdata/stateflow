@@ -286,11 +286,12 @@ class FlinkRuntime(Runtime):
                 .map(lambda r: (r.key, r.value))
             )
 
-            init_stream = (
-                operator_stream.filter(lambda r: r[0] is None)
-                .name(f"Filter-Init-{operator.function_type.name}")
-                .process(init_operator)
-                .name(f"Init-{operator.function_type.name}")
+            filter_stream = operator_stream.filter(lambda r: r[0] is None).name(
+                f"Filter-Init-{operator.function_type.name}"
+            )
+
+            init_stream = filter_stream.process(init_operator).name(
+                f"Init-{operator.function_type.name}"
             )
 
             stateful_operator_stream = operator_stream.filter(

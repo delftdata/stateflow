@@ -1,5 +1,5 @@
 from overhead_experiment_classes import (
-    Entity200KB,
+    EntityExecutionGraph100,
     stateflow,
 )
 from stateflow.client.kafka_client import StateflowKafkaClient, StateflowClient
@@ -9,7 +9,7 @@ import pandas as pd
 from stateflow.util import statefun_module_generator
 
 
-def process_return_event_aws(event, experiment_id, repetition, df) -> pd.DataFrame:
+def process_return_event_pyflink(event, experiment_id, repetition, df) -> pd.DataFrame:
     payload = event.payload
 
     return_timestamp = payload["OUTGOING_TIMESTAMP"]
@@ -22,7 +22,7 @@ def process_return_event_aws(event, experiment_id, repetition, df) -> pd.DataFra
         "EVENT_SERIALIZATION_DURATION": payload["EVENT_SERIALIZATION_DURATION"],
         "ROUTING_DURATION": payload["ROUTING_DURATION"],
         "ACTOR_CONSTRUCTOR": payload["ACTOR_CONSTRUCTION"],
-        # "EXECUTION_GRAPH_TRAVERSAL": payload["EXECUTION_GRAPH_TRAVERSAL"],
+        "EXECUTION_GRAPH_TRAVERSAL": payload["EXECUTION_GRAPH_TRAVERSAL"],
         "PYFLINK": payload["PYFLINK"] + diff,
     }
     return df.append(to_add, ignore_index=True)
@@ -36,7 +36,7 @@ experiment: pd.DataFrame = pd.DataFrame(
         "EVENT_SERIALIZATION_DURATION",
         "ROUTING_DURATION",
         "ACTOR_CONSTRUCTOR",
-        # "EXECUTION_GRAPH_TRAVERSAL",
+        "EXECUTION_GRAPH_TRAVERSAL",
         "PYFLINK",
     ]
 )
@@ -46,20 +46,24 @@ client: StateflowClient = StateflowKafkaClient(flow, brokers="localhost:9092")
 
 repetitions = 100
 
-enitity_future: Entity200KB = Entity200KB()
+enitity_future: EntityExecutionGraph100 = EntityExecutionGraph100()
 try:
-    entity: Entity200KB = enitity_future.get()
+    entity: EntityExecutionGraph100 = enitity_future.get()
 except StateflowFailure:
-    entity: Entity200KB = client.find(Entity200KB, "entity200kb").get()
-experiment_id = "PYFLINK_200KB"
+    entity: EntityExecutionGraph100 = client.find(
+        EntityExecutionGraph100, "entityexecutiongraph100"
+    ).get()
+experiment_id = "PYFLINK_500EG"
 
 for i in range(0, repetitions):
-    fut = entity.execute()
+    fut = entity.execute(entity)
     fut.get()
 
     return_event = fut.is_completed
-    experiment = process_return_event_aws(return_event, experiment_id, i, experiment)
+    experiment = process_return_event_pyflink(
+        return_event, experiment_id, i, experiment
+    )
     print(i)
 
 print(experiment)
-experiment.to_csv("pyflink_200kb.csv")
+experiment.to_csv("pyflink_500eg.csv")
