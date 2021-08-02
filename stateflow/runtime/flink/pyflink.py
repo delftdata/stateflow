@@ -31,6 +31,7 @@ from stateflow.dataflow.dataflow import (
 from stateflow.serialization.json_serde import SerDe, JsonSerializer
 from typing import List
 import uuid
+import time
 
 
 class ByteSerializer(SerializationSchema, DeserializationSchema):
@@ -54,7 +55,54 @@ class FlinkIngressRouter(MapFunction):
         self.router = router
 
     def map(self, value) -> Route:
-        route = self.router.parse_and_route(value)
+        start = time.perf_counter()
+        parse = self.router.parse(value)
+        end = time.perf_counter()
+        time_ms_ser = (end - start) * 1000
+
+        start = time.perf_counter()
+        route = self.router.route(parse)
+        end = time.perf_counter()
+        time_ms_route = (end - start) * 1000
+
+        incoming_event = route.value
+
+        if "PYFLINK" in incoming_event.payload:
+            current_experiment_data = {
+                "STATE_SERIALIZATION_DURATION": incoming_event.payload[
+                    "STATE_SERIALIZATION_DURATION"
+                ],
+                "EVENT_SERIALIZATION_DURATION": incoming_event.payload[
+                    "EVENT_SERIALIZATION_DURATION"
+                ],
+                "ROUTING_DURATION": incoming_event.payload["ROUTING_DURATION"],
+                "ACTOR_CONSTRUCTION": incoming_event.payload["ACTOR_CONSTRUCTION"],
+                "EXECUTION_GRAPH_TRAVERSAL": incoming_event.payload[
+                    "EXECUTION_GRAPH_TRAVERSAL"
+                ],
+                "PYFLINK": incoming_event.payload["PYFLINK"],
+            }
+        else:
+            current_experiment_data = {
+                "STATE_SERIALIZATION_DURATION": 0,
+                "EVENT_SERIALIZATION_DURATION": 0,
+                "ROUTING_DURATION": 0,
+                "ACTOR_CONSTRUCTION": 0,
+                "EXECUTION_GRAPH_TRAVERSAL": 0,
+                "PYFLINK": 0,
+            }
+
+        incoming_time = round(time.time() * 1000) - incoming_event.payload.pop(
+            "INCOMING_TIMESTAMP"
+        )
+        current_experiment_data["PYFLINK"] += incoming_time
+        current_experiment_data["INCOMING_TIMESTAMP"] = round(time.time() * 1000)
+
+        current_experiment_data["EVENT_SERIALIZATION_DURATION"] += time_ms_ser
+        current_experiment_data["ROUTING_DURATION"] += time_ms_route
+
+        route.value.payload.update(current_experiment_data)
+
         import logging
 
         logging.info(f"Ingress operator, return route {route}")
@@ -66,7 +114,14 @@ class FlinkEgressRouter(MapFunction):
         self.router = router
 
     def map(self, value: Event) -> Route:
+        start = time.perf_counter()
         route: Route = self.router.route_and_serialize(value)
+        end = time.perf_counter()
+        time_ms = (end - start) * 1000
+        value.payload["ROUTING_DURATION"] += time_ms  # We do it twice to measure it.
+        value.payload["OUTGOING_TIMESTAMP"] = round(time.time() * 1000)
+        route: Route = self.router.route_and_serialize(value)
+
         import logging
 
         logging.info(f"Egress operator, return route {route}")
@@ -101,12 +156,40 @@ class FlinkOperator(KeyedProcessFunction):
         logging.info(
             f"Stateful operator for key {ctx.get_current_key()} with state {self.state.value()}"
         )
+
+        event = value[1]
+
+        current_experiment_data = {
+            "STATE_SERIALIZATION_DURATION": event.payload[
+                "STATE_SERIALIZATION_DURATION"
+            ],
+            "EVENT_SERIALIZATION_DURATION": event.payload[
+                "EVENT_SERIALIZATION_DURATION"
+            ],
+            "ROUTING_DURATION": event.payload["ROUTING_DURATION"],
+            "ACTOR_CONSTRUCTION": event.payload["ACTOR_CONSTRUCTION"],
+            "EXECUTION_GRAPH_TRAVERSAL": event.payload["EXECUTION_GRAPH_TRAVERSAL"],
+            "PYFLINK": event.payload["PYFLINK"],
+        }
+
+        incoming_time = round(time.time() * 1000) - event.payload.pop(
+            "INCOMING_TIMESTAMP"
+        )
+        current_experiment_data["PYFLINK"] += incoming_time
+
+        self.operator.current_experiment_date = current_experiment_data
+        self.operator.class_wrapper.current_experiment_date = current_experiment_data
+
         original_state = self.state.value()
         return_event, updated_state = self.operator.handle(value[1], original_state)
 
-        logging.info(
-            f"Stateful operator, return event {return_event}, updated state {updated_state}"
-        )
+        # logging.info(
+        #     f"Stateful operator, return event {return_event}, updated state {updated_state}"
+        # )
+
+        current_experiment_data["INCOMING_TIMESTAMP"] = round(time.time() * 1000)
+
+        return_event.payload.update(current_experiment_data)
 
         if updated_state is not original_state:
             self.state.update(updated_state)
@@ -132,7 +215,7 @@ class FlinkRuntime(Runtime):
             )
         )
         config.set_integer("python.fn-execution.bundle.time", 1)
-        config.set_integer("python.fn-execution.bundle.size", 5)
+        config.set_integer("python.fn-execution.bundle.size", 1)
 
         import os
 
