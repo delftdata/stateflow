@@ -1142,6 +1142,53 @@ def test_request_state():
     assert request_blocks[1].id == 5
 
 
+# def test_if_no_false():
+#     stateflow.core.clear()
+#
+#     class NoFalseBlock(object):
+#         def __init__(self):
+#             self.x = 0
+#
+#         def execute(self, x: int):
+#             if True:
+#                 if True:
+#                     return x
+#
+#     stateflow.stateflow(NoFalseBlock, parse_file=False)
+#
+#     wrapper = stateflow.core.registered_classes[0]
+#     method_desc = stateflow.core.registered_classes[0].class_desc.get_method_by_name(
+#         "execute"
+#     )
+#
+#     split = Split(
+#         [cls.class_desc for cls in stateflow.core.registered_classes],
+#         stateflow.core.registered_classes,
+#     )
+#
+#     analyzer = SplitAnalyzer(
+#         wrapper.class_desc.class_node,
+#         SplitContext(
+#             split.name_to_descriptor,
+#             wrapper.class_desc.expression_provider,
+#             method_desc.method_node,
+#             method_desc,
+#             stateflow.core.registered_classes[0].class_desc,
+#         ),
+#         method_desc.method_node.body.children,
+#     )
+#
+#     blocks: List[Block] = analyzer.blocks
+#
+#     from stateflow.util import dataflow_visualizer
+#
+#     print(dataflow_visualizer.visualize(blocks, True))
+#     method_desc.split_function(
+#         blocks, wrapper.class_desc.to_function_type().to_address()
+#     )
+#     print(dataflow_visualizer.visualize_flow(method_desc.flow_list))
+
+
 def test_for_loop_items():
     stateflow.core.clear()
 

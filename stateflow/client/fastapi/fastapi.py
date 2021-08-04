@@ -189,6 +189,7 @@ class FastAPIClient(StateflowClient):
 
     def _compute_input_args(self, method_desc: MethodDescriptor) -> str:
         all_args: List[str] = []
+        primitives = ["str", "int", "bytes", ""]
         for name, typ in method_desc.input_desc.get().items():
             is_other_stateful_fun, _ = self._type_is_class(typ)
 
@@ -197,10 +198,12 @@ class FastAPIClient(StateflowClient):
                     all_args.append(f"{name}: List[str] = Query(None)")
                 else:  # We assume it is a singleton.
                     all_args.append(f"{name}: str")
+            elif typ not in primitives:  # We can't generate endpoints for this..
+                return False, ""
             else:
                 all_args.append(f"{name}: {typ}")
 
-        return ", ".join(all_args)
+        return True, ", ".join(all_args)
 
     def create_method_endpoint(
         self, function_type, method_desc: MethodDescriptor, class_desc: ClassDescriptor
@@ -210,7 +213,11 @@ class FastAPIClient(StateflowClient):
             len(method_desc.input_desc.get()) > 0
             or not method_desc.method_name == "__init__"
         ):
-            input_args = self._compute_input_args(method_desc)
+            result, input_args = self._compute_input_args(method_desc)
+
+            if not result:
+                print("We got a non primtive type in the endpoint.. ignore it.")
+                return
 
             input_assign = "\n        ".join(
                 [f"self.{k} = {k}" for k, _ in method_desc.input_desc.get().items()]

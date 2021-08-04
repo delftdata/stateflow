@@ -18,15 +18,22 @@ class AWSGatewayLambdaRuntime(AWSLambdaRuntime):
         self,
         flow: Dataflow,
         table_name="stateflow",
+        gateway: bool = True,
         serializer: SerDe = PickleSerializer(),
         config: Config = Config(region_name="eu-west-1"),
     ):
         super().__init__(flow, table_name, serializer, config)
+        self.gateway = gateway
 
     def handle(self, event, context):
-        event_body = json.loads(event["body"])
-        event_encoded = event_body["event"]
-        event_serialized = base64.b64decode(event_encoded)
+        print(event)
+        if self.gateway:
+            event_body = json.loads(event["body"])
+            event_encoded = event_body["event"]
+            event_serialized = base64.b64decode(event_encoded)
+        else:
+            event_body = event["event"]
+            event_serialized = base64.b64decode(event_body)
 
         parsed_event: Event = self.ingress_router.parse(event_serialized)
         return_route: Route = self.handle_invocation(parsed_event)
