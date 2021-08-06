@@ -11,6 +11,7 @@ from stateflow.client.fastapi.fastapi import (
     EventType,
     T,
 )
+from stateflow.dataflow.dataflow import IngressRouter
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import asyncio
 import uuid
@@ -24,11 +25,17 @@ class KafkaFastAPIClient(FastAPIClient):
         serializer: SerDe = PickleSerializer(),
         timeout: int = 5,
         root: str = "stateflow",
+        statefun_mode: bool = False,
     ):
         super().__init__(flow, serializer, timeout, root)
 
         self.producer: AIOKafkaProducer = None
         self.consumer: AIOKafkaConsumer = None
+
+        self.statefun_mode: bool = statefun_mode
+
+        if self.statefun_mode:
+            self.ingress_router = IngressRouter(self.serializer)
 
     def setup_init(self):
         super().setup_init()
@@ -71,9 +78,28 @@ class KafkaFastAPIClient(FastAPIClient):
         future: StateflowFuture,
         timeout_msg: str = "Event timed out.",
     ):
-        await self.producer.send_and_wait(
-            "client_request", self.serializer.serialize_event(event)
-        )
+
+        if not self.statefun_mode:
+            await self.producer.send_and_wait(
+                "client_request", self.serializer.serialize_event(event)
+            )
+        elif event.event_type == EventType.Request.Ping:
+            await self.producer.send_and_wait(
+                "globals_ping", self.serializer.serialize_event(event)
+            )
+        else:
+            route = self.ingress_router.route(event)
+            topic = route.route_name.replace("/", "_")
+            key = route.key or event.event_id
+
+            if not route.key:
+                topic = topic + "_create"
+
+            await self.producer.send_and_wait(
+                topic,
+                value=self.serializer.serialize_event(event),
+                key=key,
+            )
 
         loop = asyncio.get_running_loop()
         asyncio_future = loop.create_future()
@@ -89,9 +115,24 @@ class KafkaFastAPIClient(FastAPIClient):
             future.complete(result)
 
     async def send(self, event: Event, return_type: T = None):
-        await self.producer.send_and_wait(
-            "client_request", self.serializer.serialize_event(event)
-        )
+        if not self.statefun_mode:
+            await self.producer.send_and_wait(
+                "client_request", self.serializer.serialize_event(event)
+            )
+        else:
+            route = self.ingress_router.route(event)
+            topic = route.route_name.replace("/", "_")
+            key = route.key or event.event_id
+
+            if not route.key:
+                topic = topic + "_create"
+
+            await self.producer.send_and_wait(
+                topic,
+                value=self.serializer.serialize_event(event),
+                key=key,
+            )
+
         loop = asyncio.get_running_loop()
 
         fut = loop.create_future()
