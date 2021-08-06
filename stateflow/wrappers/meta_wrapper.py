@@ -40,7 +40,10 @@ class MetaWrapper(type):
         msc.asynchronous = True
 
     def by_key(msc, key: str):
-        return msc({"__key": key})
+        if msc.asynchronous:
+            return msc.__async_call__(**{"__key": key})
+        else:
+            return msc(**{"__key": key})
 
     async def __async_call__(msc, *args, **kwargs) -> Union[ClassRef, StateflowFuture]:
         if "__key" in kwargs:

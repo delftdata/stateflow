@@ -85,7 +85,9 @@ class KafkaFastAPIClient(FastAPIClient):
             )
         elif event.event_type == EventType.Request.Ping:
             await self.producer.send_and_wait(
-                "globals_ping", self.serializer.serialize_event(event)
+                "globals_ping",
+                self.serializer.serialize_event(event),
+                key=bytes(event.event_id, "utf-8"),
             )
         else:
             route = self.ingress_router.route(event)
@@ -98,7 +100,7 @@ class KafkaFastAPIClient(FastAPIClient):
             await self.producer.send_and_wait(
                 topic,
                 value=self.serializer.serialize_event(event),
-                key=key,
+                key=bytes(key, "utf-8"),
             )
 
         loop = asyncio.get_running_loop()
@@ -130,7 +132,7 @@ class KafkaFastAPIClient(FastAPIClient):
             await self.producer.send_and_wait(
                 topic,
                 value=self.serializer.serialize_event(event),
-                key=key,
+                key=bytes(key, "utf-8"),
             )
 
         loop = asyncio.get_running_loop()
