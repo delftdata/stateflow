@@ -13,6 +13,7 @@ from stateflow.client.fastapi.fastapi import (
     Dict,
 )
 from stateflow.dataflow.dataflow import IngressRouter
+from aiokafka.helpers import create_ssl_context
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import asyncio
 import uuid
@@ -51,7 +52,9 @@ class KafkaFastAPIClient(FastAPIClient):
             if "bootstrap_servers" not in self.producer_config:
                 self.producer_config["bootstrap_servers"] = "localhost:9092"
 
-            self.producer = AIOKafkaProducer(**self.producer_config)
+            self.producer = AIOKafkaProducer(
+                ssl_context=create_ssl_context(), **self.producer_config
+            )
             await self.producer.start()
 
             if "bootstrap_servers" not in self.consumer_config:
@@ -64,7 +67,10 @@ class KafkaFastAPIClient(FastAPIClient):
                 self.producer_config["auto_offset_reset"] = "latest"
 
             self.consumer = AIOKafkaConsumer(
-                "client_reply", loop=asyncio.get_event_loop(), **self.consumer_config
+                "client_reply",
+                ssl_context=create_ssl_context(),
+                loop=asyncio.get_event_loop(),
+                **self.consumer_config
             )
             await self.consumer.start()
             asyncio.create_task(self.consume_forever())
