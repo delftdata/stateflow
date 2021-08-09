@@ -70,7 +70,7 @@ class StateflowKafkaClient(StateflowClient):
             if msg is None:
                 continue
             if msg.error():
-                print("Consumer error: {}".format(msg.error()))
+                # print("Consumer error: {}".format(msg.error()))
                 continue
 
             if msg.key() is None:
@@ -80,7 +80,7 @@ class StateflowKafkaClient(StateflowClient):
                 event = None
                 key = msg.key().decode("utf-8")
 
-            print(f"{key} -> Received message")
+            # print(f"{key} -> Received message")
             if key in self.futures.keys():
                 if not event:
                     event = self.serializer.deserialize_event(msg.value())
@@ -104,7 +104,7 @@ class StateflowKafkaClient(StateflowClient):
 
             if not route.key:
                 topic = topic + "_create"
-            print(f"Sending to {topic} with key {key}")
+            # print(f"Sending to {topic} with key {key}")
 
             self.producer.produce(
                 topic,

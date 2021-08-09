@@ -10,6 +10,7 @@ from stateflow.client.fastapi.fastapi import (
     FunctionType,
     EventType,
     T,
+    Dict,
 )
 from stateflow.dataflow.dataflow import IngressRouter
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
@@ -26,11 +27,16 @@ class KafkaFastAPIClient(FastAPIClient):
         timeout: int = 5,
         root: str = "stateflow",
         statefun_mode: bool = False,
+        producer_config: Dict = {},
+        consumer_config: Dict = {},
     ):
         super().__init__(flow, serializer, timeout, root)
 
         self.producer: AIOKafkaProducer = None
         self.consumer: AIOKafkaConsumer = None
+
+        self.producer_config = producer_config
+        self.consumer_config = consumer_config
 
         self.statefun_mode: bool = statefun_mode
 
@@ -42,15 +48,23 @@ class KafkaFastAPIClient(FastAPIClient):
 
         @self.app.on_event("startup")
         async def setup_kafka():
-            self.producer = AIOKafkaProducer(bootstrap_servers="localhost:9092")
+            if "bootstrap_servers" not in self.producer_config:
+                self.producer_config["bootstrap_servers"] = "localhost:9092"
+
+            self.producer = AIOKafkaProducer(**self.producer_config)
             await self.producer.start()
 
+            if "bootstrap_servers" not in self.consumer_config:
+                self.producer_config["bootstrap_servers"] = "localhost:9092"
+
+            if "group_id" not in self.consumer_config:
+                self.producer_config["group_id"] = str(uuid.uuid4())
+
+            if "auto_offset_reset" not in self.consumer_config:
+                self.producer_config["auto_offset_reset"] = "latest"
+
             self.consumer = AIOKafkaConsumer(
-                "client_reply",
-                loop=asyncio.get_event_loop(),
-                bootstrap_servers="localhost:9092",
-                group_id=str(uuid.uuid4()),
-                auto_offset_reset="latest",
+                "client_reply", loop=asyncio.get_event_loop(), **self.consumer_config
             )
             await self.consumer.start()
             asyncio.create_task(self.consume_forever())
