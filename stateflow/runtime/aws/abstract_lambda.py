@@ -46,7 +46,7 @@ class StateflowRecord(Model):
 
     class Meta:
         table_name = "stateflow"
-        region = "eu-west-1"
+        region = "eu-west-2"
 
     key = UnicodeAttribute(hash_key=True)
     state = BinaryAttribute(null=True)
@@ -58,7 +58,7 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
         flow: Dataflow,
         table_name="stateflow",
         serializer: SerDe = PickleSerializer(),
-        config: Config = Config(region_name="eu-west-1"),
+        config: Config = Config(region_name="eu-west-2"),
     ):
         self.flow: Dataflow = flow
         self.serializer: SerDe = serializer
@@ -83,7 +83,6 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
         )
 
     def lock_key(self, key: str):
-        print(f"Locking {key}")
         return self.lock_client.acquire_lock(key)
 
     def get_state(self, key: str):
@@ -133,34 +132,18 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
             full_key: str = f"{operator_name}_{route.key}"
 
             # Lock the key in DynamoDB.
-            start = datetime.datetime.now()
             if not self.is_request_state(event):
-                lock = self.lock_key(full_key)
+                # lock = self.lock_key(full_key)
+                lock = None
             else:
                 lock = None
 
-            end = datetime.datetime.now()
-            delta = end - start
-            print(f"Locking key took {delta.total_seconds() * 1000}ms")
-
-            start = datetime.datetime.now()
             operator_state = self.get_state(full_key)
-            end = datetime.datetime.now()
-            delta = end - start
-            print(f"Getting state took {delta.total_seconds() * 1000}ms")
 
-            start = datetime.datetime.now()
             return_event, updated_state = operator.handle(event, operator_state)
-            end = datetime.datetime.now()
-            delta = end - start
-            print(f"Executing event took {delta.total_seconds() * 1000}ms")
 
-            start = datetime.datetime.now()
             if updated_state is not operator_state:
                 self.save_state(full_key, updated_state)
-            end = datetime.datetime.now()
-            delta = end - start
-            print(f"Saving state took {delta.total_seconds() * 1000}ms")
 
             if lock:
                 lock.release()
@@ -168,7 +151,6 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
 
     def handle_invocation(self, event: Event) -> Route:
         route: Route = self.ingress_router.route(event)
-        print(f"Received and routed event! {event.event_type}")
 
         if route.direction == RouteDirection.INTERNAL:
             return self.egress_router.route_and_serialize(self.invoke_operator(route))

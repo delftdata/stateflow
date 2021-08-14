@@ -8,17 +8,10 @@ import time
 import datetime
 from stateflow.util import statefun_module_generator
 
-# stateflow.init()
 flow = stateflow.init()
-# client: StateflowClient = AWSGatewayClient(
-#     stateflow.init(),
-# )
 client: StateflowClient = StateflowKafkaClient(
-    flow, brokers="localhost:9092", statefun_mode=True
+    flow, brokers="localhost:9092", statefun_mode=False
 )
-print(statefun_module_generator.generate(flow))
-client.create_all_topics()
-
 client.wait_until_healthy(timeout=10)
 
 
