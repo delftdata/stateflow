@@ -133,7 +133,7 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
 
             # Lock the key in DynamoDB.
             if not self.is_request_state(event):
-                # lock = self.lock_key(full_key)
+                lock = self.lock_key(full_key)
                 lock = None
             else:
                 lock = None
