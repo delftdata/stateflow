@@ -10,6 +10,7 @@ from pyflink.datastream.connectors import (
     FlinkKafkaConsumer,
     FlinkKafkaProducer,
 )
+from typing import Dict
 from pyflink.common import Configuration
 from pyflink.util.java_utils import get_j_env_configuration, get_gateway
 
@@ -37,10 +38,6 @@ class ByteSerializer(SerializationSchema, DeserializationSchema):
     def __init__(self):
         gate_way = get_gateway()
 
-        # j_type_info= Types.PICKLED_BYTE_ARRAY().get_java_type_info()
-        # j_type_serializer= j_type_info.createSerializer(gate_way.jvm.org.apache.flink.api.common.ExecutionConfig())
-        # j_byte_string_schema = gate_way.jvm.org.apache.flink.api.common.serialization.TypeInformationSerializationSchema(j_type_info, j_type_serializer)
-
         j_byte_string_schema = gate_way.jvm.nl.tudelft.stateflow.KafkaBytesSerializer()
 
         SerializationSchema.__init__(self, j_serialization_schema=j_byte_string_schema)
@@ -55,9 +52,6 @@ class FlinkIngressRouter(MapFunction):
 
     def map(self, value) -> Route:
         route = self.router.parse_and_route(value)
-        import logging
-
-        logging.info(f"Ingress operator, return route {route}")
         return route
 
 
@@ -67,9 +61,6 @@ class FlinkEgressRouter(MapFunction):
 
     def map(self, value: Event) -> Route:
         route: Route = self.router.route_and_serialize(value)
-        import logging
-
-        logging.info(f"Egress operator, return route {route}")
         return route
 
 
@@ -80,9 +71,7 @@ class FlinkInitOperator(ProcessFunction):
     def process_element(self, value, ctx: "ProcessFunction.Context"):
         import logging
 
-        logging.info(f"Init operator, value {value}")
         return_event = self.operator.handle_create(value[1])
-        logging.info(f"Init operator, return event {return_event}")
         yield return_event.fun_address.key, return_event
 
 
@@ -96,17 +85,8 @@ class FlinkOperator(KeyedProcessFunction):
         self.state: ValueState = runtime_context.get_state(descriptor)
 
     def process_element(self, value, ctx: KeyedProcessFunction.Context) -> Event:
-        import logging
-
-        logging.info(
-            f"Stateful operator for key {ctx.get_current_key()} with state {self.state.value()}"
-        )
         original_state = self.state.value()
         return_event, updated_state = self.operator.handle(value[1], original_state)
-
-        logging.info(
-            f"Stateful operator, return event {return_event}, updated state {updated_state}"
-        )
 
         if updated_state is not original_state:
             self.state.update(updated_state)
@@ -115,7 +95,19 @@ class FlinkOperator(KeyedProcessFunction):
 
 
 class FlinkRuntime(Runtime):
-    def __init__(self, dataflow: Dataflow, serializer: SerDe = JsonSerializer()):
+    def __init__(
+        self,
+        dataflow: Dataflow,
+        serializer: SerDe = JsonSerializer(),
+        bundle_time: int = 1,
+        bundle_size: int = 5,
+        consumer_config: Dict = {
+            "bootstrap.servers": "localhost:9092",
+            "auto.offset.reset": "latest",
+            "group.id": str(uuid.uuid4()),
+        },
+        producer_config: Dict = {"bootstrap.servers": "localhost:9092"},
+    ):
         super().__init__()
         self.dataflow = dataflow
         self.serializer = serializer
@@ -125,21 +117,22 @@ class FlinkRuntime(Runtime):
 
         self.operators = self.dataflow.operators
         self.pipeline_initialized: bool = False
+        self.consumer_config = consumer_config
+        self.producer_config = producer_config
 
         config = Configuration(
             j_configuration=get_j_env_configuration(
                 self.env._j_stream_execution_environment
             )
         )
-        config.set_integer("python.fn-execution.bundle.time", 1)
-        config.set_integer("python.fn-execution.bundle.size", 5)
+
+        config.set_integer("python.fn-execution.bundle.time", bundle_time)
+        config.set_integer("python.fn-execution.bundle.size", bundle_size)
 
         import os
 
         jar_path = os.path.abspath("bin/flink-sql-connector-kafka_2.11-1.13.0.jar")
-        jar_path_serial = os.path.abspath("bin/flink-kafka-bytes-serializer.jar")
-        print(f"Found jar path {jar_path}")
-        print(f"Found jar path {jar_path_serial}")
+        jar_path_serial = os.path.abspath("bin/flink-kafka-1.8.jar")
         self.env.add_jars(f"file://{jar_path}")
         self.env.add_jars(f"file://{jar_path_serial}")
 
@@ -147,19 +140,14 @@ class FlinkRuntime(Runtime):
         return FlinkKafkaConsumer(
             ["client_request", "internal"],
             ByteSerializer(),
-            {
-                "bootstrap.servers": "localhost:9092",
-                "auto.offset.reset": "latest",
-                "group.id": str(uuid.uuid4()),
-            },
+            self.consumer_config,
         )
 
     def _setup_kafka_producer(self, topic: str) -> FlinkKafkaProducer:
-        kafka_props = {"bootstrap.servers": "localhost:9092"}
         return FlinkKafkaProducer(
             topic,
             ByteSerializer(),
-            kafka_props,
+            self.producer_config,
         )
 
     def _setup_pipeline(self):

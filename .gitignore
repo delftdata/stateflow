@@ -130,3 +130,5 @@ dmypy.json
 .pyre/
 *.serverless/*
 node_modules/*
+
+benchmark/
