@@ -1,6 +1,6 @@
 # StateFlow | Object Oriented Code to Distributed Stateful Dataflows
 [![CI](https://github.com/wzorgdrager/stateful_dataflows/actions/workflows/python-app.yml/badge.svg)](https://github.com/wzorgdrager/stateful_dataflows/actions/workflows/python-app.yml)
-[![codecov](https://codecov.io/gh/wzorgdrager/stateful_dataflows/branch/main/graph/badge.svg)](https://codecov.io/gh/wzorgdrager/stateful_dataflows)
+[![codecov](https://codecov.io/gh/delftdata/stateflow/branch/main/graph/badge.svg?token=AUL4CXQQJX)](https://codecov.io/gh/delftdata/stateflow)
 [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)  
 Tested against Python 3.8. 
 
