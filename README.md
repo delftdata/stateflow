@@ -14,7 +14,7 @@ These dataflows can be executed on different target systems. At the moment, we s
 |   AWS Lambda   |  :white_check_mark: |   :white_check_mark:  |                                                                                 -                                                                                 |
 |   CloudBurst   |         :x:         |          :x:          |                       CloudBurst has never been officially released. Due to missing Docker files and documentation, execution does not work.                      |
 
-Evaluation of StateFlow can be found at [delftdata/stateflow-evaluation](https://github.com/delftdata/stateflow-evaluation).
+An evaluation of StateFlow can be found at [delftdata/stateflow-evaluation](https://github.com/delftdata/stateflow-evaluation).
 ## Features
 - Analysis and transformation of Python classes to distributed stateful dataflows. These dataflows can be ported to cloud services and dataflow systems.
 - Due to the nature of dataflow systems, stateful entities cannot directly interact with each other. Therefore, direct calls to other objects, as done in object-oriented code, does not work in stateful dataflows. StateFlow splits such functions at the AST level to get rid of the remote call.
