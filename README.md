@@ -16,7 +16,7 @@ These dataflows can be executed on different target systems. At the moment, we s
 
 
 ## Features
-- Analysis and transformation of Python classes to distributed stateful dataflows. These dataflows can be ported to cloud applications and dataflow systems.
+- Analysis and transformation of Python classes to distributed stateful dataflows. These dataflows can be ported to cloud services and dataflow systems.
 - Due to the nature of dataflow systems, stateful entities cannot directly interact with each other. Therefore, direct calls to other objects in object-oriented code does not work in stateful dataflow. StateFlow splits such functions at the AST level to get rid of the remote call.
   Instead, stateflow splits a function into several parts such that the dataflow system can move back and forth between the different stateful entities (e.g. dataflow operators).
 - Support for compilation to several (cloud) services including: AWS Lambda, Apache Beam, Flink Statefun and PyFlink.
@@ -123,3 +123,9 @@ To run a (full) demo:
 3. Run ` uvicorn fastapi_client:app`, this will start a FastAPI client on http://localhost:8000 
    being able to interact with actors using Kafka. To find all (generated) endpoints visit http://localhost:8000/docs.
    New endpoints can be added in `fastapi_client.py`.
+
+## Credits
+This repository is part of the research conducted at the [Delft Data lab](http://www.wis.ewi.tudelft.nl/data-management.html).  
+Contributors:
+- [Wouter Zorgdrager](https://github.com/wzorgdrager)
+- [All contributors](https://github.com/delftdata/stateflow/graphs/contributors)
