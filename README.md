@@ -1,8 +1,21 @@
 # StateFlow | Object Oriented Code to Distributed Stateful Dataflows
 [![CI](https://github.com/wzorgdrager/stateful_dataflows/actions/workflows/python-app.yml/badge.svg)](https://github.com/wzorgdrager/stateful_dataflows/actions/workflows/python-app.yml)
 [![codecov](https://codecov.io/gh/delftdata/stateflow/branch/main/graph/badge.svg?token=AUL4CXQQJX)](https://codecov.io/gh/delftdata/stateflow)
-[![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)  
-Tested against Python 3.8. 
+[![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)
+
+StateFlow is a framework which compiles object oriented Python code to distributed stateful dataflows. These dataflows 
+can be executed on different target systems. At the moment, we support the following systems:
+
+|   **Runtime**  | **Local execution** | **Cluster execution** |
+|:--------------:|:-------------------:|-----------------------|
+|     PyFlink    |  :white_check_mark: |   :white_check_mark:  |
+|   Apache Beam  |  :white_check_mark: |          :x:          |
+| Flink Statefun |  :white_check_mark: |   :white_check_mark:  |
+|   AWS Lambda   |  :white_check_mark: |   :white_check_mark:  |
+|   CloudBurst   |         :x:         |          :x:          |
+
+## Walkthrough
+
 
 ## Demo
 To run a demo:
