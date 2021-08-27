@@ -125,7 +125,7 @@ To run a (full) demo:
    New endpoints can be added in `fastapi_client.py`.
 
 ## Credits
-This repository is part of the research conducted at the [Delft Data lab](http://www.wis.ewi.tudelft.nl/data-management.html).  
+This repository is part of the research conducted at the [Delft Data Management Lab](http://www.wis.ewi.tudelft.nl/data-management.html).  
 Contributors:
 - [Wouter Zorgdrager](https://github.com/wzorgdrager)
 - [All contributors](https://github.com/delftdata/stateflow/graphs/contributors)
