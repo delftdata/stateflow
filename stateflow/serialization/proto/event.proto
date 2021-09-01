@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+message FunctionType {
+    string namespace = 1;
+    string name = 2;
+    bool stateful = 3;
+}
+
+message FunctionAddress {
+    FunctionType fun_type = 1;
+    string key = 2;
+}
+
+enum Reply {
+    SuccessfulInvocation = 0;
+    SuccessfulCreateClass = 1;
+
+    FoundClass = 2;
+    KeyNotFound = 3;
+
+    SuccessfulStateRequest = 4;
+    FailedInvocation = 5;
+
+    Pong = 6;
+}
+
+enum Request {
+    InvokeStateless = 0;
+    InvokeStateful = 1;
+    InitClass = 2;
+
+    FindClass = 3;
+
+    GetState = 4;
+    SetState = 5;
+    UpdateState = 6;
+    DeleteState = 7;
+
+    EventFlow = 8;
+
+    Ping = 9;
+}
+
+message EventFlowNode {
+    FunctionAddress current_fun = 5;
+    string current_node_type = 6;
+}
+
+message Event {
+    string event_id = 1;
+    FunctionAddress fun_address = 2;
+    oneof event_type {
+        Request request = 3;
+        Reply reply = 4;
+    }
+    bytes payload = 5;
+    EventFlowNode current = 6;
+}
+
+enum RouteDirection {
+    EGRESS = 0;
+    INTERNAL = 1;
+    CLIENT = 2;
+}
+
+message Route {
+    RouteDirection direction = 1;
+    string route_name = 2;
+    string key = 3;
+
+    oneof value {
+        Event event_value = 4;
+        bytes bytes_value = 5;
+    }
+}
