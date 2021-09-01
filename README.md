@@ -14,11 +14,11 @@ These dataflows can be executed on different target systems. At the moment, we s
 |   AWS Lambda   |  :white_check_mark: |   :white_check_mark:  |                                                                                 -                                                                                 |
 |   CloudBurst   |         :x:         |          :x:          |                       CloudBurst has never been officially released. Due to missing Docker files and documentation, execution does not work.                      |
 
-
+An evaluation of StateFlow can be found at [delftdata/stateflow-evaluation](https://github.com/delftdata/stateflow-evaluation).
 ## Features
 - Analysis and transformation of Python classes to distributed stateful dataflows. These dataflows can be ported to cloud services and dataflow systems.
-- Due to the nature of dataflow systems, stateful entities cannot directly interact with each other. Therefore, direct calls to other objects in object-oriented code does not work in stateful dataflow. StateFlow splits such functions at the AST level to get rid of the remote call.
-  Instead, stateflow splits a function into several parts such that the dataflow system can move back and forth between the different stateful entities (e.g. dataflow operators).
+- Due to the nature of dataflow systems, stateful entities cannot directly interact with each other. Therefore, direct calls to other objects, as done in object-oriented code, does not work in stateful dataflows. StateFlow splits such functions at the AST level to get rid of the remote call.
+  Instead, StateFlow splits a function into several parts such that the dataflow system can move back and forth between the different stateful entities (e.g. dataflow operators).
 - Support for compilation to several (cloud) services including: AWS Lambda, Apache Beam, Flink Statefun and PyFlink.
 - Support for several client-side connectivity services including: Apache Kafka, AWS Kinesis, AWS Gateway. Depending on the runtime system, a compatible client has to be used. 
   A developer can either use StateFlow futures or asyncio to interact with the remote stateful entities.
