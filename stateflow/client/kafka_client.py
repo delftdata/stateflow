@@ -132,25 +132,36 @@ class StateflowKafkaClient(StateflowClient):
 
     def create_all_topics(self):
         admin = AdminClient({"bootstrap.servers": self.brokers})
+        topics_to_create = []
 
-        topics_to_create = [
-            NewTopic("globals_ping", num_partitions=1, replication_factor=1)
-        ]
-        for operator in self.operators:
+        if self.statefun_mode:
             topics_to_create.append(
-                NewTopic(
-                    operator.function_type.get_full_name().replace("/", "_"),
-                    num_partitions=1,
-                    replication_factor=1,
+                NewTopic("globals_ping", num_partitions=1, replication_factor=1)
+            )
+
+            for operator in self.operators:
+                topics_to_create.append(
+                    NewTopic(
+                        operator.function_type.get_full_name().replace("/", "_"),
+                        num_partitions=1,
+                        replication_factor=1,
+                    )
                 )
+                topics_to_create.append(
+                    NewTopic(
+                        f"{operator.function_type.get_full_name().replace('/', '_')}_create",
+                        num_partitions=1,
+                        replication_factor=1,
+                    )
+                )
+        else:
+            topics_to_create.append(
+                NewTopic("internal", num_partitions=1, replication_factor=1)
             )
             topics_to_create.append(
-                NewTopic(
-                    f"{operator.function_type.get_full_name().replace('/', '_')}_create",
-                    num_partitions=1,
-                    replication_factor=1,
-                )
+                NewTopic("client_request", num_partitions=1, replication_factor=1)
             )
+
         topics_to_create.append(
             NewTopic("client_reply", num_partitions=1, replication_factor=1)
         )

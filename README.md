@@ -110,8 +110,9 @@ To run a (full) demo:
    cd deployment
    docker-compose up
    ```
-2. Run `demo_runtime.py`, this will deploy the actor dataflow on Apache Beam. The actors are defined in `demo_common.py`.
-3. Run `demo_client.py`, this will start a client being able to interact with actors.
+2. Run `demo_client.py`, this will start a client being able to interact with stateful entities. 
+   This will also create the appropriate Kafka topics `client_request`, `client_reply`, `internal`.
+3. Run `demo_runtime.py`, this will deploy the stateful dataflow on Apache Beam. The stateful entities are defined in `demo_common.py`.
 
 ## Demo (with FastAPI)
 1. Launch a Kafka cluster  
@@ -119,10 +120,10 @@ To run a (full) demo:
    cd deployment
    docker-compose up
    ```
-2. Run `demo_runtime.py`, this will deploy the actor dataflow on Apache Beam. The actors are defined in `demo_common.py`.
-3. Run ` uvicorn fastapi_client:app`, this will start a FastAPI client on http://localhost:8000 
-   being able to interact with actors using Kafka. To find all (generated) endpoints visit http://localhost:8000/docs.
+2. Run ` uvicorn fastapi_client:app`, this will start a FastAPI client on http://localhost:8000 
+   being able to interact with stateful entities using Kafka. To find all (generated) endpoints visit http://localhost:8000/docs.
    New endpoints can be added in `fastapi_client.py`.
+3. Run `demo_runtime.py`, this will deploy the stateful dataflow on Apache Beam. The stateful entities are defined in `demo_common.py`.
 
 ## Credits
 This repository is part of the research conducted at the [Delft Data Management Lab](http://www.wis.ewi.tudelft.nl/data-management.html).  
