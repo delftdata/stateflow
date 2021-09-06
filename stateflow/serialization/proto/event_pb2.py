@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x0b\x65vent.proto\"A\n\x0c\x46unctionType\x12\x11\n\tnamespace\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08stateful\x18\x03 \x01(\x08\"?\n\x0f\x46unctionAddress\x12\x1f\n\x08\x66un_type\x18\x01 \x01(\x0b\x32\r.FunctionType\x12\x0b\n\x03key\x18\x02 \x01(\t\"?\n\rEventFlowNode\x12\x13\n\x0b\x63urrent_fun\x18\x05 \x01(\t\x12\x19\n\x11\x63urrent_node_type\x18\x06 \x01(\t\"\xb6\x01\n\x05\x45vent\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12%\n\x0b\x66un_address\x18\x02 \x01(\x0b\x32\x10.FunctionAddress\x12\x1b\n\x07request\x18\x03 \x01(\x0e\x32\x08.RequestH\x00\x12\x17\n\x05reply\x18\x04 \x01(\x0e\x32\x06.ReplyH\x00\x12\x0f\n\x07payload\x18\x05 \x01(\x0c\x12\x1f\n\x07\x63urrent\x18\x06 \x01(\x0b\x32\x0e.EventFlowNodeB\x0c\n\nevent_type\"\x8b\x01\n\x05Route\x12\"\n\tdirection\x18\x01 \x01(\x0e\x32\x0f.RouteDirection\x12\x12\n\nroute_name\x18\x02 \x01(\t\x12\x0b\n\x03key\x18\x03 \x01(\t\x12\x1d\n\x0b\x65vent_value\x18\x04 \x01(\x0b\x32\x06.EventH\x00\x12\x15\n\x0b\x62ytes_value\x18\x05 \x01(\x0cH\x00\x42\x07\n\x05value*\x8f\x01\n\x05Reply\x12\x18\n\x14SuccessfulInvocation\x10\x00\x12\x19\n\x15SuccessfulCreateClass\x10\x01\x12\x0e\n\nFoundClass\x10\x02\x12\x0f\n\x0bKeyNotFound\x10\x03\x12\x1a\n\x16SuccessfulStateRequest\x10\x04\x12\x14\n\x10\x46\x61iledInvocation\x10\x05*\xa7\x01\n\x07Request\x12\x13\n\x0fInvokeStateless\x10\x00\x12\x12\n\x0eInvokeStateful\x10\x01\x12\r\n\tInitClass\x10\x02\x12\r\n\tFindClass\x10\x03\x12\x0c\n\x08GetState\x10\x04\x12\x0c\n\x08SetState\x10\x05\x12\x0f\n\x0bUpdateState\x10\x06\x12\x0f\n\x0b\x44\x65leteState\x10\x07\x12\r\n\tEventFlow\x10\x08\x12\x08\n\x04Ping\x10\t*6\n\x0eRouteDirection\x12\n\n\x06\x45GRESS\x10\x00\x12\x0c\n\x08INTERNAL\x10\x01\x12\n\n\x06\x43LIENT\x10\x02\x62\x06proto3')
+  serialized_pb=_b('\n\x0b\x65vent.proto\"A\n\x0c\x46unctionType\x12\x11\n\tnamespace\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x10\n\x08stateful\x18\x03 \x01(\x08\"?\n\x0f\x46unctionAddress\x12\x1f\n\x08\x66un_type\x18\x01 \x01(\x0b\x32\r.FunctionType\x12\x0b\n\x03key\x18\x02 \x01(\t\"Q\n\rEventFlowNode\x12%\n\x0b\x63urrent_fun\x18\x05 \x01(\x0b\x32\x10.FunctionAddress\x12\x19\n\x11\x63urrent_node_type\x18\x06 \x01(\t\"\xb6\x01\n\x05\x45vent\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12%\n\x0b\x66un_address\x18\x02 \x01(\x0b\x32\x10.FunctionAddress\x12\x1b\n\x07request\x18\x03 \x01(\x0e\x32\x08.RequestH\x00\x12\x17\n\x05reply\x18\x04 \x01(\x0e\x32\x06.ReplyH\x00\x12\x0f\n\x07payload\x18\x05 \x01(\x0c\x12\x1f\n\x07\x63urrent\x18\x06 \x01(\x0b\x32\x0e.EventFlowNodeB\x0c\n\nevent_type\"\x8b\x01\n\x05Route\x12\"\n\tdirection\x18\x01 \x01(\x0e\x32\x0f.RouteDirection\x12\x12\n\nroute_name\x18\x02 \x01(\t\x12\x0b\n\x03key\x18\x03 \x01(\t\x12\x1d\n\x0b\x65vent_value\x18\x04 \x01(\x0b\x32\x06.EventH\x00\x12\x15\n\x0b\x62ytes_value\x18\x05 \x01(\x0cH\x00\x42\x07\n\x05value*\x99\x01\n\x05Reply\x12\x18\n\x14SuccessfulInvocation\x10\x00\x12\x19\n\x15SuccessfulCreateClass\x10\x01\x12\x0e\n\nFoundClass\x10\x02\x12\x0f\n\x0bKeyNotFound\x10\x03\x12\x1a\n\x16SuccessfulStateRequest\x10\x04\x12\x14\n\x10\x46\x61iledInvocation\x10\x05\x12\x08\n\x04Pong\x10\x06*\xa7\x01\n\x07Request\x12\x13\n\x0fInvokeStateless\x10\x00\x12\x12\n\x0eInvokeStateful\x10\x01\x12\r\n\tInitClass\x10\x02\x12\r\n\tFindClass\x10\x03\x12\x0c\n\x08GetState\x10\x04\x12\x0c\n\x08SetState\x10\x05\x12\x0f\n\x0bUpdateState\x10\x06\x12\x0f\n\x0b\x44\x65leteState\x10\x07\x12\r\n\tEventFlow\x10\x08\x12\x08\n\x04Ping\x10\t*6\n\x0eRouteDirection\x12\n\n\x06\x45GRESS\x10\x00\x12\x0c\n\x08INTERNAL\x10\x01\x12\n\n\x06\x43LIENT\x10\x02\x62\x06proto3')
 )
 
 _REPLY = _descriptor.EnumDescriptor(
@@ -53,11 +53,15 @@ _REPLY = _descriptor.EnumDescriptor(
       name='FailedInvocation', index=5, number=5,
       serialized_options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='Pong', index=6, number=6,
+      serialized_options=None,
+      type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=540,
-  serialized_end=683,
+  serialized_start=558,
+  serialized_end=711,
 )
 _sym_db.RegisterEnumDescriptor(_REPLY)
 
@@ -111,8 +115,8 @@ _REQUEST = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=686,
-  serialized_end=853,
+  serialized_start=714,
+  serialized_end=881,
 )
 _sym_db.RegisterEnumDescriptor(_REQUEST)
 
@@ -138,8 +142,8 @@ _ROUTEDIRECTION = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=855,
-  serialized_end=909,
+  serialized_start=883,
+  serialized_end=937,
 )
 _sym_db.RegisterEnumDescriptor(_ROUTEDIRECTION)
 
@@ -150,6 +154,7 @@ FoundClass = 2
 KeyNotFound = 3
 SuccessfulStateRequest = 4
 FailedInvocation = 5
+Pong = 6
 InvokeStateless = 0
 InvokeStateful = 1
 InitClass = 2
@@ -258,8 +263,8 @@ _EVENTFLOWNODE = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='current_fun', full_name='EventFlowNode.current_fun', index=0,
-      number=5, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=5, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -283,7 +288,7 @@ _EVENTFLOWNODE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=147,
-  serialized_end=210,
+  serialized_end=228,
 )
 
 
@@ -351,8 +356,8 @@ _EVENT = _descriptor.Descriptor(
       name='event_type', full_name='Event.event_type',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=213,
-  serialized_end=395,
+  serialized_start=231,
+  serialized_end=413,
 )
 
 
@@ -413,11 +418,12 @@ _ROUTE = _descriptor.Descriptor(
       name='value', full_name='Route.value',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=398,
-  serialized_end=537,
+  serialized_start=416,
+  serialized_end=555,
 )
 
 _FUNCTIONADDRESS.fields_by_name['fun_type'].message_type = _FUNCTIONTYPE
+_EVENTFLOWNODE.fields_by_name['current_fun'].message_type = _FUNCTIONADDRESS
 _EVENT.fields_by_name['fun_address'].message_type = _FUNCTIONADDRESS
 _EVENT.fields_by_name['request'].enum_type = _REQUEST
 _EVENT.fields_by_name['reply'].enum_type = _REPLY
