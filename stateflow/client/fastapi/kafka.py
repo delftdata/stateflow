@@ -87,6 +87,9 @@ class KafkaFastAPIClient(FastAPIClient):
         :return:
         """
         async for msg in self.consumer:
+            if msg.key and msg.key.decode("utf-8") not in self.request_map:
+                continue
+
             return_event: Event = self.serializer.deserialize_event(msg.value)
             if return_event.event_id in self.request_map:
                 self.request_map[return_event.event_id].set_result(return_event)

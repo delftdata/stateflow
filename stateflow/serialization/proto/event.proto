@@ -73,3 +73,9 @@ message Route {
         bytes bytes_value = 5;
     }
 }
+
+message EventRequestReply {
+    Event event = 1;
+    bytes state = 2;
+    string operator_name = 3;
+}

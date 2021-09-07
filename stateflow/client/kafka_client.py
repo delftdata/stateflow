@@ -156,14 +156,14 @@ class StateflowKafkaClient(StateflowClient):
                 )
         else:
             topics_to_create.append(
-                NewTopic("internal", num_partitions=1, replication_factor=1)
+                NewTopic("internal", num_partitions=10, replication_factor=1)
             )
             topics_to_create.append(
-                NewTopic("client_request", num_partitions=1, replication_factor=1)
+                NewTopic("client_request", num_partitions=10, replication_factor=1)
             )
 
         topics_to_create.append(
-            NewTopic("client_reply", num_partitions=1, replication_factor=1)
+            NewTopic("client_reply", num_partitions=10, replication_factor=1)
         )
 
         for topic, f in admin.create_topics(topics_to_create).items():

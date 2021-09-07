@@ -1,13 +1,15 @@
 from stateflow.serialization.serde import SerDe, Dict
 from stateflow.dataflow.address import FunctionAddress, FunctionType
 from stateflow.dataflow.event import Event, EventType
+from stateflow.dataflow.state import State
 from stateflow.dataflow.event_flow import EventFlowGraph
 from stateflow.serialization.proto import event_pb2
+from typing import Tuple
 import pickle
 
 
 class ProtoSerializer(SerDe):
-    def serialize_event(self, event: Event) -> str:
+    def event_to_proto(self, event: Event) -> event_pb2.Event:
         proto_event: event_pb2.Event = event_pb2.Event()
 
         # Set id.
@@ -39,26 +41,27 @@ class ProtoSerializer(SerDe):
             current_node = flow_graph.current_node
             current_fun: FunctionAddress = current_node.fun_addr
 
-            proto_event.current.fun_address.key = (
-                current_fun.fun_address.key if current_fun.fun_address.key else ""
+            proto_event.current.current_fun.key = (
+                current_fun.key if current_fun.key else ""
             )
-            proto_event.current.fun_address.fun_type.namespace = (
-                current_fun.fun_address.function_type.namespace
+            proto_event.current.current_fun.fun_type.namespace = (
+                current_fun.function_type.namespace
             )
-            proto_event.current.fun_address.fun_type.name = (
-                current_fun.fun_address.function_type.name
+            proto_event.current.current_fun.fun_type.name = (
+                current_fun.function_type.name
             )
-            proto_event.current.fun_address.fun_type.stateful = (
-                current_fun.fun_address.function_type.stateful
+            proto_event.current.current_fun.fun_type.stateful = (
+                current_fun.function_type.stateful
             )
             proto_event.current.current_node_type = current_node.typ
 
+        return proto_event
+
+    def serialize_event(self, event: Event) -> str:
+        proto_event: event_pb2.Event = self.event_to_proto(event)
         return proto_event.SerializeToString()
 
-    def deserialize_event(self, raw_event: bytes) -> Event:
-        event: event_pb2.Event = event_pb2.Event()
-        event.ParseFromString(raw_event)
-
+    def parse_event(self, event: event_pb2.Event) -> Event:
         event_id = event.event_id
 
         if event.fun_address.key:
@@ -81,9 +84,9 @@ class ProtoSerializer(SerDe):
             )
 
         # Set event type.
-        if event.request:
+        if event.HasField("request"):
             event_type = EventType.Request[event_pb2.Request.Name(event.request)]
-        elif event.reply:
+        elif event.HasField("reply"):
             event_type = EventType.Reply[event_pb2.Reply.Name(event.reply)]
         else:
             raise AttributeError(f"Unknown event type! {event.event_type}")
@@ -91,6 +94,26 @@ class ProtoSerializer(SerDe):
         payload = pickle.loads(event.payload)
 
         return Event(event_id, fun_addr, event_type, payload)
+
+    def deserialize_event(self, raw_event: bytes) -> Event:
+        event: event_pb2.Event = event_pb2.Event()
+        event.ParseFromString(raw_event)
+
+        return self.parse_event(event)
+
+    def deserialize_request(self, raw_request: bytes) -> Tuple[Event, State]:
+        request: event_pb2.EventRequestReply = event_pb2.EventRequestReply()
+        request.ParseFromString(raw_request)
+
+        return self.parse_event(request.event), request.state, request.operator_name
+
+    def serialize_request(self, event: Event, state: bytes) -> bytes:
+        request: event_pb2.EventRequestReply = event_pb2.EventRequestReply()
+        request.event.CopyFrom(self.event_to_proto(event))
+        request.state = state
+        request.operator_name = ""
+
+        return request.SerializeToString()
 
     def serialize_dict(self, dict: Dict) -> bytes:
         return pickle.dumps(dict)
