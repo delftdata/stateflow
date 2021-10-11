@@ -70,7 +70,7 @@ class StateflowKafkaClient(StateflowClient):
             if msg is None:
                 continue
             if msg.error():
-                print("Consumer error: {}".format(msg.error()))
+                # print("Consumer error: {}".format(msg.error()))
                 continue
 
             if msg.key() is None:
@@ -80,7 +80,7 @@ class StateflowKafkaClient(StateflowClient):
                 event = None
                 key = msg.key().decode("utf-8")
 
-            print(f"{key} -> Received message")
+            # print(f"{key} -> Received message")
             if key in self.futures.keys():
                 if not event:
                     event = self.serializer.deserialize_event(msg.value())
@@ -105,7 +105,7 @@ class StateflowKafkaClient(StateflowClient):
 
             if not route.key:
                 topic = topic + "_create"
-            print(f"Sending to {topic} with key {key}")
+            # print(f"Sending to {topic} with key {key}")
 
             self.producer.produce(
                 topic,
@@ -133,27 +133,38 @@ class StateflowKafkaClient(StateflowClient):
 
     def create_all_topics(self):
         admin = AdminClient({"bootstrap.servers": self.brokers})
+        topics_to_create = []
 
-        topics_to_create = [
-            NewTopic("globals_ping", num_partitions=1, replication_factor=1)
-        ]
-        for operator in self.operators:
+        if self.statefun_mode:
             topics_to_create.append(
-                NewTopic(
-                    operator.function_type.get_full_name().replace("/", "_"),
-                    num_partitions=1,
-                    replication_factor=1,
+                NewTopic("globals_ping", num_partitions=1, replication_factor=1)
+            )
+
+            for operator in self.operators:
+                topics_to_create.append(
+                    NewTopic(
+                        operator.function_type.get_full_name().replace("/", "_"),
+                        num_partitions=1,
+                        replication_factor=1,
+                    )
                 )
+                topics_to_create.append(
+                    NewTopic(
+                        f"{operator.function_type.get_full_name().replace('/', '_')}_create",
+                        num_partitions=1,
+                        replication_factor=1,
+                    )
+                )
+        else:
+            topics_to_create.append(
+                NewTopic("internal", num_partitions=10, replication_factor=1)
             )
             topics_to_create.append(
-                NewTopic(
-                    f"{operator.function_type.get_full_name().replace('/', '_')}_create",
-                    num_partitions=1,
-                    replication_factor=1,
-                )
+                NewTopic("client_request", num_partitions=10, replication_factor=1)
             )
+
         topics_to_create.append(
-            NewTopic("client_reply", num_partitions=1, replication_factor=1)
+            NewTopic("client_reply", num_partitions=10, replication_factor=1)
         )
 
         for topic, f in admin.create_topics(topics_to_create).items():

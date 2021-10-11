@@ -1,7 +1,7 @@
 service: stateflow
 provider:
   name: aws
-  region: eu-west-1
+  region: eu-west-2
   runtime: python3.8
   iam:
     role: arn:aws:iam::958167380706:role/stateflow-dev-eu-west-1-lambdaRole
@@ -29,7 +29,14 @@ custom:
       - pytest-timeout
       - apache-flink
       - boto3
+      - apache-flinl-statefun
+      - pyflink
+      - pandas
 functions:
   stateflow:
-    handler: aws_runtime_gateway.handler
+    handler: runtime_aws.handler
     memorySize: 1024 # optional, in MB, default is 1024
+    events:
+      - http:
+          path: stateflow
+          method: post

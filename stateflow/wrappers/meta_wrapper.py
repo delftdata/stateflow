@@ -40,7 +40,10 @@ class MetaWrapper(type):
         msc.asynchronous = True
 
     def by_key(msc, key: str):
-        return msc({"__key": key})
+        if msc.asynchronous:
+            return msc.__async_call__(**{"__key": key})
+        else:
+            return msc(**{"__key": key})
 
     async def __async_call__(msc, *args, **kwargs) -> Union[ClassRef, StateflowFuture]:
         if "__key" in kwargs:
@@ -55,8 +58,8 @@ class MetaWrapper(type):
         event_id: str = str(uuid.uuid4())
 
         # Build arguments.
-        print(args)
-        print(kwargs)
+        # print(args)
+        # print(kwargs)
         args = Arguments.from_args_and_kwargs(
             msc.descriptor.get_method_by_name("__init__").input_desc.get(),
             *args,
@@ -70,7 +73,7 @@ class MetaWrapper(type):
             event_id, fun_address, EventType.Request.InitClass, payload
         )
 
-        print(f"Now sending events with payload {args.get()}")
+        # print(f"Now sending events with payload {args.get()}")
         result = await msc.client.send(create_class_event, msc)
         return result
 

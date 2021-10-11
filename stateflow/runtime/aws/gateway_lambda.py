@@ -21,7 +21,7 @@ class AWSGatewayLambdaRuntime(AWSLambdaRuntime):
         table_name="stateflow",
         gateway: bool = True,
         serializer: SerDe = PickleSerializer(),
-        config: Config = Config(region_name="eu-west-1"),
+        config: Config = Config(region_name="eu-west-2"),
     ):
         super().__init__(flow, table_name, serializer, config)
         self.gateway = gateway

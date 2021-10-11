@@ -134,6 +134,15 @@ def init():
     return flow
 
 
+def service_by_id(cls, service_id: str):
+    from stateflow.dataflow.event_flow import InternalClassRef, FunctionAddress
+
+    for clasz in registered_classes:
+        if clasz.class_desc.class_name == cls.__name__:
+            fun_ty = clasz.class_desc.to_function_type()
+    return InternalClassRef(FunctionAddress(fun_ty, service_id))
+
+
 def clear():
     global parse_cache, registered_classes, meta_classes
     parse_cache.clear()

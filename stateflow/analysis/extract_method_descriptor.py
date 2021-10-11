@@ -71,6 +71,10 @@ class ExtractMethodDescriptor(cst.CSTVisitor):
 
         return signature
 
+    def visit_Lambda(self, node: cst.Lambda):
+        """ Ignore Lambda node, we don't want to analyze its parameters."""
+        return False
+
     def visit_Return(self, node: cst.Return):
         """A Return is visited to extract a method's OutputDescriptor.
 

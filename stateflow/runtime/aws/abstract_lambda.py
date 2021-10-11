@@ -46,7 +46,7 @@ class StateflowRecord(Model):
 
     class Meta:
         table_name = "stateflow"
-        region = "eu-west-1"
+        region = "eu-west-2"
 
     key = UnicodeAttribute(hash_key=True)
     state = BinaryAttribute(null=True)
@@ -58,7 +58,7 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
         flow: Dataflow,
         table_name="stateflow",
         serializer: SerDe = PickleSerializer(),
-        config: Config = Config(region_name="eu-west-1"),
+        config: Config = Config(region_name="eu-west-2"),
     ):
         self.flow: Dataflow = flow
         self.serializer: SerDe = serializer
@@ -132,67 +132,30 @@ class AWSLambdaRuntime(LambdaBase, Runtime):
             full_key: str = f"{operator_name}_{route.key}"
 
             # Lock the key in DynamoDB.
-            start = time.perf_counter()
             if not self.is_request_state(event):
                 lock = self.lock_key(full_key)
+                lock = None
             else:
                 lock = None
 
-            end = time.perf_counter()
-            time_ms = (end - start) * 1000
-            self.current_experiment_data["KEY_LOCKING"] += time_ms
-
-            start = time.perf_counter()
             operator_state = self.get_state(full_key)
-            end = time.perf_counter()
-            time_ms = (end - start) * 1000
-            self.current_experiment_data["READ_STATE"] += time_ms
 
-            operator.current_experiment_date = self.current_experiment_data
-            operator.class_wrapper.current_experiment_date = (
-                self.current_experiment_data
-            )
             return_event, updated_state = operator.handle(event, operator_state)
 
-            start = time.perf_counter()
             if updated_state is not operator_state:
                 self.save_state(full_key, updated_state)
-            end = time.perf_counter()
-            time_ms = (end - start) * 1000
-            self.current_experiment_data["WRITE_STATE"] += time_ms
 
-            start = time.perf_counter()
             if lock:
                 lock.release()
-            end = time.perf_counter()
-            time_ms = (end - start) * 1000
-            self.current_experiment_data["KEY_LOCKING"] += time_ms
             return return_event
 
     def handle_invocation(self, event: Event) -> Route:
-
-        start = time.perf_counter()
         route: Route = self.ingress_router.route(event)
-        end = time.perf_counter()
-        time_ms = (end - start) * 1000
-        self.current_experiment_data["ROUTING_DURATION"] += time_ms
 
         if route.direction == RouteDirection.INTERNAL:
-            return_event = self.invoke_operator(route)
-
-            start = time.perf_counter()
-            route = self.egress_router.route_and_serialize(return_event)
-            end = time.perf_counter()
-            time_ms = (end - start) * 1000
-            self.current_experiment_data["ROUTING_DURATION"] += time_ms
-            return route
+            return self.egress_router.route_and_serialize(self.invoke_operator(route))
         elif route.direction == RouteDirection.EGRESS:
-            start = time.perf_counter()
-            route = self.egress_router.route_and_serialize(route.value)
-            end = time.perf_counter()
-            time_ms = (end - start) * 1000
-            self.current_experiment_data["ROUTING_DURATION"] += time_ms
-            return route
+            return self.egress_router.route_and_serialize(route.value)
         else:
             return route
 

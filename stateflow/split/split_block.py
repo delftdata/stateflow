@@ -426,6 +426,9 @@ class Block:
     def set_label(self, label: str):
         self.label = label
 
+    def __str__(self):
+        return f"Block with id {self.block_id}."
+
 
 class StatementBlock(Block):
     def __init__(

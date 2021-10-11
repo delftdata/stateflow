@@ -45,14 +45,14 @@ def visualize(blocks: List[Block], code=False):
                 color="darkgreen",
                 style="dotted",
             )
-
-            dot.edge(
-                str(b.block_id),
-                str(b.false_block.block_id),
-                label="F",
-                color="crimson",
-                style="dotted",
-            )
+            if b.false_block:
+                dot.edge(
+                    str(b.block_id),
+                    str(b.false_block.block_id),
+                    label="F",
+                    color="crimson",
+                    style="dotted",
+                )
         else:
             for next in b.next_block:
                 dot.edge(str(b.block_id), str(next.block_id))

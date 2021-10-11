@@ -164,7 +164,7 @@ class FancyClass:
         self.x : int = 4
 
     def fun(self, x: int, y: str, z):
-        pass
+        y = lambda t: t
     """
 
     code_tree = cst.parse_module(code)
