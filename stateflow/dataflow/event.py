@@ -65,7 +65,7 @@ class EventType:
 class Event:
     from stateflow.dataflow.args import Arguments
 
-    __slots__ = "event_id", "fun_address", "event_type", "payload"
+    __slots__ = "event_id", "fun_address", "event_type", "payload", "stats"
 
     def __init__(
         self,
@@ -73,11 +73,13 @@ class Event:
         fun_address: FunctionAddress,
         event_type: EventType,
         payload: Dict,
+        stats: Dict = {},
     ):
         self.event_id: str = event_id
         self.fun_address: FunctionAddress = fun_address
         self.event_type: EventType = event_type
         self.payload: Dict = payload
+        self.stats: Dict = state
 
     def get_arguments(self) -> Optional[Arguments]:
         if "args" in self.payload:

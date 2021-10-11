@@ -34,6 +34,7 @@ class ProtoSerializer(SerDe):
             raise AttributeError(f"Unknown event type! {event.event_type}")
 
         proto_event.payload = pickle.dumps(event.payload)
+        proto_event.stats = event.stats
 
         # If we're dealing with event flow:
         if event.event_type == EventType.Request.EventFlow:
@@ -92,8 +93,9 @@ class ProtoSerializer(SerDe):
             raise AttributeError(f"Unknown event type! {event.event_type}")
 
         payload = pickle.loads(event.payload)
+        stats = event.stats
 
-        return Event(event_id, fun_addr, event_type, payload)
+        return Event(event_id, fun_addr, event_type, payload, stats)
 
     def deserialize_event(self, raw_event: bytes) -> Event:
         event: event_pb2.Event = event_pb2.Event()

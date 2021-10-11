@@ -55,6 +55,7 @@ message Event {
     }
     bytes payload = 5;
     EventFlowNode current = 6;
+    map<string, float> stats = 7;
 }
 
 enum RouteDirection {
