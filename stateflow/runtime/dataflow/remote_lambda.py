@@ -51,25 +51,18 @@ class RemoteLambda(LambdaBase, Runtime):
             return event
 
     def handle(self, event, context):
-        print(event)
-        print(base64.b64decode(event["request"]))
         parsed_event, state, operator_name = self.serializer.deserialize_request(
             base64.b64decode(event["request"])
         )
-        print(parsed_event)
-        print(state)
-        print(f"Operator name {operator_name}")
         current_operator: StatefulOperator = self.operators[operator_name]
 
         if (
             parsed_event.event_type == EventType.Request.InitClass
             and not parsed_event.fun_address.key
         ):
-            print(f"init class! {operator_name}")
             return_event = current_operator.handle_create(parsed_event)
             return_state = state
         else:
-            print(f"invoke {operator_name}")
             return_event, return_state = current_operator.handle(parsed_event, state)
             return_event = self._handle_return(return_event)
 
