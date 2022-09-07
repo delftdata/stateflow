@@ -1,11 +1,11 @@
 from typing import List, Optional, ByteString, Union
+from enum import Enum
+from dataclasses import dataclass
+
 from stateflow.dataflow.event import EventType, Event
 from stateflow.dataflow.event_flow import EventFlowGraph, EventFlowNode
 from stateflow.dataflow.address import FunctionType
-from stateflow.descriptors.class_descriptor import ClassDescriptor
 from stateflow.serialization.serde import SerDe
-from enum import Enum
-from dataclasses import dataclass
 
 
 class Operator:
@@ -18,6 +18,9 @@ class Operator:
         self.incoming_edges = incoming_edges
         self.outgoing_edges = outgoing_edges
         self.function_type = function_type
+
+    def __repr__(self):
+        return self.function_type.name + '| ' + self.function_type.namespace + str(self.incoming_edges)
 
 
 class Edge:
@@ -232,7 +235,7 @@ class Dataflow:
 
     def get_descriptor_by_type(
         self, function_type: FunctionType
-    ) -> Optional[ClassDescriptor]:
+    ):
         get_operator = [
             op.class_wrapper.class_desc
             for op in self.operators

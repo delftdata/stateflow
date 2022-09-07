@@ -1,10 +1,8 @@
 import libcst as cst
-from libcst import matchers as m
 from stateflow.split.split_block import (
     SplitContext,
     Use,
     Block,
-    StatementBlock,
     InvocationContext,
     ReplaceCall,
     EventFlowNode,

@@ -23,7 +23,7 @@ class MetaWrapper(type):
     2. Creating a ClientRef based on a created instance.
     """
 
-    def __new__(msc, name, bases, dct, descriptor: ClassDescriptor):
+    def __new__(msc, name, bases, dct, descriptor: ClassDescriptor = None):
         """Constructs a meta-class for a certain class definition.
 
         :param name: name of the original class.

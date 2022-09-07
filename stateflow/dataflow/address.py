@@ -16,6 +16,9 @@ class FunctionType:
     def get_full_name(self):
         return f"{self.namespace}/{self.name}"
 
+    def get_safe_full_name(self):
+        return f"{self.namespace}_{self.name}"
+
     def __eq__(self, other):
         if not isinstance(other, FunctionType):
             return False

@@ -7,6 +7,7 @@ from stateflow.client.future import StateflowFuture, T
 from typing import Optional, Any, Dict
 import threading
 
+import pandas as pd
 import uuid
 from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
@@ -31,6 +32,7 @@ class StateflowKafkaClient(StateflowClient):
         # Producer and consumer.
         self.producer = self._set_producer(brokers)
         self.consumer = self._set_consumer(brokers)
+        self.function_results_consumer = self._set_consumer(brokers)
 
         # Topics are hardcoded now, should be configurable later on.
         self.req_topic = "client_request"
@@ -45,10 +47,21 @@ class StateflowKafkaClient(StateflowClient):
         self.operators = flow.operators
         [op.meta_wrapper.set_client(self) for op in flow.operators]
 
+        self.timestamped_request_ids = {}
         # Start consumer thread.
         self.running = True
         self.consumer_thread = threading.Thread(target=self.start_consuming)
         self.consumer_thread.start()
+
+        self.running_result_consumer = False
+        self.result_consumer_process = threading.Thread(target=self.start_consuming_function_results)
+
+    def start_result_consumer_process(self):
+        self.running_result_consumer = True
+        self.result_consumer_process.start()
+
+    def stop_result_consumer_process(self):
+        self.running_result_consumer = False
 
     def _set_producer(self, brokers: str) -> Producer:
         return Producer({"bootstrap.servers": brokers})
@@ -61,6 +74,24 @@ class StateflowKafkaClient(StateflowClient):
                 "auto.offset.reset": "latest",
             }
         )
+
+    def start_consuming_function_results(self):
+        records = []
+        self.function_results_consumer.subscribe([self.reply_topic])
+
+        while self.running_result_consumer:
+            msg = self.function_results_consumer.poll(0.01)
+            if msg is None:
+                continue
+
+            if msg.error():
+                continue
+            records.append((msg.key().decode("utf-8"), msg.timestamp()[1]))
+        self.function_results_consumer.close()
+        pd.DataFrame.from_records(records, columns=['request_id', 'timestamp']).to_csv('output.csv', index=False)
+
+    def stop_consumer_thread(self):
+        self.running = False
 
     def start_consuming(self):
         self.consumer.subscribe([self.reply_topic])
@@ -86,9 +117,8 @@ class StateflowKafkaClient(StateflowClient):
                     event = self.serializer.deserialize_event(msg.value())
                 self.futures[key].complete(event)
                 del self.futures[key]
-
-            # print(self.futures.keys())
-            # print("Received message: {}".format(msg.value().decode("utf-8")))
+        self.consumer.close()
+        print('Future consumer exited successfully')
 
     def send(self, event: Event, return_type: T = None):
         if not self.statefun_mode:
@@ -111,6 +141,8 @@ class StateflowKafkaClient(StateflowClient):
                 value=self.serializer.serialize_event(event),
                 key=key,
             )
+        if not self.running:
+            self.timestamped_request_ids[event.event_id] = int(round(time.time() * 1000))  # to ms
 
         future = StateflowFuture(
             event.event_id, time.time(), event.fun_address, return_type
@@ -211,3 +243,7 @@ class StateflowKafkaClient(StateflowClient):
                 del self.futures[pong_future.id]
 
         return pong
+
+    def store_request_csv(self):
+        pd.DataFrame(self.timestamped_request_ids.items(),
+                     columns=['request_id', 'timestamp']).to_csv('universalis_client_requests.csv', index=False)
