@@ -36,8 +36,3 @@ services:
     restart: on-failure
     environment:
       PORTS: 8000
-
-networks:
-  default:
-    external: true
-    name: kafka_network

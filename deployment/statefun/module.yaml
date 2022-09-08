@@ -21,25 +21,13 @@ module:
         meta:
           kind: http
         spec:
-          functions: global/Item
+          functions: global/YCSBEntity
           urlPathTemplate: http://host-machine:8000/statefun
     - endpoint:
         meta:
           kind: http
         spec:
-          functions: global/Item_create
-          urlPathTemplate: http://host-machine:8000/statefun
-    - endpoint:
-        meta:
-          kind: http
-        spec:
-          functions: global/User
-          urlPathTemplate: http://host-machine:8000/statefun
-    - endpoint:
-        meta:
-          kind: http
-        spec:
-          functions: global/User_create
+          functions: global/YCSBEntity_create
           urlPathTemplate: http://host-machine:8000/statefun
     ingresses:
     - ingress:
@@ -54,19 +42,11 @@ module:
             targets:
             - globals/ping
             valueType: stateflow/byte_type
-          - topic: global_Item
+          - topic: global_YCSBEntity
             targets:
-            - global/Item
+            - global/YCSBEntity
             valueType: stateflow/byte_type
-          - topic: global_Item_create
+          - topic: global_YCSBEntity_create
             targets:
-            - global/Item_create
-            valueType: stateflow/byte_type
-          - topic: global_User
-            targets:
-            - global/User
-            valueType: stateflow/byte_type
-          - topic: global_User_create
-            targets:
-            - global/User_create
+            - global/YCSBEntity_create
             valueType: stateflow/byte_type
